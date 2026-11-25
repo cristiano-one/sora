@@ -1,0 +1,438 @@
+name: Pipeline
+
+# Fluxo de branches:
+#   feature/* ──PR──> develop ──PR──> main
+#
+#   PRs / Push: valida compose, scripts bash e executa testes automatizados
+#               (unitários, integração e segurança Zero-Leak) quando existirem.
+#   develop:    build automático (tag `develop`) + deploy automático no ambiente
+#               de desenvolvimento (se os secrets DEV_* existirem).
+#   main:       build automático (tag `latest`). NÃO faz deploy — produção é
+#               atualizada manualmente pelo Portainer (Pull and redeploy).
+#   tags:       build imutável (ex.: v1.2.3).
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+    tags:
+      - "v*.*.*"
+  pull_request:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+    inputs:
+      deploy_dev:
+        description: "Forçar deploy no ambiente de desenvolvimento"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ============================================================================
+  # Preflight: tag/canal, detecção de módulos/Dockerfiles e gate de deploy dev
+  # ============================================================================
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    outputs:
+      owner: ${{ steps.vars.outputs.owner }}
+      tag: ${{ steps.vars.outputs.tag }}
+      test_api: ${{ steps.detect.outputs.test_api }}
+      test_web: ${{ steps.detect.outputs.test_web }}
+      test_mobile: ${{ steps.detect.outputs.test_mobile }}
+      build_api: ${{ steps.detect.outputs.api }}
+      build_web: ${{ steps.detect.outputs.web }}
+      services: ${{ steps.detect.outputs.services }}
+      deploy_dev: ${{ steps.gate.outputs.deploy_dev }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Calcular owner e tag
+        id: vars
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            tag="${GITHUB_REF_NAME}"
+          elif [ "${GITHUB_REF_NAME}" = "develop" ]; then
+            tag="develop"
+          else
+            tag="latest"
+          fi
+
+          echo "owner=${owner}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Canal/tag: ${tag}"
+
+      - name: Detectar Módulos e Dockerfiles
+        id: detect
+        run: |
+          if [ -f services/api/pyproject.toml ] || [ -f services/api/requirements.txt ]; then
+            echo "test_api=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "test_api=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -f apps/web/package.json ]; then
+            echo "test_web=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "test_web=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -f apps/mobile/package.json ]; then
+            echo "test_mobile=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "test_mobile=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          services=""
+          if [ -f services/api/Dockerfile ]; then
+            echo "api=true" >> "$GITHUB_OUTPUT"
+            services="api"
+          else
+            echo "api=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -f apps/web/Dockerfile ]; then
+            echo "web=true" >> "$GITHUB_OUTPUT"
+            services="${services:+$services }web"
+          else
+            echo "web=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "services=${services}" >> "$GITHUB_OUTPUT"
+          if [ -z "$services" ]; then
+            echo "::notice::Nenhum Dockerfile encontrado (services/api ou apps/web). Build e deploy serão ignorados."
+          fi
+
+      - name: Gate do deploy de desenvolvimento
+        id: gate
+        env:
+          DEV_HOST: ${{ secrets.DEV_DEPLOY_HOST }}
+          DEV_KEY: ${{ secrets.DEV_DEPLOY_SSH_KEY }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref_name }}
+          FORCE: ${{ inputs.deploy_dev }}
+        run: |
+          should="false"
+          if [ "$EVENT" = "push" ] && [ "$REF" = "develop" ]; then
+            should="true"
+          fi
+          if [ "$EVENT" = "workflow_dispatch" ] && [ "$FORCE" = "true" ]; then
+            should="true"
+          fi
+
+          if [ "$should" = "true" ] && [ -n "$DEV_HOST" ] && [ -n "$DEV_KEY" ] && [ -n "${{ steps.detect.outputs.services }}" ]; then
+            echo "deploy_dev=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy_dev=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Deploy de desenvolvimento desativado (branch/condição ou secrets DEV_* ausentes)."
+          fi
+
+  # ============================================================================
+  # Validação de Infraestrutura (Compose + Scripts Bash)
+  # ============================================================================
+  compose-check:
+    name: Validar Infra & Compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar sintaxe dos scripts Bash
+        run: |
+          for f in infra/scripts/*.sh infra/postgres/init/*.sh; do
+            bash -n "$f"
+          done
+
+      - name: Validar compose de desenvolvimento
+        run: docker compose -f infra/compose/docker-compose.dev.yml config -q
+
+      - name: Validar compose de produção (+ overlay TLS)
+        run: |
+          sed 's/^CF_DNS_API_TOKEN=.*/CF_DNS_API_TOKEN=ci-dummy/' \
+            infra/.env.prod.example > /tmp/prod.env
+          docker compose --env-file /tmp/prod.env \
+            -f infra/compose/docker-compose.prod.yml config -q
+          docker compose --env-file /tmp/prod.env \
+            -f infra/compose/docker-compose.prod.yml \
+            -f infra/compose/docker-compose.tls-dns.yml config -q
+
+  # ============================================================================
+  # Testes e Segurança Zero-Leak — Backend API (FastAPI + PostgreSQL RLS + Redis)
+  # ============================================================================
+  test-api:
+    name: Testes & Segurança Zero-Leak (API)
+    needs: preflight
+    if: needs.preflight.outputs.test_api == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: sora_test
+          POSTGRES_USER: sora
+          POSTGRES_PASSWORD: sora_test_owner_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U sora -d sora_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inicializar role RLS (sora_app com NOBYPASSRLS) no PostgreSQL
+        env:
+          PGPASSWORD: sora_test_owner_password
+          POSTGRES_USER: sora
+          POSTGRES_DB: sora_test
+          POSTGRES_APP_USER: sora_app
+          POSTGRES_APP_PASSWORD: sora_test_app_password
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y --no-install-recommends postgresql-client
+          PGHOST=127.0.0.1 bash infra/postgres/init/01-init-rls-roles.sh
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar uv e dependências
+        working-directory: services/api
+        run: |
+          pip install uv
+          if [ -f pyproject.toml ]; then
+            uv sync --all-extras --dev || uv pip install --system -e ".[dev]"
+          elif [ -f requirements.txt ]; then
+            uv pip install --system -r requirements.txt
+          fi
+
+      - name: Lint, Type-check, Testes Unitários/Integração e Segurança Zero-Leak
+        working-directory: services/api
+        env:
+          APP_ENV: test
+          DATABASE_URL: postgresql+asyncpg://sora_app:sora_test_app_password@127.0.0.1:5432/sora_test
+          MIGRATION_DATABASE_URL: postgresql+asyncpg://sora:sora_test_owner_password@127.0.0.1:5432/sora_test
+          REDIS_URL: redis://127.0.0.1:6379/0
+          APP_SECRET_KEY: test-secret-key-64-chars-minimum-for-ci-pipeline-execution-only
+          JWT_SECRET_KEY: test-jwt-secret-key-64-chars-minimum-for-ci-pipeline-execution
+          ENCRYPTION_KEY: test-encryption-key-64-chars-minimum-for-ci-pipeline-execution
+        run: |
+          uv run ruff check .
+          uv run mypy app
+          uv run pytest -q --cov=app --cov-fail-under=80
+          uv run pytest -q -m security
+
+  # ============================================================================
+  # Testes e Build — Web (Next.js)
+  # ============================================================================
+  test-web:
+    name: Testes & Build (Web)
+    needs: preflight
+    if: needs.preflight.outputs.test_web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      - name: Instalar, Lint, Type-check, Testar e Buildar
+        working-directory: apps/web
+        run: |
+          pnpm install --frozen-lockfile || pnpm install
+          pnpm lint
+          pnpm tsc --noEmit
+          pnpm test
+          pnpm build
+
+  # ============================================================================
+  # Testes — Mobile (React Native / Expo — iOS & Android)
+  # ============================================================================
+  test-mobile:
+    name: Testes & Type-check (Mobile)
+    needs: preflight
+    if: needs.preflight.outputs.test_mobile == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: apps/mobile/pnpm-lock.yaml
+      - name: Instalar, Lint, Type-check e Testar
+        working-directory: apps/mobile
+        run: |
+          pnpm install --frozen-lockfile || pnpm install
+          pnpm lint
+          pnpm tsc --noEmit
+          pnpm test
+
+  # ============================================================================
+  # Build & Push — API
+  # ============================================================================
+  build-api:
+    name: Build API
+    needs: [preflight, compose-check, test-api]
+    if: |
+      always() &&
+      github.event_name != 'pull_request' &&
+      needs.preflight.outputs.build_api == 'true' &&
+      needs.compose-check.result == 'success' &&
+      (needs.test-api.result == 'success' || needs.test-api.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Metadados da imagem
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ needs.preflight.outputs.owner }}/sora-api
+          tags: |
+            type=raw,value=${{ needs.preflight.outputs.tag }}
+            type=sha,format=short,prefix=sha-
+
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/api
+          file: ./services/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+          provenance: true
+          sbom: true
+
+  # ============================================================================
+  # Build & Push — Web
+  # ============================================================================
+  build-web:
+    name: Build Web
+    needs: [preflight, compose-check, test-web]
+    if: |
+      always() &&
+      github.event_name != 'pull_request' &&
+      needs.preflight.outputs.build_web == 'true' &&
+      needs.compose-check.result == 'success' &&
+      (needs.test-web.result == 'success' || needs.test-web.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Metadados da imagem
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ needs.preflight.outputs.owner }}/sora-web
+          tags: |
+            type=raw,value=${{ needs.preflight.outputs.tag }}
+            type=sha,format=short,prefix=sha-
+
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+          provenance: true
+          sbom: true
+
+  # ============================================================================
+  # Deploy automático no ambiente de DESENVOLVIMENTO
+  # (produção é manual via Portainer)
+  # ============================================================================
+  deploy-dev:
+    name: Deploy Desenvolvimento
+    needs: [preflight, build-api, build-web]
+    if: |
+      always() &&
+      needs.preflight.outputs.deploy_dev == 'true' &&
+      (needs.build-api.result == 'success' || needs.build-api.result == 'skipped') &&
+      (needs.build-web.result == 'success' || needs.build-web.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Configurar SSH
+        env:
+          SSH_KEY: ${{ secrets.DEV_DEPLOY_SSH_KEY }}
+          SSH_HOST: ${{ secrets.DEV_DEPLOY_HOST }}
+          KNOWN_HOSTS: ${{ secrets.DEV_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+            chmod 600 ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+            echo "::warning::DEV_DEPLOY_KNOWN_HOSTS não configurado; usando ssh-keyscan (TOFU)."
+          fi
+
+      - name: Executar deploy remoto
+        env:
+          SSH_HOST: ${{ secrets.DEV_DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.DEV_DEPLOY_USER }}
+          SSH_PORT: ${{ secrets.DEV_DEPLOY_PORT || '22' }}
+          DEPLOY_PATH: ${{ secrets.DEV_DEPLOY_PATH || '/opt/sora' }}
+          SERVICES: ${{ needs.preflight.outputs.services }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -p "$SSH_PORT" \
+              -o StrictHostKeyChecking=yes \
+              -o ConnectTimeout=15 \
+              "$SSH_USER@$SSH_HOST" \
+              "cd '$DEPLOY_PATH' && IMAGE_TAG='develop' SERVICES='$SERVICES' bash infra/scripts/deploy.sh"
