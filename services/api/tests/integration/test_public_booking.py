@@ -216,6 +216,7 @@ async def test_context_exposes_only_public_data(
         "tenant_name",
         "tenant_slug",
         "client_name",
+        "theme_primary_color",
         "services",
         "professionals",
         "plans",

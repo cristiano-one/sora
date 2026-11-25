@@ -105,6 +105,10 @@ class Appointment(Base):
         Numeric(12, 2),
         nullable=True,
     )
+    deposit_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),

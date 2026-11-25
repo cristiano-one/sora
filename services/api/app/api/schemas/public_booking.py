@@ -48,6 +48,7 @@ class PublicContextResponse(BaseModel):
     tenant_name: str
     tenant_slug: str
     client_name: str | None
+    theme_primary_color: str
     services: list[PublicServiceResponse]
     professionals: list[PublicProfessionalResponse]
     plans: list[PublicSubscriptionPlanResponse]

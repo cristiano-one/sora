@@ -2,9 +2,21 @@
 
 import enum
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, Enum, String, func, text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,6 +54,64 @@ class Tenant(Base):
         nullable=False,
         default=True,
         server_default=text("true"),
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class TenantSettings(Base):
+    """Configurações de sinal, score e identidade visual da clínica."""
+
+    __tablename__ = "tenant_settings"
+    __table_args__ = (
+        CheckConstraint(
+            "deposit_score_threshold IS NULL OR "
+            "(deposit_score_threshold >= 0 AND deposit_score_threshold <= 100)",
+            name="ck_tenant_settings_deposit_score_threshold",
+        ),
+        CheckConstraint(
+            "deposit_amount_low_score IS NULL OR deposit_amount_low_score >= 0",
+            name="ck_tenant_settings_deposit_amount_low_score",
+        ),
+        CheckConstraint(
+            "theme_primary_color ~ '^#[0-9A-Fa-f]{6}$'",
+            name="ck_tenant_settings_theme_color",
+        ),
+    )
+
+    tenant_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    deposit_score_threshold: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    deposit_amount_low_score: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2),
+        nullable=True,
+    )
+    theme_primary_color: Mapped[str] = mapped_column(
+        String(7),
+        nullable=False,
+        default="#4f46e5",
+        server_default=text("'#4f46e5'"),
+    )
+    agent_name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        default="Sora",
+        server_default=text("'Sora'"),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

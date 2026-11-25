@@ -7,6 +7,7 @@ pytestmark = [pytest.mark.security, pytest.mark.integration]
 
 RLS_TABLES = {
     "tenants",
+    "tenant_settings",
     "users",
     "services",
     "packages",

@@ -16,7 +16,7 @@ from app.models.subscription_plan import (
     SubscriptionPlan,
     SubscriptionPlanItem,
 )
-from app.models.tenant import TaxRegime, Tenant
+from app.models.tenant import TaxRegime, Tenant, TenantSettings
 from app.models.user import CommissionBase, User, UserRole
 
 __all__ = [
@@ -41,6 +41,7 @@ __all__ = [
     "SubscriptionUsage",
     "TaxRegime",
     "Tenant",
+    "TenantSettings",
     "User",
     "UserRole",
 ]
