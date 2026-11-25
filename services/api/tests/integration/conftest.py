@@ -1,17 +1,23 @@
-"""Fixtures de integração com PostgreSQL real (testcontainers + RLS)."""
+"""Fixtures de integração com PostgreSQL e Redis reais (testcontainers)."""
 
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID, uuid4
 
+import httpx
 import pytest
 from alembic import command
 from alembic.config import Config
-from app.db.session import create_engine, create_session_factory
+from app.core.auth.security import hash_password
+from app.core.redis import create_redis, get_redis
+from app.db.session import create_engine, create_session_factory, get_session
+from app.main import app
 from app.models import Tenant, User, UserRole
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from testcontainers.community.postgres import PostgresContainer
+from testcontainers.community.redis import RedisContainer
 
 API_DIR = Path(__file__).resolve().parents[2]
 REPO_ROOT = API_DIR.parents[1]
@@ -26,6 +32,18 @@ class SeededData:
     tenant_b: UUID
     user_a: UUID
     user_b: UUID
+
+
+@dataclass(frozen=True)
+class AuthUser:
+    """Credenciais e IDs de um usuário criado para os testes de auth."""
+
+    tenant_id: UUID
+    tenant_slug: str
+    user_id: UUID
+    email: str
+    password: str
+    role: UserRole
 
 
 @pytest.fixture(scope="session")
@@ -60,6 +78,21 @@ def database_urls(postgres_container) -> dict[str, str]:
 
 
 @pytest.fixture(scope="session")
+def redis_container() -> Iterator[RedisContainer]:
+    """Sobe um Redis 7 real para os testes de sessão/tokens."""
+    container = RedisContainer("redis:7-alpine")
+    with container:
+        yield container
+
+
+@pytest.fixture(scope="session")
+def redis_url(redis_container) -> str:
+    host = redis_container.get_container_host_ip()
+    port = redis_container.get_exposed_port(6379)
+    return f"redis://{host}:{port}/0"
+
+
+@pytest.fixture(scope="session")
 def migrated_database(database_urls) -> Iterator[None]:
     """Aplica todas as migrations Alembic no banco de teste (uma vez por sessão)."""
     config = Config(str(API_DIR / "alembic.ini"))
@@ -86,6 +119,40 @@ async def app_session(app_engine) -> AsyncIterator[AsyncSession]:
 
 
 @pytest.fixture
+async def test_redis(redis_url) -> AsyncIterator[Redis]:
+    """Cliente Redis do teste, com o banco limpo antes de cada caso."""
+    client = create_redis(redis_url)
+    await client.flushdb()
+    yield client
+    await client.aclose()
+
+
+@pytest.fixture
+async def auth_client(app_engine, test_redis) -> AsyncIterator[httpx.AsyncClient]:
+    """Cliente HTTP com banco/Redis de teste injetados via dependency_overrides."""
+
+    async def override_get_session() -> AsyncIterator[AsyncSession]:
+        factory = create_session_factory(app_engine)
+        async with factory() as session:
+            yield session
+
+    async def override_get_redis() -> Redis:
+        return test_redis
+
+    app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[get_redis] = override_get_redis
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            yield client
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+        app.dependency_overrides.pop(get_redis, None)
+
+
+@pytest.fixture
 async def seeded(migrated_database, database_urls) -> SeededData:
     """Cria dois tenants e um OWNER em cada um, usando o owner (bypass RLS)."""
     suffix = uuid4().hex[:8]
@@ -106,7 +173,7 @@ async def seeded(migrated_database, database_urls) -> SeededData:
                 User(
                     id=data.user_a,
                     tenant_id=data.tenant_a,
-                    email=f"owner-a-{suffix}@test.local",
+                    email=f"owner-a-{suffix}@example.com",
                     hashed_password="x",
                     full_name="Owner A",
                     role=UserRole.OWNER,
@@ -114,12 +181,48 @@ async def seeded(migrated_database, database_urls) -> SeededData:
                 User(
                     id=data.user_b,
                     tenant_id=data.tenant_b,
-                    email=f"owner-b-{suffix}@test.local",
+                    email=f"owner-b-{suffix}@example.com",
                     hashed_password="x",
                     full_name="Owner B",
                     role=UserRole.OWNER,
                 ),
             ]
+        )
+        await session.commit()
+    await engine.dispose()
+
+    return data
+
+
+@pytest.fixture
+async def auth_user(migrated_database, database_urls) -> AuthUser:
+    """Cria um tenant e um OWNER com senha real (hash Argon2)."""
+    suffix = uuid4().hex[:8]
+    password = "senha-forte-123"
+    data = AuthUser(
+        tenant_id=uuid4(),
+        tenant_slug=f"clinica-auth-{suffix}",
+        user_id=uuid4(),
+        email=f"owner-auth-{suffix}@example.com",
+        password=password,
+        role=UserRole.OWNER,
+    )
+
+    engine = create_engine(database_urls["owner"])
+    factory = create_session_factory(engine)
+    async with factory() as session:
+        session.add(
+            Tenant(id=data.tenant_id, name="Clínica Auth", slug=data.tenant_slug)
+        )
+        session.add(
+            User(
+                id=data.user_id,
+                tenant_id=data.tenant_id,
+                email=data.email,
+                hashed_password=hash_password(password),
+                full_name="Owner Auth",
+                role=data.role,
+            )
         )
         await session.commit()
     await engine.dispose()

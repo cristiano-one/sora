@@ -47,16 +47,20 @@ async def _drop_database(owner_url: str) -> None:
         await connection.close()
 
 
-async def _schema(owner_url: str) -> tuple[set[str], set[str]]:
+async def _schema(owner_url: str) -> tuple[set[str], set[str], set[str]]:
     connection = await _connect(owner_url, database=MIGRATION_DB_NAME)
     try:
         tables = await connection.fetch(
             "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
         )
         enums = await connection.fetch("SELECT typname FROM pg_type WHERE typtype = 'e'")
+        functions = await connection.fetch(
+            "SELECT proname FROM pg_proc WHERE proname = 'resolve_tenant_id_by_slug'"
+        )
         return (
             {row["tablename"] for row in tables},
             {row["typname"] for row in enums},
+            {row["proname"] for row in functions},
         )
     finally:
         await connection.close()
@@ -76,18 +80,21 @@ def test_migrations_upgrade_and_downgrade(database_urls) -> None:
 
     try:
         command.upgrade(config, "head")
-        tables, enums = asyncio.run(_schema(owner_url))
+        tables, enums, functions = asyncio.run(_schema(owner_url))
         assert {"tenants", "users"} <= tables
         assert "user_role" in enums
+        assert "resolve_tenant_id_by_slug" in functions
 
         command.downgrade(config, "base")
-        tables, enums = asyncio.run(_schema(owner_url))
+        tables, enums, functions = asyncio.run(_schema(owner_url))
         assert "tenants" not in tables
         assert "users" not in tables
         assert "user_role" not in enums
+        assert "resolve_tenant_id_by_slug" not in functions
 
         command.upgrade(config, "head")
-        tables, _ = asyncio.run(_schema(owner_url))
+        tables, _, functions = asyncio.run(_schema(owner_url))
         assert {"tenants", "users"} <= tables
+        assert "resolve_tenant_id_by_slug" in functions
     finally:
         asyncio.run(_drop_database(owner_url))
