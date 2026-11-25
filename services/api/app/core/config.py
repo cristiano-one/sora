@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     app_debug: bool = True
     log_level: str = "DEBUG"
     api_v1_prefix: str = "/api/v1"
+    default_tenant_timezone: str = "America/Sao_Paulo"
 
     # Infraestrutura (portas do HOST do compose de dev; ver .env.example)
     database_url: str = "postgresql+asyncpg://sora_app:sora_app_dev_only@127.0.0.1:5433/sora"
