@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.routes.agenda import router as agenda_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.catalog import router as catalog_router
 from app.api.routes.clients import router as clients_router
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
     application.include_router(users_router, prefix=settings.api_v1_prefix)
     application.include_router(catalog_router, prefix=settings.api_v1_prefix)
     application.include_router(clients_router, prefix=settings.api_v1_prefix)
+    application.include_router(agenda_router, prefix=settings.api_v1_prefix)
 
     return application
 

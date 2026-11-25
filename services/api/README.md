@@ -88,6 +88,19 @@ cotas por ciclo, intervalo mínimo e dias da semana permitidos.
 Ações sensíveis gravam `AuditLog` append-only (UPDATE/DELETE revogados para
 `sora_app`). O score e o bloqueio são confidenciais da clínica.
 
+## Agenda (Fase 2)
+
+- `POST /api/v1/appointments` — cria com **lock Redis** + **`EXCLUDE USING gist`**
+  (anti-`double booking`).
+- `GET /api/v1/appointments?from_date=&to_date=&collaborator_id=` —
+  `COLLABORATOR` vê apenas a própria agenda.
+- `GET/PATCH /api/v1/appointments/{id}` — consulta, reagenda, cancela e muda status.
+- `GET /api/v1/agenda/availability?service_id=&date=&collaborator_id=` —
+  horários livres sem revelar agendamentos de terceiros.
+
+O intervalo ocupado inclui `duration_minutes + buffer_minutes`. Cancelar/expirar
+libera o slot.
+
 ## Testes de integração
 
 Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**

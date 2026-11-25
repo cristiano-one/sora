@@ -92,6 +92,7 @@ def test_migrations_upgrade_and_downgrade(database_urls) -> None:
         "medical_records",
         "medical_record_attachments",
         "audit_logs",
+        "appointments",
     }
     expected_enums = {
         "user_role",
@@ -99,6 +100,7 @@ def test_migrations_upgrade_and_downgrade(database_urls) -> None:
         "commission_base",
         "billing_cycle",
         "client_score_rating",
+        "appointment_status",
     }
 
     try:

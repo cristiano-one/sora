@@ -1,5 +1,6 @@
 """Modelos ORM da aplicação."""
 
+from app.models.appointment import Appointment, AppointmentStatus
 from app.models.audit import AuditLog
 from app.models.client import Client, ClientScoreEvent, ClientScoreRating, LgpdConsent
 from app.models.medical_record import MedicalRecord, MedicalRecordAttachment
@@ -14,6 +15,8 @@ from app.models.tenant import TaxRegime, Tenant
 from app.models.user import CommissionBase, User, UserRole
 
 __all__ = [
+    "Appointment",
+    "AppointmentStatus",
     "AuditLog",
     "BillingCycle",
     "Client",
