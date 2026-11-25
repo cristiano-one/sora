@@ -1,0 +1,45 @@
+# ==============================================================================
+# Mobile — Sora App (apps/mobile) — Expo / React Native (iOS + Android)
+# ==============================================================================
+# Este arquivo complementa o .gitignore da raiz do monorepo.
+
+node_modules/
+.pnpm-store/
+
+# Expo
+.expo/
+.expo-shared/
+expo-env.d.ts
+dist/
+web-build/
+.metro-health-check*
+
+# Native gerado por `expo prebuild` (CNG)
+# Remova as 2 linhas abaixo se o projeto passar a versionar pastas nativas.
+/ios/
+/android/
+
+# Builds e artefatos assinados (NUNCA versionar)
+*.jks
+*.keystore
+!debug.keystore
+*.mobileprovision
+*.p8
+*.p12
+*.cer
+*.ipa
+*.apk
+*.aab
+*.hprof
+*.jsbundle
+eas-build-local.json
+!eas.json
+
+# Testes
+coverage/
+.nyc_output/
+
+# Variáveis locais
+.env
+.env.*
+!.env.example

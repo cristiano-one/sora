@@ -1,0 +1,53 @@
+# ==============================================================================
+# Backend Python — Sora API (services/api)
+# ==============================================================================
+# Este arquivo complementa o .gitignore da raiz do monorepo.
+
+# Bytecode e cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Ambientes virtuais
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# Builds e pacotes
+build/
+dist/
+wheels/
+*.egg-info/
+*.egg
+.eggs/
+
+# Testes, cobertura e qualidade
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pyre/
+.pytype/
+bandit-report.json
+
+# Artefatos de migrations / banco local
+*.sqlite3
+*.db
+!sora.db.example
+alembic/versions/*.py.bak
+
+# Logs e temporários
+*.log
+logs/
+tmp/
