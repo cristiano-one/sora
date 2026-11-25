@@ -1,0 +1,30 @@
+# ==============================================================================
+# Traefik v3 — Configuração dinâmica de DESENVOLVIMENTO
+# ==============================================================================
+# Roteia domínios sora.localhost e *.sora.localhost para os apps rodando no HOST
+# (uvicorn na 8000 e Next.js na 3000).
+
+http:
+  routers:
+    dev-api:
+      rule: "Host(`api.sora.localhost`)"
+      entryPoints:
+        - web
+      service: dev-api
+
+    dev-web:
+      rule: "Host(`sora.localhost`) || Host(`app.sora.localhost`) || HostRegexp(`^[a-z0-9-]+[.]sora[.]localhost$`)"
+      entryPoints:
+        - web
+      service: dev-web
+
+  services:
+    dev-api:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8000"
+
+    dev-web:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3000"

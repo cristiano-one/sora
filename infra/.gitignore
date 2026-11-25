@@ -1,0 +1,28 @@
+# ==============================================================================
+# Infra — Traefik / Docker (infra/)
+# ==============================================================================
+# Este arquivo complementa o .gitignore da raiz do monorepo.
+
+# Certificados ACME gerados em runtime (NUNCA versionar)
+traefik/acme/
+traefik/acme.json
+acme.json
+*.crt
+*.csr
+*.srl
+
+# Overrides locais de compose
+docker-compose.override.yml
+
+# Dados persistentes e volumes locais
+data/
+volumes/
+backups/
+
+# Segredos
+.env
+.env.*
+!.env.prod.example
+.ghcr-token
+*.pem
+*.key
