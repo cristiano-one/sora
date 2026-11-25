@@ -132,7 +132,7 @@ async def create_client_subscription_endpoint(
     except SubscriptionConflictError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Cliente já possui este plano ativo",
+            detail="Cliente já possui assinatura ativa",
         ) from exc
     return await subscription_response(session, subscription)
 
