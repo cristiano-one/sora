@@ -9,6 +9,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.agenda import AvailabilityResponse
+from app.api.schemas.payments import PublicPaymentConfirmResponse
 from app.api.schemas.public_booking import (
     MagicLinkRequest,
     MagicLinkResponse,
@@ -25,14 +26,17 @@ from app.core.redis import get_redis
 from app.db.session import get_session
 from app.modules.agenda.public_service import (
     InvalidMagicLinkError,
+    PaymentNotFoundError,
     PublicBookingConflictError,
     PublicBookingError,
     PublicTenantNotFoundError,
     create_magic_link,
     get_public_context,
     public_availability,
+    public_confirm_mock_payment,
     public_create_appointment,
     public_create_subscription,
+    public_get_payment,
 )
 from app.modules.agenda.service import (
     AgendaBusyError,
@@ -62,6 +66,11 @@ def _map_public_error(exc: Exception) -> HTTPException:
         return HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Clínica não encontrada",
+        )
+    if isinstance(exc, PaymentNotFoundError):
+        return HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pagamento não encontrado",
         )
     if isinstance(exc, PublicBookingConflictError):
         return HTTPException(
@@ -198,6 +207,65 @@ async def public_create_subscription_endpoint(
         PublicTenantNotFoundError,
         PublicBookingError,
         PublicBookingConflictError,
+    ) as exc:
+        raise _map_public_error(exc) from exc
+
+
+@router.get(
+    "/{slug}/payments/{payment_id}",
+    response_model=PublicPaymentConfirmResponse,
+    summary="Consulta o status do próprio pagamento Pix",
+)
+async def public_payment_status_endpoint(
+    slug: str,
+    payment_id: UUID,
+    t: str = Query(...),
+    session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> PublicPaymentConfirmResponse:
+    try:
+        return await public_get_payment(
+            session,
+            redis,
+            slug=slug,
+            token=t,
+            payment_id=payment_id,
+        )
+    except (
+        InvalidMagicLinkError,
+        PublicTenantNotFoundError,
+        PublicBookingError,
+        PaymentNotFoundError,
+    ) as exc:
+        raise _map_public_error(exc) from exc
+
+
+@router.post(
+    "/{slug}/payments/{payment_id}/mock-confirm",
+    response_model=PublicPaymentConfirmResponse,
+    summary="Confirma o Pix no provider mock (somente dev)",
+)
+async def public_payment_mock_confirm_endpoint(
+    slug: str,
+    payment_id: UUID,
+    t: str = Query(...),
+    session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> PublicPaymentConfirmResponse:
+    try:
+        return await public_confirm_mock_payment(
+            session,
+            redis,
+            slug=slug,
+            token=t,
+            payment_id=payment_id,
+        )
+    except (
+        InvalidMagicLinkError,
+        PublicTenantNotFoundError,
+        PublicBookingError,
+        PublicBookingConflictError,
+        PaymentNotFoundError,
     ) as exc:
         raise _map_public_error(exc) from exc
 

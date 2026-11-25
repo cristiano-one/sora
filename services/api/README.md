@@ -149,6 +149,18 @@ ativa** por vez.
 - `PENDING_DEPOSIT` carrega `deposit_expires_at` (10 min). A expiração é aplicada
   de forma preguiçosa na disponibilidade/agendamento, liberando horário e cota.
 
+## Pagamentos Pix (mock)
+
+- `PaymentIntent` guarda valor, status, payload Pix e expiração.
+- O BR Code é gerado localmente (CRC16/CCITT) e o QR PNG vira data URI; nenhum
+  payload é enviado a serviço externo.
+- `GET /api/v1/public/{slug}/payments/{id}?t=` — status do próprio pagamento.
+- `POST /api/v1/public/{slug}/payments/{id}/mock-confirm?t=` — confirma no
+  provider mock (bloqueado quando `PAYMENT_PROVIDER != mock`).
+- Sinal pago → agendamento `CONFIRMED`. Assinatura paga → `ACTIVE` e ciclo
+  reiniciado. Pagamento expirado → reserva/assinatura `EXPIRED`.
+- A confirmação é idempotente e só aceita o token do cliente dono da cobrança.
+
 ## Testes de integração
 
 Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**

@@ -349,9 +349,11 @@ async def test_public_booking_creates_scheduled_appointment_and_client(
         "collaborator_name",
         "deposit_amount",
         "used_subscription",
+        "payment",
     }
     assert body["status"] == "SCHEDULED"
     assert body["deposit_amount"] is None
+    assert body["payment"] is None
     assert body["service_name"] == service["name"]
     assert body["collaborator_name"] == f"User {collaborator.role.value}"
 
@@ -491,6 +493,12 @@ async def test_public_booking_requires_deposit_sets_pending(
     body = response.json()
     assert body["status"] == "PENDING_DEPOSIT"
     assert body["deposit_amount"] == "30.00"
+    payment = body["payment"]
+    assert payment is not None
+    assert payment["amount"] == "30.00"
+    assert payment["status"] == "PENDING"
+    assert payment["pix_copy_paste"].startswith("000201")
+    assert payment["qr_code_data_uri"].startswith("data:image/png;base64,")
 
 
 async def test_public_booking_requires_future_timezone_aware_start(

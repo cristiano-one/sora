@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.api.schemas.payments import PublicPaymentResponse
 from app.api.schemas.subscriptions import (
     PublicSubscriptionPlanResponse,
     PublicSubscriptionResponse,
@@ -75,3 +76,4 @@ class PublicAppointmentResponse(BaseModel):
     collaborator_name: str
     deposit_amount: Decimal | None
     used_subscription: bool
+    payment: PublicPaymentResponse | None

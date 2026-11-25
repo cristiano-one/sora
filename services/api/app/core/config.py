@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     default_tenant_timezone: str = "America/Sao_Paulo"
     public_booking_base_url: str = "http://localhost:3000"
     internal_api_token: str = "dev-internal-token"
+    payment_provider: str = "mock"
+    payment_pix_key: str = "pix@sora.local"
+    payment_merchant_name: str = "SORA STUDIO"
+    payment_merchant_city: str = "SAO PAULO"
+    payment_subscription_ttl_minutes: int = 30
 
     # Infraestrutura (portas do HOST do compose de dev; ver .env.example)
     database_url: str = "postgresql+asyncpg://sora_app:sora_app_dev_only@127.0.0.1:5433/sora"
