@@ -267,7 +267,7 @@ async def test_public_subscription_conflicts_for_same_active_plan(
         json={"plan_id": plan["id"], "full_name": "Cliente Plano"},
     )
     assert second.status_code == 409
-    assert second.json()["detail"] == "Você já possui este plano ativo."
+    assert second.json()["detail"] == "Você já possui uma assinatura ativa."
 
 
 async def test_collaborator_cannot_list_subscriptions(

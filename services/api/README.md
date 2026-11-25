@@ -134,6 +134,12 @@ sem revelar o motivo. Serviços com `requires_deposit=true` entram como
 cota consumida. O contexto público expõe planos ativos, a assinatura do próprio
 cliente e suas cotas (`used`/`remaining`), sem dados de terceiros.
 
+No agendamento, uma cota disponível consome `SubscriptionUsage`, dispensa o
+sinal do serviço e grava `Appointment.subscription_id` (tag `ASSINANTE`).
+Cancelar/expirar devolve a cota. Sem cota, intervalo mínimo ou dia permitido, o
+agendamento segue o fluxo avulso normal. Cada cliente pode ter **uma assinatura
+ativa** por vez.
+
 ## Testes de integração
 
 Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**
