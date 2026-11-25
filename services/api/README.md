@@ -44,11 +44,14 @@ chaves sempre prefixadas por `tenant:{tenant_id}:auth:*`. Revogação em massa
 
 ## Tenants (RBAC + RLS)
 
+- `POST /api/v1/tenants` — cadastro público de empresa + OWNER inicial
+  (`tax_regime`: `MEI` ou `COMPLETE`). Slug único; conflito → `409`.
 - `GET /api/v1/tenants/current` — dados do tenant do usuário autenticado
   (`OWNER`/`ADMIN`). `COLLABORATOR` recebe `403`.
 
-A dependência `get_tenant_session` injeta `SET LOCAL app.current_tenant_id` na
-transação de cada requisição; as queries seguem filtradas pela RLS.
+O cadastro define `app.current_tenant_id` com o UUID gerado antes do INSERT,
+atendendo à policy `WITH CHECK` da RLS. A dependência `get_tenant_session`
+injeta o mesmo contexto nas requisições autenticadas.
 
 ## Testes de integração
 
