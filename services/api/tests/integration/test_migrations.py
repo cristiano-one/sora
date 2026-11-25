@@ -78,25 +78,38 @@ def test_migrations_upgrade_and_downgrade(database_urls) -> None:
         migration_url.render_as_string(hide_password=False),
     )
 
+    expected_tables = {
+        "tenants",
+        "users",
+        "services",
+        "packages",
+        "package_items",
+        "subscription_plans",
+        "subscription_plan_items",
+    }
+    expected_enums = {
+        "user_role",
+        "tax_regime",
+        "commission_base",
+        "billing_cycle",
+    }
+
     try:
         command.upgrade(config, "head")
         tables, enums, functions = asyncio.run(_schema(owner_url))
-        assert {"tenants", "users"} <= tables
-        assert {"user_role", "tax_regime", "commission_base"} <= enums
+        assert expected_tables <= tables
+        assert expected_enums <= enums
         assert "resolve_tenant_id_by_slug" in functions
 
         command.downgrade(config, "base")
         tables, enums, functions = asyncio.run(_schema(owner_url))
-        assert "tenants" not in tables
-        assert "users" not in tables
-        assert "user_role" not in enums
-        assert "tax_regime" not in enums
-        assert "commission_base" not in enums
+        assert expected_tables.isdisjoint(tables)
+        assert expected_enums.isdisjoint(enums)
         assert "resolve_tenant_id_by_slug" not in functions
 
         command.upgrade(config, "head")
         tables, _, functions = asyncio.run(_schema(owner_url))
-        assert {"tenants", "users"} <= tables
+        assert expected_tables <= tables
         assert "resolve_tenant_id_by_slug" in functions
     finally:
         asyncio.run(_drop_database(owner_url))

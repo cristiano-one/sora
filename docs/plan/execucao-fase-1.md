@@ -17,7 +17,7 @@
 | Init RLS do PostgreSQL (`01-init-rls-roles.sh`: role `sora_app` `NOBYPASSRLS`) | ✅ Concluído | commit `c0f78de` |
 | Traefik v3 (roteamento `api.sora.localhost` / wildcard `*.sora.localhost`) | ✅ Concluído | `infra/traefik/*` |
 | CI/CD (pipeline + PR template + dependabot) | ✅ Concluído | commit `1e5a593` |
-| **Backend `services/api`** | ✅ **Passos 1–6 concluídos** | skeleton, banco/RLS, auth, RBAC, empresa, colaboradores |
+| **Backend `services/api`** | 🟡 **Em andamento** | Passos 1–7 (catálogo nesta PR) |
 | **`apps/web` (preview)** | 🟡 **Slice de login + dashboard** | antecipação da Fase 3 |
 | **`apps/mobile`** | ⏭️ Fora desta fase (Fase 3 do roadmap) | — |
 
@@ -82,7 +82,7 @@
 - **Objetivo:** CRUD de colaboradores com percentuais/regras de comissão
   (base `Decimal`), restrito a `ADMIN`/`OWNER`.
 
-### Passo 7 — Serviços, Pacotes e Planos de Assinatura
+### Passo 7 — Serviços, Pacotes e Planos de Assinatura · branch `feat/api-catalog` · 🟡 Nesta PR
 - **Objetivo:** catálogo com `duration_minutes`, `buffer_minutes`, `requires_deposit`,
   custo de insumo, valor médio (toggle público) e planos recorrentes.
 
