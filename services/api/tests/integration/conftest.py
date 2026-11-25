@@ -1,0 +1,127 @@
+"""Fixtures de integração com PostgreSQL real (testcontainers + RLS)."""
+
+from collections.abc import AsyncIterator, Iterator
+from dataclasses import dataclass
+from pathlib import Path
+from uuid import UUID, uuid4
+
+import pytest
+from alembic import command
+from alembic.config import Config
+from app.db.session import create_engine, create_session_factory
+from app.models import Tenant, User, UserRole
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from testcontainers.community.postgres import PostgresContainer
+
+API_DIR = Path(__file__).resolve().parents[2]
+REPO_ROOT = API_DIR.parents[1]
+RLS_INIT_SCRIPT = REPO_ROOT / "infra" / "postgres" / "init" / "01-init-rls-roles.sh"
+
+
+@dataclass(frozen=True)
+class SeededData:
+    """IDs criados para os testes de isolamento multi-tenant."""
+
+    tenant_a: UUID
+    tenant_b: UUID
+    user_a: UUID
+    user_b: UUID
+
+
+@pytest.fixture(scope="session")
+def postgres_container() -> Iterator[PostgresContainer]:
+    """Sobe um PostgreSQL 16 real com o role de runtime (NOBYPASSRLS)."""
+    container = PostgresContainer(
+        "postgres:16-alpine",
+        username="sora",
+        password="sora_test_owner",
+        dbname="sora_test",
+    )
+    container.with_env("POSTGRES_APP_USER", "sora_app")
+    container.with_env("POSTGRES_APP_PASSWORD", "sora_test_app")
+    container.with_volume_mapping(
+        str(RLS_INIT_SCRIPT),
+        "/docker-entrypoint-initdb.d/01-init-rls-roles.sh",
+        "ro",
+    )
+    with container:
+        yield container
+
+
+@pytest.fixture(scope="session")
+def database_urls(postgres_container) -> dict[str, str]:
+    """URLs asyncpg do owner (migrations) e do role RLS (runtime)."""
+    host = postgres_container.get_container_host_ip()
+    port = postgres_container.get_exposed_port(5432)
+    return {
+        "owner": f"postgresql+asyncpg://sora:sora_test_owner@{host}:{port}/sora_test",
+        "app": f"postgresql+asyncpg://sora_app:sora_test_app@{host}:{port}/sora_test",
+    }
+
+
+@pytest.fixture(scope="session")
+def migrated_database(database_urls) -> Iterator[None]:
+    """Aplica todas as migrations Alembic no banco de teste (uma vez por sessão)."""
+    config = Config(str(API_DIR / "alembic.ini"))
+    config.set_main_option("script_location", str(API_DIR / "migrations"))
+    config.set_main_option("sqlalchemy.url", database_urls["owner"])
+    command.upgrade(config, "head")
+    yield
+
+
+@pytest.fixture
+async def app_engine(migrated_database, database_urls) -> AsyncIterator[AsyncEngine]:
+    """Engine conectado com o role sora_app (NOBYPASSRLS)."""
+    engine = create_engine(database_urls["app"])
+    yield engine
+    await engine.dispose()
+
+
+@pytest.fixture
+async def app_session(app_engine) -> AsyncIterator[AsyncSession]:
+    """Sessão do role de runtime; qualquer escrita é revertida ao final."""
+    factory = create_session_factory(app_engine)
+    async with factory() as session:
+        yield session
+
+
+@pytest.fixture
+async def seeded(migrated_database, database_urls) -> SeededData:
+    """Cria dois tenants e um OWNER em cada um, usando o owner (bypass RLS)."""
+    suffix = uuid4().hex[:8]
+    data = SeededData(
+        tenant_a=uuid4(),
+        tenant_b=uuid4(),
+        user_a=uuid4(),
+        user_b=uuid4(),
+    )
+
+    engine = create_engine(database_urls["owner"])
+    factory = create_session_factory(engine)
+    async with factory() as session:
+        session.add_all(
+            [
+                Tenant(id=data.tenant_a, name="Clínica A", slug=f"clinica-a-{suffix}"),
+                Tenant(id=data.tenant_b, name="Clínica B", slug=f"clinica-b-{suffix}"),
+                User(
+                    id=data.user_a,
+                    tenant_id=data.tenant_a,
+                    email=f"owner-a-{suffix}@test.local",
+                    hashed_password="x",
+                    full_name="Owner A",
+                    role=UserRole.OWNER,
+                ),
+                User(
+                    id=data.user_b,
+                    tenant_id=data.tenant_b,
+                    email=f"owner-b-{suffix}@test.local",
+                    hashed_password="x",
+                    full_name="Owner B",
+                    role=UserRole.OWNER,
+                ),
+            ]
+        )
+        await session.commit()
+    await engine.dispose()
+
+    return data
