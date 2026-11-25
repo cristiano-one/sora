@@ -1,0 +1,158 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+
+import {
+  getMe,
+  getTenantSettings,
+  logout,
+  type Me,
+} from "@/lib/api";
+
+const ROLE_LABEL: Record<string, string> = {
+  OWNER: "Dono / Gestor",
+  ADMIN: "Administrador",
+  COLLABORATOR: "Colaborador",
+};
+
+const SECTIONS = [
+  {
+    label: "Visão geral",
+    items: [{ href: "/dashboard", label: "Painel", icon: "◫", manager: false }],
+  },
+  {
+    label: "Operação",
+    items: [
+      { href: "/agenda", label: "Agenda", icon: "▤", manager: false },
+      { href: "/clientes", label: "Clientes", icon: "◎", manager: false },
+    ],
+  },
+  {
+    label: "Gestão",
+    items: [
+      { href: "/catalogo", label: "Catálogo", icon: "◇", manager: true },
+      { href: "/equipe", label: "Equipe", icon: "◈", manager: true },
+      { href: "/assinaturas", label: "Assinaturas", icon: "☆", manager: true },
+      { href: "/configuracoes", label: "Configurações", icon: "⚙", manager: true },
+    ],
+  },
+];
+
+export function AppShell({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [me, setMe] = useState<Me | null>(null);
+  const [theme, setTheme] = useState("#4f46e5");
+
+  useEffect(() => {
+    let active = true;
+    getMe()
+      .then((data) => {
+        if (!active) return;
+        setMe(data);
+        if (data.role === "OWNER" || data.role === "ADMIN") {
+          getTenantSettings()
+            .then((settings) => {
+              if (active) setTheme(settings.theme_primary_color);
+            })
+            .catch(() => {
+              // Tema é opcional; mantém o padrão.
+            });
+        }
+      })
+      .catch(() => {
+        if (active) router.replace("/login");
+      });
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  useEffect(() => {
+    function handleTheme(event: Event) {
+      const color = (event as CustomEvent<string>).detail;
+      if (color) setTheme(color);
+    }
+    window.addEventListener("sora-theme", handleTheme);
+    return () => window.removeEventListener("sora-theme", handleTheme);
+  }, []);
+
+  async function handleLogout() {
+    try {
+      await logout();
+    } finally {
+      router.replace("/login");
+    }
+  }
+
+  if (!me) {
+    return (
+      <main className="shell">
+        <div className="card">
+          <p className="subtitle">Carregando painel…</p>
+        </div>
+      </main>
+    );
+  }
+
+  const isManager = me.role === "OWNER" || me.role === "ADMIN";
+  const style = { "--primary": theme } as CSSProperties;
+
+  return (
+    <div className="app-shell" style={style}>
+      <aside className="sidebar">
+        <Link className="sidebar-brand" href="/dashboard">
+          <span className="brand-mark">S</span>
+          <span>
+            <strong>Sora Studio</strong>
+            <small>Gestão inteligente</small>
+          </span>
+        </Link>
+
+        <nav className="sidebar-nav">
+          {SECTIONS.map((section) => {
+            const items = section.items.filter(
+              (item) => !item.manager || isManager,
+            );
+            if (items.length === 0) return null;
+            return (
+              <div className="sidebar-section" key={section.label}>
+                <span className="sidebar-label">{section.label}</span>
+                {items.map((item) => (
+                  <Link
+                    key={item.href}
+                    className={`sidebar-link ${
+                      pathname === item.href ? "active" : ""
+                    }`}
+                    href={item.href}
+                  >
+                    <span className="sidebar-icon">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            );
+          })}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <strong>{me.full_name}</strong>
+            <span>{ROLE_LABEL[me.role] ?? me.role}</span>
+          </div>
+          <button
+            className="sidebar-logout"
+            type="button"
+            onClick={handleLogout}
+          >
+            Sair
+          </button>
+        </div>
+      </aside>
+
+      <main className="app-main">{children}</main>
+    </div>
+  );
+}

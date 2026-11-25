@@ -32,9 +32,16 @@ uv run uvicorn app.main:app --reload --port 8010
 ## Telas
 
 - `/login` — login real (JWT + Redis).
-- `/dashboard` — visão geral do usuário.
+- `/dashboard` — visão geral com sidebar, perfil e atalhos de gestão.
 - `/agenda` — board do dia, disponibilidade em tempo real, criação e
   cancelamento de agendamentos (anti-conflito no backend).
+- `/clientes` — cadastro, score confidencial e bloqueio (telefone mascarado
+  para colaboradores).
+- `/catalogo` — serviços, duração, buffer, preço, custo e sinal.
+- `/equipe` — usuários, papéis e comissões (`OWNER`/`ADMIN`).
+- `/assinaturas` — planos, cotas, contratação e cancelamento (`OWNER`/`ADMIN`).
+- `/configuracoes` — score mínimo, sinal, tema e nome do agente
+  (`OWNER`/`ADMIN`).
 - `/public/[slug]?t=<token>` — página pública do link mágico (sem login):
   serviços, profissionais, horários livres, planos de assinatura, cotas e
   pagamento Pix (mock).

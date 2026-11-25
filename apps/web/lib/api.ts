@@ -17,9 +17,14 @@ export type Me = {
 export type Service = {
   id: string;
   name: string;
+  description: string | null;
   duration_minutes: number;
   buffer_minutes: number;
   price: string;
+  cost: string;
+  requires_deposit: boolean;
+  deposit_amount: string | null;
+  show_average_price: boolean;
   is_active: boolean;
 };
 
@@ -38,6 +43,48 @@ export type UserSummary = {
   email: string;
   role: string;
   is_active: boolean;
+  commission_percentage: string | null;
+  commission_fixed: string | null;
+  commission_base: string;
+};
+
+export type TenantSettings = {
+  deposit_score_threshold: number | null;
+  deposit_amount_low_score: string | null;
+  theme_primary_color: string;
+  agent_name: string;
+};
+
+export type SubscriptionPlanItem = {
+  id: string;
+  service_id: string;
+  uses_per_cycle: number;
+  min_interval_days: number | null;
+  allowed_weekdays: number[] | null;
+};
+
+export type SubscriptionPlan = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string | null;
+  price: string;
+  billing_cycle: "MONTHLY" | "QUARTERLY";
+  is_active: boolean;
+  items: SubscriptionPlanItem[];
+};
+
+export type ClientSubscription = {
+  id: string;
+  client_id: string;
+  client_name: string;
+  plan_id: string;
+  plan_name: string;
+  status: string;
+  started_at: string;
+  current_period_start: string;
+  current_period_end: string;
+  quotas: PublicQuota[];
 };
 
 export type Appointment = {
@@ -287,6 +334,192 @@ export async function getClients(): Promise<Client[]> {
 
 export async function getUsers(): Promise<UserSummary[]> {
   return authenticatedRequest<UserSummary[]>("/api/v1/users");
+}
+
+export async function getTenantSettings(): Promise<TenantSettings> {
+  return authenticatedRequest<TenantSettings>("/api/v1/tenants/settings");
+}
+
+export async function updateTenantSettings(
+  changes: Partial<TenantSettings>,
+): Promise<TenantSettings> {
+  return authenticatedRequest<TenantSettings>("/api/v1/tenants/settings", {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
+}
+
+type CreateClientInput = {
+  full_name: string;
+  phone: string;
+  email?: string;
+  birth_date?: string;
+};
+
+export async function createClient(input: CreateClientInput): Promise<Client> {
+  return authenticatedRequest<Client>("/api/v1/clients", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+type UpdateClientInput = {
+  full_name?: string;
+  phone?: string;
+  email?: string | null;
+  birth_date?: string | null;
+  score?: number;
+  is_blocked?: boolean;
+};
+
+export async function updateClient(
+  id: string,
+  changes: UpdateClientInput,
+): Promise<Client> {
+  return authenticatedRequest<Client>(`/api/v1/clients/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
+}
+
+type CreateServiceInput = {
+  name: string;
+  description?: string;
+  duration_minutes: number;
+  buffer_minutes: number;
+  price: string;
+  cost: string;
+  requires_deposit: boolean;
+  deposit_amount?: string | null;
+  show_average_price: boolean;
+  is_active?: boolean;
+};
+
+export async function createService(
+  input: CreateServiceInput,
+): Promise<Service> {
+  return authenticatedRequest<Service>("/api/v1/services", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateService(
+  id: string,
+  changes: Partial<CreateServiceInput>,
+): Promise<Service> {
+  return authenticatedRequest<Service>(`/api/v1/services/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
+}
+
+type CreateUserInput = {
+  full_name: string;
+  email: string;
+  password: string;
+  role: "ADMIN" | "COLLABORATOR";
+  commission_percentage?: string | null;
+  commission_fixed?: string | null;
+  commission_base?: "GROSS" | "NET";
+};
+
+export async function createUser(input: CreateUserInput): Promise<UserSummary> {
+  return authenticatedRequest<UserSummary>("/api/v1/users", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+type UpdateUserInput = {
+  full_name?: string;
+  is_active?: boolean;
+  role?: "ADMIN" | "COLLABORATOR";
+  commission_percentage?: string | null;
+  commission_fixed?: string | null;
+  commission_base?: "GROSS" | "NET";
+};
+
+export async function updateUser(
+  id: string,
+  changes: UpdateUserInput,
+): Promise<UserSummary> {
+  return authenticatedRequest<UserSummary>(`/api/v1/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
+}
+
+export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+  return authenticatedRequest<SubscriptionPlan[]>("/api/v1/subscription-plans");
+}
+
+type CreateSubscriptionPlanInput = {
+  name: string;
+  description?: string;
+  price: string;
+  billing_cycle: "MONTHLY" | "QUARTERLY";
+  items: {
+    service_id: string;
+    uses_per_cycle: number;
+    min_interval_days?: number | null;
+    allowed_weekdays?: number[] | null;
+  }[];
+  is_active?: boolean;
+};
+
+export async function createSubscriptionPlan(
+  input: CreateSubscriptionPlanInput,
+): Promise<SubscriptionPlan> {
+  return authenticatedRequest<SubscriptionPlan>("/api/v1/subscription-plans", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateSubscriptionPlan(
+  id: string,
+  changes: {
+    name?: string;
+    description?: string | null;
+    price?: string;
+    billing_cycle?: "MONTHLY" | "QUARTERLY";
+    is_active?: boolean;
+  },
+): Promise<SubscriptionPlan> {
+  return authenticatedRequest<SubscriptionPlan>(
+    `/api/v1/subscription-plans/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    },
+  );
+}
+
+export async function getSubscriptions(): Promise<ClientSubscription[]> {
+  return authenticatedRequest<ClientSubscription[]>("/api/v1/subscriptions");
+}
+
+export async function createClientSubscription(
+  clientId: string,
+  planId: string,
+): Promise<ClientSubscription> {
+  return authenticatedRequest<ClientSubscription>(
+    `/api/v1/clients/${clientId}/subscriptions`,
+    {
+      method: "POST",
+      body: JSON.stringify({ plan_id: planId }),
+    },
+  );
+}
+
+export async function cancelSubscription(
+  id: string,
+): Promise<ClientSubscription> {
+  return authenticatedRequest<ClientSubscription>(
+    `/api/v1/subscriptions/${id}/cancel`,
+    { method: "POST" },
+  );
 }
 
 export async function getAppointments(

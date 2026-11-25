@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { getMe, logout, type Me } from "@/lib/api";
+import { AppShell } from "@/components/app-shell";
+import { getMe, type Me } from "@/lib/api";
 
 const ROLE_LABEL: Record<string, string> = {
   OWNER: "Dono / Gestor",
@@ -13,75 +13,50 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
 
   useEffect(() => {
     let active = true;
-
     getMe()
       .then((data) => {
         if (active) setMe(data);
       })
       .catch(() => {
-        if (active) router.replace("/login");
+        // O AppShell redireciona para o login em caso de sessão inválida.
       });
-
     return () => {
       active = false;
     };
-  }, [router]);
+  }, []);
 
-  const handleLogout = useCallback(async () => {
-    try {
-      await logout();
-    } finally {
-      router.replace("/login");
-    }
-  }, [router]);
-
-  if (!me) {
-    return (
-      <main className="shell">
-        <div className="card">
-          <p className="subtitle">Carregando painel…</p>
-        </div>
-      </main>
-    );
-  }
+  const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
 
   return (
-    <main className="dashboard">
-      <div className="dashboard-inner">
-        <header className="topbar">
-          <div className="greeting">
-            <span className="badge">{ROLE_LABEL[me.role] ?? me.role}</span>
-            <h1>Olá, {me.full_name.split(" ")[0]} 👋</h1>
-            <p>Bem-vindo ao preview do painel da Sora Studio.</p>
-          </div>
-          <div className="topbar-actions">
-            <Link className="button button-ghost" href="/agenda">
-              Agenda
-            </Link>
-            <button
-              className="button button-ghost"
-              type="button"
-              onClick={handleLogout}
-            >
-              Sair
-            </button>
+    <AppShell>
+      <div className="page">
+        <header className="page-header">
+          <div>
+            {me ? (
+              <span className="badge">{ROLE_LABEL[me.role] ?? me.role}</span>
+            ) : null}
+            <h1>Olá, {me ? me.full_name.split(" ")[0] : "bem-vindo"} 👋</h1>
+            <p>Visão geral da clínica, operação e gestão em um só lugar.</p>
           </div>
         </header>
 
         <section className="stats">
           <article className="stat">
             <div className="stat-label">Clínica</div>
-            <div className="stat-value">{me.tenant_id.slice(0, 8)}…</div>
+            <div className="stat-value">
+              {me ? `${me.tenant_id.slice(0, 8)}…` : "…"}
+            </div>
             <div className="stat-note">Tenant vinculado ao seu login</div>
           </article>
           <article className="stat">
             <div className="stat-label">Perfil</div>
-            <div className="stat-value">{ROLE_LABEL[me.role] ?? me.role}</div>
+            <div className="stat-value">
+              {me ? ROLE_LABEL[me.role] ?? me.role : "…"}
+            </div>
             <div className="stat-note">RBAC aplicado no backend</div>
           </article>
           <article className="stat">
@@ -95,18 +70,52 @@ export default function DashboardPage() {
           <Link href="/agenda" className="panel panel-link">
             <h2>Agenda</h2>
             <p>
-              Visão do dia por profissional, com validação de duração e sinal
-              Pix.
+              Board do dia, disponibilidade em tempo real e anti-conflito com
+              tag de assinante.
             </p>
             <div className="soon">Abrir agenda →</div>
           </Link>
-          <article className="panel">
+          <Link href="/clientes" className="panel panel-link">
             <h2>Clientes &amp; Score</h2>
             <p>
-              Cadastro, prontuário multimídia e score confidencial do cliente.
+              Cadastro, score confidencial, bloqueio e histórico de
+              relacionamento.
             </p>
-            <div className="soon">Passos 5–8 da Fase 1</div>
-          </article>
+            <div className="soon">Abrir clientes →</div>
+          </Link>
+          {isManager ? (
+            <>
+              <Link href="/catalogo" className="panel panel-link">
+                <h2>Catálogo</h2>
+                <p>
+                  Serviços, duração, buffer, custo de insumo e regra de sinal.
+                </p>
+                <div className="soon">Abrir catálogo →</div>
+              </Link>
+              <Link href="/equipe" className="panel panel-link">
+                <h2>Equipe &amp; Comissões</h2>
+                <p>
+                  Colaboradores, papéis e regras de comissão por atendimento.
+                </p>
+                <div className="soon">Abrir equipe →</div>
+              </Link>
+              <Link href="/assinaturas" className="panel panel-link">
+                <h2>Assinaturas</h2>
+                <p>
+                  Clubes de recorrência, cotas e assinantes ativos da clínica.
+                </p>
+                <div className="soon">Abrir assinaturas →</div>
+              </Link>
+              <Link href="/configuracoes" className="panel panel-link">
+                <h2>Configurações</h2>
+                <p>
+                  Tema da clínica, score mínimo e valor do sinal para score
+                  baixo.
+                </p>
+                <div className="soon">Abrir configurações →</div>
+              </Link>
+            </>
+          ) : null}
           <article className="panel">
             <h2>Financeiro</h2>
             <p>
@@ -121,6 +130,6 @@ export default function DashboardPage() {
           </article>
         </section>
       </div>
-    </main>
+    </AppShell>
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -10,6 +9,7 @@ import {
   type FormEvent,
 } from "react";
 
+import { AppShell } from "@/components/app-shell";
 import {
   ApiError,
   cancelAppointment,
@@ -207,20 +207,15 @@ export default function AgendaPage() {
   }
 
   return (
-    <main className="dashboard">
-      <div className="dashboard-inner">
-        <header className="topbar">
+    <AppShell>
+      <div className="page">
+        <header className="page-header">
           <div className="greeting">
             <span className="badge">{ROLE_LABEL[me.role] ?? me.role}</span>
             <h1>Agenda</h1>
             <p>
               {formatDateLabel(date)} · {appointments.length} agendamento(s)
             </p>
-          </div>
-          <div className="topbar-actions">
-            <Link className="button button-ghost" href="/dashboard">
-              Voltar ao painel
-            </Link>
           </div>
         </header>
 
@@ -440,6 +435,6 @@ export default function AgendaPage() {
           </section>
         </div>
       </div>
-    </main>
+    </AppShell>
   );
 }
