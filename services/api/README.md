@@ -42,6 +42,14 @@ Access token: **15 min**. Refresh token: **7 dias**, rotativo no Redis com
 chaves sempre prefixadas por `tenant:{tenant_id}:auth:*`. Revogação em massa
 (desligamento de usuário) via `revoked_at` em milissegundos.
 
+## Tenants (RBAC + RLS)
+
+- `GET /api/v1/tenants/current` — dados do tenant do usuário autenticado
+  (`OWNER`/`ADMIN`). `COLLABORATOR` recebe `403`.
+
+A dependência `get_tenant_session` injeta `SET LOCAL app.current_tenant_id` na
+transação de cada requisição; as queries seguem filtradas pela RLS.
+
 ## Testes de integração
 
 Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**

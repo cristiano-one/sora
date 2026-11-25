@@ -7,6 +7,7 @@ from fastapi import FastAPI
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.health import router as health_router
+from app.api.routes.tenants import router as tenants_router
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.core.redis import create_redis
@@ -39,6 +40,7 @@ def create_app() -> FastAPI:
 
     # Rotas de negócio versionadas.
     application.include_router(auth_router, prefix=settings.api_v1_prefix)
+    application.include_router(tenants_router, prefix=settings.api_v1_prefix)
 
     return application
 
