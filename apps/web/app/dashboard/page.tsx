@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -58,13 +59,18 @@ export default function DashboardPage() {
             <h1>Olá, {me.full_name.split(" ")[0]} 👋</h1>
             <p>Bem-vindo ao preview do painel da Sora Studio.</p>
           </div>
-          <button
-            className="button button-ghost"
-            type="button"
-            onClick={handleLogout}
-          >
-            Sair
-          </button>
+          <div className="topbar-actions">
+            <Link className="button button-ghost" href="/agenda">
+              Agenda
+            </Link>
+            <button
+              className="button button-ghost"
+              type="button"
+              onClick={handleLogout}
+            >
+              Sair
+            </button>
+          </div>
         </header>
 
         <section className="stats">
@@ -86,14 +92,14 @@ export default function DashboardPage() {
         </section>
 
         <section className="grid">
-          <article className="panel">
+          <Link href="/agenda" className="panel panel-link">
             <h2>Agenda</h2>
             <p>
               Visão do dia por profissional, com validação de duração e sinal
               Pix.
             </p>
-            <div className="soon">Próximo passo da Fase 2</div>
-          </article>
+            <div className="soon">Abrir agenda →</div>
+          </Link>
           <article className="panel">
             <h2>Clientes &amp; Score</h2>
             <p>

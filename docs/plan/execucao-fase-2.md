@@ -18,7 +18,7 @@
 - [ ] **Passo 2 — Link mágico + agendamento público** (WhatsApp → token Redis
   TTL 20 min → link leve no `apps/web`).
 - [ ] **Passo 3 — Assinaturas/cotas + score no agendamento + sinal Pix (mock)**.
-- [ ] **Passo 4 — Tela de agenda no web preview** (consumindo os endpoints acima).
+- [x] **Passo 4 — Tela de agenda no web preview** (consumindo os endpoints acima).
 
 ## Regras de aceite
 

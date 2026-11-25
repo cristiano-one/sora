@@ -29,6 +29,13 @@ uv run uvicorn app.main:app --reload --port 8010
 | E-mail | `demo@example.com` |
 | Senha | `demo12345` |
 
+## Telas
+
+- `/login` — login real (JWT + Redis).
+- `/dashboard` — visão geral do usuário.
+- `/agenda` — board do dia, disponibilidade em tempo real, criação e
+  cancelamento de agendamentos (anti-conflito no backend).
+
 ## Validação
 
 ```bash
