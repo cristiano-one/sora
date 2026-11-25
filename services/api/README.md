@@ -19,6 +19,24 @@ uv run mypy app         # type-check
 uv run pytest -q --cov=app --cov-fail-under=80
 ```
 
+## Migrations (Alembic + RLS)
+
+```bash
+# Requer MIGRATION_DATABASE_URL (owner) apontando para o PostgreSQL
+uv run alembic upgrade head
+uv run alembic downgrade base   # rollback completo
+```
+
+As migrations criam as policies de **Row-Level Security**. O runtime usa o
+`DATABASE_URL` com o role `sora_app` (`NOBYPASSRLS`); o `MIGRATION_DATABASE_URL`
+com o owner `sora` fica restrito ao Alembic (DDL).
+
+## Testes de integração
+
+Os testes em `tests/integration/` sobem um **PostgreSQL 16 real** via
+`testcontainers` (Docker obrigatório), aplicam as migrations e provam o
+isolamento multi-tenant da RLS. A suíte de segurança roda com `-m security`.
+
 ## Rodar localmente
 
 ```bash
