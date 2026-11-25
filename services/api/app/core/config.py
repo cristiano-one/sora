@@ -36,10 +36,12 @@ class Settings(BaseSettings):
     redis_url: str = "redis://:sora_dev_only@127.0.0.1:6380/0"
 
     # Segurança / Autenticação
-    jwt_secret_key: str = "change-me-in-production"
+    jwt_secret_key: str = "change-me-in-production-at-least-32-bytes"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 15
     jwt_refresh_token_expire_days: int = 7
+    jwt_issuer: str = "sora-api"
+    jwt_audience: str = "sora-clients"
     encryption_key: str = "change-me-encryption-key"
 
 

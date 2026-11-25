@@ -31,11 +31,23 @@ As migrations criam as policies de **Row-Level Security**. O runtime usa o
 `DATABASE_URL` com o role `sora_app` (`NOBYPASSRLS`); o `MIGRATION_DATABASE_URL`
 com o owner `sora` fica restrito ao Alembic (DDL).
 
+## Autenticação (JWT + Redis)
+
+- `POST /api/v1/auth/login` — `{tenant_slug, email, password}` → par de tokens.
+- `POST /api/v1/auth/refresh` — rotaciona o refresh token (detecção de reuso).
+- `POST /api/v1/auth/logout` — revoga o access (denylist) e o refresh token.
+- `GET /api/v1/auth/me` — dados do usuário autenticado.
+
+Access token: **15 min**. Refresh token: **7 dias**, rotativo no Redis com
+chaves sempre prefixadas por `tenant:{tenant_id}:auth:*`. Revogação em massa
+(desligamento de usuário) via `revoked_at` em milissegundos.
+
 ## Testes de integração
 
-Os testes em `tests/integration/` sobem um **PostgreSQL 16 real** via
-`testcontainers` (Docker obrigatório), aplicam as migrations e provam o
-isolamento multi-tenant da RLS. A suíte de segurança roda com `-m security`.
+Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**
+reais via `testcontainers` (Docker obrigatório), aplicam as migrations e provam
+isolamento multi-tenant (RLS), autonomia de tokens e revogação. A suíte de
+segurança roda com `-m security`.
 
 ## Rodar localmente
 
