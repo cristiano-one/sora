@@ -17,7 +17,7 @@
 | Init RLS do PostgreSQL (`01-init-rls-roles.sh`: role `sora_app` `NOBYPASSRLS`) | ✅ Concluído | commit `c0f78de` |
 | Traefik v3 (roteamento `api.sora.localhost` / wildcard `*.sora.localhost`) | ✅ Concluído | `infra/traefik/*` |
 | CI/CD (pipeline + PR template + dependabot) | ✅ Concluído | commit `1e5a593` |
-| **Backend `services/api`** | ✅ **Passos 1–3 concluídos** | skeleton, banco/RLS, auth JWT+Redis |
+| **Backend `services/api`** | 🟡 **Em andamento** | Passos 1–4 (RBAC nesta PR) |
 | **`apps/web` (preview)** | 🟡 **Slice de login + dashboard** | antecipação da Fase 3 |
 | **`apps/mobile`** | ⏭️ Fora desta fase (Fase 3 do roadmap) | — |
 
@@ -68,7 +68,7 @@
 - **Critério de aceite:** login gera par; token revogado → `401` imediato;
   chave Redis prefixada com `tenant:{tenant_id}:`.
 
-### Passo 4 — RBAC 3 níveis + middleware RLS
+### Passo 4 — RBAC 3 níveis + middleware RLS · branch `feat/api-rbac` · 🟡 Nesta PR
 - **Objetivo:** `OWNER` / `ADMIN` / `COLLABORATOR`, injeção de
   `SET LOCAL app.current_tenant_id` por requisição, e dependência de escopo.
 - **Critério de aceite:** `COLLABORATOR` acessa apenas o próprio escopo; ausência

@@ -46,6 +46,16 @@ class AuthUser:
     role: UserRole
 
 
+@dataclass(frozen=True)
+class TenantUsers:
+    """Tenant com um usuário para cada papel RBAC."""
+
+    tenant_id: UUID
+    tenant_name: str
+    tenant_slug: str
+    users: dict[UserRole, AuthUser]
+
+
 @pytest.fixture(scope="session")
 def postgres_container() -> Iterator[PostgresContainer]:
     """Sobe um PostgreSQL 16 real com o role de runtime (NOBYPASSRLS)."""
@@ -228,3 +238,49 @@ async def auth_user(migrated_database, database_urls) -> AuthUser:
     await engine.dispose()
 
     return data
+
+
+@pytest.fixture
+async def tenant_users(migrated_database, database_urls) -> TenantUsers:
+    """Cria um tenant com OWNER, ADMIN e COLLABORATOR (senha real)."""
+    suffix = uuid4().hex[:8]
+    tenant_id = uuid4()
+    tenant_name = "Clínica RBAC"
+    tenant_slug = f"clinica-rbac-{suffix}"
+    password = "senha-forte-123"
+    users: dict[UserRole, AuthUser] = {}
+
+    engine = create_engine(database_urls["owner"])
+    factory = create_session_factory(engine)
+    async with factory() as session:
+        session.add(Tenant(id=tenant_id, name=tenant_name, slug=tenant_slug))
+        for role in (UserRole.OWNER, UserRole.ADMIN, UserRole.COLLABORATOR):
+            user_id = uuid4()
+            email = f"{role.value.lower()}-{suffix}@example.com"
+            session.add(
+                User(
+                    id=user_id,
+                    tenant_id=tenant_id,
+                    email=email,
+                    hashed_password=hash_password(password),
+                    full_name=f"User {role.value}",
+                    role=role,
+                )
+            )
+            users[role] = AuthUser(
+                tenant_id=tenant_id,
+                tenant_slug=tenant_slug,
+                user_id=user_id,
+                email=email,
+                password=password,
+                role=role,
+            )
+        await session.commit()
+    await engine.dispose()
+
+    return TenantUsers(
+        tenant_id=tenant_id,
+        tenant_name=tenant_name,
+        tenant_slug=tenant_slug,
+        users=users,
+    )

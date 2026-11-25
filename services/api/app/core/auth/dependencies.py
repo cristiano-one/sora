@@ -1,5 +1,6 @@
 """Dependência de autenticação: deriva o Principal do access token."""
 
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
@@ -7,6 +8,7 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth.security import (
     InvalidTokenError,
@@ -16,6 +18,8 @@ from app.core.auth.security import (
     revoked_at_key,
 )
 from app.core.redis import get_redis
+from app.db.rls import set_tenant_context
+from app.db.session import get_session
 from app.models.user import UserRole
 
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -69,3 +73,28 @@ async def get_current_principal(
         issued_at=payload.issued_at,
         expires_at=payload.expires_at,
     )
+
+
+def require_roles(*allowed_roles: UserRole) -> Callable[..., Awaitable[Principal]]:
+    """Fábrica de dependência que exige um dos papéis informados (RBAC)."""
+
+    async def dependency(
+        principal: Principal = Depends(get_current_principal),
+    ) -> Principal:
+        if principal.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Acesso negado",
+            )
+        return principal
+
+    return dependency
+
+
+async def get_tenant_session(
+    principal: Principal = Depends(get_current_principal),
+    session: AsyncSession = Depends(get_session),
+) -> AsyncIterator[AsyncSession]:
+    """Fornece a sessão com app.current_tenant_id já definido (RLS)."""
+    await set_tenant_context(session, principal.tenant_id)
+    yield session
