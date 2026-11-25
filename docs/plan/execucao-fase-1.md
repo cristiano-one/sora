@@ -17,7 +17,7 @@
 | Init RLS do PostgreSQL (`01-init-rls-roles.sh`: role `sora_app` `NOBYPASSRLS`) | ✅ Concluído | commit `c0f78de` |
 | Traefik v3 (roteamento `api.sora.localhost` / wildcard `*.sora.localhost`) | ✅ Concluído | `infra/traefik/*` |
 | CI/CD (pipeline + PR template + dependabot) | ✅ Concluído | commit `1e5a593` |
-| **Backend `services/api`** | 🟡 **Em andamento** | Passos 1–8 + suíte Zero-Leak (nesta PR) |
+| **Backend `services/api`** | ✅ **Fase 1 concluída** | Passos 1–10 (RLS, auth, RBAC, cadastros, prontuário, auditoria) |
 | **`apps/web` (preview)** | 🟡 **Slice de login + dashboard** | antecipação da Fase 3 |
 | **`apps/mobile`** | ⏭️ Fora desta fase (Fase 3 do roadmap) | — |
 
@@ -92,9 +92,18 @@
 - **Critério de aceite:** URL exige JWT + `tenant_id` + papel; expirada → erro;
   `PublicResponse` nunca expõe `score`/`is_blocked`.
 
-### Passo 9 — Suíte Zero-Leak consolidada · branch `feat/api-zero-leak` · 🟡 Nesta PR
+### Passo 9 — Suíte Zero-Leak consolidada · branch `feat/api-zero-leak` · ✅ Concluído
 - **Objetivo:** suite `pytest -m security` cobrindo RLS (tenant A ≠ B), RBAC 3
   níveis, mascaramento de telefone e contratos de resposta por nível de acesso.
+- **Entregue:** testes consolidados garantem `ENABLE`/`FORCE RLS` e policy
+  `tenant_isolation` em **todas** as tabelas do tenant; qualquer tabela nova sem
+  RLS quebra a suíte; role de runtime validado sem `BYPASSRLS`.
+
+### Passo 10 — Fechamento da Fase 1 · ✅ Concluído
+- Suíte completa: **87 testes**, cobertura **94,75%**, security **71 testes**.
+- Migrations `upgrade`/`downgrade` validadas com PostgreSQL real (testcontainers).
+- `develop` atualizada, branches limpas e documentação revisada.
+- Próximo: **Fase 2** (motor de agenda anti-conflito, assinaturas, score e link mágico).
 
 ---
 
