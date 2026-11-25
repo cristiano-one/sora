@@ -35,6 +35,23 @@ uv run uvicorn app.main:app --reload --port 8010
 - `/dashboard` — visão geral do usuário.
 - `/agenda` — board do dia, disponibilidade em tempo real, criação e
   cancelamento de agendamentos (anti-conflito no backend).
+- `/public/[slug]?t=<token>` — página pública do link mágico (sem login):
+  serviços, profissionais, horários livres e confirmação do agendamento.
+
+### Testar o link público (demo)
+
+```bash
+# 1) Gere o link (endpoint interno; token padrão de dev)
+curl -X POST http://127.0.0.1:8010/api/v1/public/demo/magic-link \
+  -H 'Content-Type: application/json' \
+  -H 'X-Internal-Token: dev-internal-token' \
+  -d '{"phone":"(11) 91234-5678"}'
+
+# 2) Abra a URL retornada no navegador (http://localhost:3000/public/demo?t=...)
+```
+
+O token expira em **20 min** e o cliente bloqueado recebe horários vazios e
+uma mensagem genérica (sem revelar score/bloqueio).
 
 ## Validação
 

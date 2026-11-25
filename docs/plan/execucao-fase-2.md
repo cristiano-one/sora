@@ -29,6 +29,8 @@
     recepção”), sem revelar o motivo.
   - testes: header interno, token inválido/cross-tenant, isolamento de campos,
     disponibilidade, criação, conflito, bloqueio neutro, sinal e TTL no Redis.
+  - web: página pública `/public/[slug]?t=` com serviços, profissionais,
+    horários livres, nome do cliente e confirmação (mobile-first).
 - [ ] **Passo 3 — Assinaturas/cotas + score no agendamento + sinal Pix (mock)**.
 - [x] **Passo 4 — Tela de agenda no web preview** (consumindo os endpoints acima).
 
