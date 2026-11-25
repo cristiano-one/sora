@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -257,6 +258,7 @@ async def tenant_users(migrated_database, database_urls) -> TenantUsers:
         for role in (UserRole.OWNER, UserRole.ADMIN, UserRole.COLLABORATOR):
             user_id = uuid4()
             email = f"{role.value.lower()}-{suffix}@example.com"
+            is_collaborator = role == UserRole.COLLABORATOR
             session.add(
                 User(
                     id=user_id,
@@ -265,6 +267,12 @@ async def tenant_users(migrated_database, database_urls) -> TenantUsers:
                     hashed_password=hash_password(password),
                     full_name=f"User {role.value}",
                     role=role,
+                    commission_percentage=(
+                        Decimal("40.00") if is_collaborator else None
+                    ),
+                    commission_fixed=(
+                        Decimal("5.00") if is_collaborator else None
+                    ),
                 )
             )
             users[role] = AuthUser(
