@@ -17,7 +17,7 @@
 | Init RLS do PostgreSQL (`01-init-rls-roles.sh`: role `sora_app` `NOBYPASSRLS`) | ✅ Concluído | commit `c0f78de` |
 | Traefik v3 (roteamento `api.sora.localhost` / wildcard `*.sora.localhost`) | ✅ Concluído | `infra/traefik/*` |
 | CI/CD (pipeline + PR template + dependabot) | ✅ Concluído | commit `1e5a593` |
-| **Backend `services/api`** | 🟡 **Em andamento** | Passos 1–5 (cadastro de empresa nesta PR) |
+| **Backend `services/api`** | ✅ **Passos 1–5 concluídos** | skeleton, banco/RLS, auth, RBAC, cadastro de empresa |
 | **`apps/web` (preview)** | 🟡 **Slice de login + dashboard** | antecipação da Fase 3 |
 | **`apps/mobile`** | ⏭️ Fora desta fase (Fase 3 do roadmap) | — |
 
@@ -74,7 +74,7 @@
 - **Critério de aceite:** `COLLABORATOR` acessa apenas o próprio escopo; ausência
   de `current_tenant_id` falha ou retorna vazio; acesso cruzado → `404`.
 
-### Passo 5 — Cadastro de Empresa + seed do OWNER · branch `feat/api-tenants` · 🟡 Nesta PR
+### Passo 5 — Cadastro de Empresa + seed do OWNER · branch `feat/api-tenants` · ✅ Concluído
 - **Objetivo:** empresa (MEI vs Completo), usuário OWNER inicial e bootstrap do
   tenant com políticas RLS aplicadas.
 
