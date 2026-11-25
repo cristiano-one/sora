@@ -101,6 +101,27 @@ Ações sensíveis gravam `AuditLog` append-only (UPDATE/DELETE revogados para
 O intervalo ocupado inclui `duration_minutes + buffer_minutes`. Cancelar/expirar
 libera o slot.
 
+## Link mágico e agendamento público (Fase 2)
+
+Fluxo sem login para o cliente final (link enviado pelo WhatsApp):
+
+- `POST /api/v1/public/{slug}/magic-link` — **interno**; exige
+  `X-Internal-Token` (`INTERNAL_API_TOKEN`). Gera token aleatório no Redis em
+  `tenant:{tenant_id}:public:magic:{token}` com TTL de **20 min** e devolve
+  `{PUBLIC_BOOKING_BASE_URL}/public/{slug}?t={token}`.
+- `GET /api/v1/public/{slug}/context?t=` — nome da clínica, serviços ativos
+  (preço só quando `show_average_price`) e profissionais ativos. Inclui apenas
+  o nome do cliente dono do token; nunca score, bloqueio, telefone ou e-mail.
+- `GET /api/v1/public/{slug}/availability?t=&service_id=&collaborator_id=&date=`
+  — horários livres; não revela agendamentos de terceiros.
+- `POST /api/v1/public/{slug}/appointments?t=` — cria o agendamento com as
+  mesmas travas do fluxo interno e cria o cliente quando o telefone é novo.
+
+Cliente bloqueado recebe disponibilidade vazia e o mesmo `409` genérico de
+conflito (“Não foi possível concluir o agendamento. Fale com a recepção.”),
+sem revelar o motivo. Serviços com `requires_deposit=true` entram como
+`PENDING_DEPOSIT` (o Pix real fica para o Passo 3).
+
 ## Testes de integração
 
 Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**
