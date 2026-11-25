@@ -17,6 +17,7 @@ dependencies = [
     "pyjwt>=2.9,<3",
     "pwdlib[argon2]>=0.2,<1",
     "cryptography>=43,<45",
+    "boto3>=1.35,<2",
 ]
 
 [dependency-groups]
@@ -29,6 +30,7 @@ dev = [
     "pytest-cov>=5,<7",
     "httpx>=0.28,<1",
     "testcontainers[postgres]>=4.15,<5",
+    "moto[s3]>=5.0,<6",
 ]
 
 [tool.ruff]
@@ -60,6 +62,10 @@ quote-style = "double"
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["boto3", "boto3.*", "botocore", "botocore.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

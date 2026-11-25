@@ -86,12 +86,19 @@ def test_migrations_upgrade_and_downgrade(database_urls) -> None:
         "package_items",
         "subscription_plans",
         "subscription_plan_items",
+        "clients",
+        "client_score_events",
+        "lgpd_consents",
+        "medical_records",
+        "medical_record_attachments",
+        "audit_logs",
     }
     expected_enums = {
         "user_role",
         "tax_regime",
         "commission_base",
         "billing_cycle",
+        "client_score_rating",
     }
 
     try:
