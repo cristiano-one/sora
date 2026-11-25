@@ -1,0 +1,286 @@
+# ==============================================================================
+# Sora — Docker Compose de PRODUÇÃO / HOMOLOGAÇÃO
+# ==============================================================================
+# Executado no servidor de desenvolvimento via `infra/scripts/deploy.sh`
+# e em produção via Portainer (Stacks -> Pull and redeploy).
+# Segredos vêm de /opt/sora/.env (gerado pelo bootstrap-server.sh, chmod 600)
+# ou das Environment Variables configuradas na Stack do Portainer.
+#
+# Overlay opcional para TLS wildcard (subdomínio por clínica):
+#   -f infra/compose/docker-compose.prod.yml \
+#   -f infra/compose/docker-compose.tls-dns.yml
+
+name: sora
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-common: &common
+  restart: unless-stopped
+  logging: *default-logging
+  security_opt:
+    - no-new-privileges:true
+
+x-api-env: &api-env
+  TZ: UTC
+  DEFAULT_TENANT_TIMEZONE: ${DEFAULT_TENANT_TIMEZONE:-America/Sao_Paulo}
+  APP_NAME: ${APP_NAME:-Sora Studio}
+  APP_ENV: ${APP_ENV:-production}
+  APP_DEBUG: "false"
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  APP_SECRET_KEY: ${APP_SECRET_KEY:?APP_SECRET_KEY is required}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+  APP_BASE_URL: https://app.${DOMAIN_BASE}
+  API_BASE_URL: https://api.${DOMAIN_BASE}
+  PUBLIC_BOOKING_BASE_URL: https://${DOMAIN_BASE}
+  # Conexão da aplicação usa role sora_app (NOSUPERUSER + NOBYPASSRLS) para garantir RLS Zero-Leak
+  DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+  # Conexão administrativa usada exclusivamente pelo Alembic (migrations DDL)
+  MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:-${DATABASE_URL}}
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: ${POSTGRES_DB:-sora}
+  POSTGRES_USER: ${POSTGRES_USER:-sora}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+  POSTGRES_APP_USER: ${POSTGRES_APP_USER:-sora_app}
+  POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-${POSTGRES_PASSWORD}}
+  REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+  JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+  JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+  JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
+  WHATSAPP_PROVIDER: ${WHATSAPP_PROVIDER:-meta}
+  WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+  WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+  WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
+  AI_PROVIDER: ${AI_PROVIDER:-openai}
+  AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+  AI_API_KEY: ${AI_API_KEY:-}
+  WHISPER_PROVIDER: ${WHISPER_PROVIDER:-groq}
+  WHISPER_API_KEY: ${WHISPER_API_KEY:-}
+  PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-mock}
+  PAYMENT_API_KEY: ${PAYMENT_API_KEY:-}
+  PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-}
+  STORAGE_PROVIDER: ${STORAGE_PROVIDER:-s3}
+  STORAGE_BUCKET: ${STORAGE_BUCKET:-}
+  STORAGE_REGION: ${STORAGE_REGION:-auto}
+  STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-}
+  STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID:-}
+  STORAGE_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY:-}
+  STORAGE_PRESIGNED_URL_TTL_SECONDS: ${STORAGE_PRESIGNED_URL_TTL_SECONDS:-60}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  EMAIL_FROM: ${EMAIL_FROM:-noreply@${DOMAIN_BASE}}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+
+services:
+  traefik:
+    <<: *common
+    image: traefik:v3.3
+    environment:
+      TZ: UTC
+      TRAEFIK_LOG_LEVEL: ${TRAEFIK_LOG_LEVEL:-INFO}
+      TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+      TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_STORAGE: /acme/acme.json
+      TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_HTTPCHALLENGE: "true"
+      TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_HTTPCHALLENGE_ENTRYPOINT: web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ../traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - acmedata:/acme
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  postgres:
+    <<: *common
+    image: postgres:16-alpine
+    environment:
+      TZ: UTC
+      PGTZ: UTC
+      POSTGRES_DB: ${POSTGRES_DB:-sora}
+      POSTGRES_USER: ${POSTGRES_USER:-sora}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-sora_app}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-${POSTGRES_PASSWORD}}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../postgres/init/01-init-rls-roles.sh:/docker-entrypoint-initdb.d/01-init-rls-roles.sh:ro
+    shm_size: 256mb
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  redis:
+    <<: *common
+    image: redis:7-alpine
+    environment:
+      TZ: UTC
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+    volumes:
+      - redisdata:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api:
+    <<: *common
+    image: ${API_IMAGE:?API_IMAGE is required}:${IMAGE_TAG:-latest}
+    environment:
+      <<: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - edge
+      - internal
+    expose:
+      - "8000"
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: sora_edge
+      traefik.http.routers.sora-api.rule: Host(`api.${DOMAIN_BASE}`)
+      traefik.http.routers.sora-api.entrypoints: websecure
+      traefik.http.routers.sora-api.priority: "100"
+      traefik.http.routers.sora-api.tls: "true"
+      traefik.http.routers.sora-api.tls.certresolver: le
+      traefik.http.routers.sora-api.middlewares: sec-headers@file,compress@file,api-rate-limit@file
+      traefik.http.routers.sora-api.service: sora-api
+      traefik.http.services.sora-api.loadbalancer.server.port: "8000"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  web:
+    <<: *common
+    image: ${WEB_IMAGE:?WEB_IMAGE is required}:${IMAGE_TAG:-latest}
+    environment:
+      TZ: UTC
+      NODE_ENV: production
+      APP_DOMAIN_BASE: ${DOMAIN_BASE}
+      # Comunicação SSR/Route Handlers interna via rede Docker (agnóstica ao domínio de build)
+      INTERNAL_API_URL: http://api:8000
+      NEXT_PUBLIC_APP_URL: https://app.${DOMAIN_BASE}
+      NEXT_PUBLIC_API_URL: https://api.${DOMAIN_BASE}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?APP_SECRET_KEY is required}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - edge
+      - internal
+    expose:
+      - "3000"
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: sora_edge
+      # Atende tanto o Painel (app.<dominio>) quanto o Link Leve por slug (<dominio>/{clinica})
+      traefik.http.routers.sora-web.rule: Host(`app.${DOMAIN_BASE}`) || Host(`${DOMAIN_BASE}`)
+      traefik.http.routers.sora-web.entrypoints: websecure
+      traefik.http.routers.sora-web.priority: "100"
+      traefik.http.routers.sora-web.tls: "true"
+      traefik.http.routers.sora-web.tls.certresolver: le
+      traefik.http.routers.sora-web.middlewares: sec-headers@file,compress@file,web-rate-limit@file
+      traefik.http.routers.sora-web.service: sora-web
+      traefik.http.services.sora-web.loadbalancer.server.port: "3000"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ----------------------------------------------------------------------------
+  # Worker de Filas Assíncronas (WhatsApp, Pix Webhooks, Processamento SORA IA)
+  # ----------------------------------------------------------------------------
+  worker:
+    <<: *common
+    profiles: ["workers"]
+    image: ${API_IMAGE:?API_IMAGE is required}:${IMAGE_TAG:-latest}
+    command: ["python", "-m", "app.workers.queue"]
+    environment:
+      <<: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+  # ----------------------------------------------------------------------------
+  # Scheduler / Cron Worker (Crédito de Aniversário 7d antes, expiração de Holds)
+  # ----------------------------------------------------------------------------
+  scheduler:
+    <<: *common
+    profiles: ["workers"]
+    image: ${API_IMAGE:?API_IMAGE is required}:${IMAGE_TAG:-latest}
+    command: ["python", "-m", "app.workers.scheduler"]
+    environment:
+      <<: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+
+networks:
+  edge:
+    name: sora_edge
+  internal:
+    name: sora_internal
+    internal: true
+
+volumes:
+  pgdata:
+    name: sora_pgdata
+  redisdata:
+    name: sora_redisdata
+  acmedata:
+    name: sora_acmedata

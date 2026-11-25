@@ -1,0 +1,195 @@
+# ==============================================================================
+# Sora Studio — .gitignore raiz (monorepo)
+# ==============================================================================
+
+# ---------------------------------------------------------------
+# Segredos e Variáveis de Ambiente (NUNCA versionar)
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+*.secret
+
+# ---------------------------------------------------------------
+# Python — Backend (services/api)
+# ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Ambientes virtuais
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# Testes / cobertura Python
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pyre/
+.pytype/
+
+# ---------------------------------------------------------------
+# Node.js — Web (apps/web), Mobile (apps/mobile), packages
+# NOTA: lockfiles (pnpm-lock.yaml / package-lock.json / yarn.lock)
+#       DEVEM ser versionados para builds reproduzíveis.
+# ---------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-store/
+.npm/
+.yarn/
+.yarnrc.yml
+
+# Builds e artefatos de front-end
+.next/
+out/
+dist/
+build/
+.turbo/
+.swc/
+*.tsbuildinfo
+.next-env.d.ts
+
+# Testes / cobertura JS/TS
+coverage/
+.nyc_output/
+playwright-report/
+playwright/.cache/
+test-results/
+e2e/.cache/
+
+# ---------------------------------------------------------------
+# Expo / React Native (apps/mobile)
+# ---------------------------------------------------------------
+.expo/
+.expo-shared/
+expo-env.d.ts
+ios/
+android/
+*.jks
+*.keystore
+!debug.keystore
+*.mobileprovision
+*.p8
+*.p12
+*.cer
+*.ipa
+*.apk
+*.aab
+eas-build-local.json
+!eas.json
+*.orig.*
+*.hprof
+*.jsbundle
+.metro-health-check*
+react-native.config.js.local
+
+# ---------------------------------------------------------------
+# Docker / Traefik (infra)
+# ---------------------------------------------------------------
+infra/traefik/acme.json
+infra/traefik/acme/
+traefik/acme.json
+acme.json
+*.crt
+*.csr
+*.srl
+docker-compose.override.yml
+.env.docker
+data/
+volumes/
+backups/
+.ghcr-token
+
+# ---------------------------------------------------------------
+# IDE / Editores
+# ---------------------------------------------------------------
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.example.json
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+*.iml
+.project
+.classpath
+.settings/
+nbproject/
+*.code-workspace
+
+# ---------------------------------------------------------------
+# Sistema Operacional
+# ---------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+*.lnk
+
+# ---------------------------------------------------------------
+# Logs e temporários
+# ---------------------------------------------------------------
+logs/
+*.log
+*.tmp
+*.temp
+*.bak
+*.old
+.cache/
+tmp/
+.tmp/
+
+# ---------------------------------------------------------------
+# Documentos temporários de escrita (Word/Excel/LibreOffice)
+# ---------------------------------------------------------------
+~$*.doc
+~$*.docx
+~$*.xls
+~$*.xlsx
+~$*.ppt
+~$*.pptx
+.~lock.*#

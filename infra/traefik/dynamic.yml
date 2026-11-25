@@ -1,0 +1,46 @@
+# ==============================================================================
+# Traefik v3 — Configuração dinâmica (middlewares compartilhados)
+# ==============================================================================
+# Referenciados nos labels como: <nome>@file
+# Ex.: sec-headers@file, compress@file
+
+http:
+  middlewares:
+    # Headers de segurança (Zero-Leak / OWASP)
+    sec-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: strict-origin-when-cross-origin
+        permissionsPolicy: "camera=(), microphone=(self), geolocation=(), payment=(self)"
+        customResponseHeaders:
+          X-Powered-By: ""
+          Server: ""
+
+    compress:
+      compress: {}
+
+    # Limites globais por IP
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 200
+        period: 1s
+
+    # API e webhooks (mais restrito)
+    api-rate-limit:
+      rateLimit:
+        average: 30
+        burst: 60
+        period: 1s
+
+    # Link público de agendamento
+    web-rate-limit:
+      rateLimit:
+        average: 60
+        burst: 120
+        period: 1s

@@ -1,0 +1,34 @@
+# ==============================================================================
+# Web — Sora Panel (apps/web)
+# ==============================================================================
+# Este arquivo complementa o .gitignore da raiz do monorepo.
+# Lockfiles DEVEM ser versionados.
+
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+.vercel/
+next-env.d.ts
+*.tsbuildinfo
+
+# Build e cache
+dist/
+build/
+.turbo/
+.swc/
+.cache/
+
+# Testes
+coverage/
+.nyc_output/
+playwright-report/
+playwright/.cache/
+test-results/
+
+# Variáveis locais (nunca versionar segredos)
+.env
+.env.*
+!.env.example

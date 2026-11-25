@@ -1,0 +1,133 @@
+# ==============================================================================
+# Sora — Docker Compose de DESENVOLVIMENTO (infraestrutura local)
+# ==============================================================================
+# Uso:
+#   docker compose -f infra/compose/docker-compose.dev.yml up -d
+#
+# Sobe Traefik + PostgreSQL 16 (com role RLS sora_app) + Redis 7 + MinIO (S3 local).
+# A API e o Web rodam no host (uvicorn / pnpm dev) com hot-reload e são roteados
+# pelo Traefik via host.docker.internal.
+#
+# Acesso:
+#   - API:           http://api.sora.localhost:8000
+#   - Painel Web:    http://app.sora.localhost:8000
+#   - Link Público:  http://{clinica}.sora.localhost:8000 ou http://sora.localhost:8000/{clinica}
+#   - Traefik UI:    http://localhost:8080
+#   - PostgreSQL:    127.0.0.1:5432  (owner/migrations: sora | app RLS: sora_app)
+#   - Redis:         127.0.0.1:6379
+#   - MinIO S3 API:  http://127.0.0.1:9000 (Console: http://127.0.0.1:9001)
+
+name: sora-dev
+
+services:
+  traefik:
+    image: traefik:v3.3
+    restart: unless-stopped
+    command:
+      - --global.checknewversion=false
+      - --global.sendanonymoususage=false
+      - --api.insecure=true
+      - --log.level=INFO
+      - --providers.file.filename=/etc/traefik/dynamic-dev.yml
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+    ports:
+      - "127.0.0.1:8000:80"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ../traefik/dynamic-dev.yml:/etc/traefik/dynamic-dev.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - dev
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      PGTZ: UTC
+      POSTGRES_DB: ${POSTGRES_DB:-sora}
+      POSTGRES_USER: ${POSTGRES_USER:-sora}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sora_dev_only}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-sora_app}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-sora_app_dev_only}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../postgres/init/01-init-rls-roles.sh:/docker-entrypoint-initdb.d/01-init-rls-roles.sh:ro
+    shm_size: 256mb
+    networks:
+      - dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-sora_dev_only}
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - dev
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # Storage S3 compatível local para testar prontuários privados e Pre-signed URLs (60s TTL)
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY_ID:-sora_minio}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_ACCESS_KEY:-sora_minio_dev_only}
+    command: server /data --console-address ":9001"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - miniodata:/data
+    networks:
+      - dev
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  dev:
+    name: sora_dev
+
+volumes:
+  pgdata:
+    name: sora_dev_pgdata
+  redisdata:
+    name: sora_dev_redisdata
+  miniodata:
+    name: sora_dev_miniodata

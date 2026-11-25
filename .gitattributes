@@ -1,0 +1,46 @@
+# ==============================================================================
+# Git Attributes — normalização de linha e tratamento de binários
+# ==============================================================================
+
+# Normaliza LF no repositório
+* text=auto eol=lf
+
+# Código-fonte
+*.py     text eol=lf
+*.ts     text eol=lf
+*.tsx    text eol=lf
+*.js     text eol=lf
+*.jsx    text eol=lf
+*.json   text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.md     text eol=lf
+*.sql    text eol=lf
+*.sh     text eol=lf
+Dockerfile text eol=lf
+*.toml   text eol=lf
+
+# Binários (nunca diff textual)
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.webp   binary
+*.svg    text eol=lf
+*.ico    binary
+*.pdf    binary
+*.zip    binary
+*.woff   binary
+*.woff2  binary
+
+# Mobile / certificados
+*.ipa    binary
+*.apk    binary
+*.aab    binary
+*.jks    binary
+*.keystore binary
+
+# Lockfiles: evita conflitos de merge
+pnpm-lock.yaml    merge=binary linguist-generated=true
+package-lock.json merge=binary linguist-generated=true
+yarn.lock         merge=binary linguist-generated=true

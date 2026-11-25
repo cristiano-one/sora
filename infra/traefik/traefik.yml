@@ -1,0 +1,60 @@
+# ==============================================================================
+# Traefik v3 — Configuração estática (PRODUÇÃO)
+# ==============================================================================
+# Montado em /etc/traefik/traefik.yml (somente leitura).
+# Os certificados resolvers são definidos via CLI no docker-compose.prod.yml,
+# pois dependem de variáveis de ambiente (e-mail e token DNS).
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: false
+
+log:
+  level: INFO
+
+# Access log em stdout (capturado pelo `docker logs`)
+accessLog:
+  bufferingSize: 100
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+  # Entrypoint interno (não publicado) apenas para healthcheck
+  traefik:
+    address: ":8082"
+
+ping:
+  entryPoint: traefik
+
+providers:
+  docker:
+    endpoint: unix:///var/run/docker.sock
+    exposedByDefault: false
+    network: sora_edge
+    watch: true
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+      cipherSuites:
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305

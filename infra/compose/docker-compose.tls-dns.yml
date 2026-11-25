@@ -1,0 +1,37 @@
+# ==============================================================================
+# Sora — Overlay de TLS WILDCARD via DNS Challenge (Cloudflare)
+# ==============================================================================
+# Necessário apenas para servir clínicas em subdomínios: {clinica}.sora.app
+# (HTTP-01 não emite certificado wildcard).
+#
+# Uso:
+#   docker compose \
+#     --env-file .env \
+#     -f infra/compose/docker-compose.prod.yml \
+#     -f infra/compose/docker-compose.tls-dns.yml \
+#     up -d
+#
+# Requer no .env: CF_DNS_API_TOKEN (token com permissão DNS:Edit na zona).
+
+services:
+  traefik:
+    environment:
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN:?CF_DNS_API_TOKEN is required for wildcard TLS}
+      TRAEFIK_CERTIFICATESRESOLVERS_LEDNS_ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+      TRAEFIK_CERTIFICATESRESOLVERS_LEDNS_ACME_STORAGE: /acme/acme.json
+      TRAEFIK_CERTIFICATESRESOLVERS_LEDNS_ACME_DNSCHALLENGE: "true"
+      TRAEFIK_CERTIFICATESRESOLVERS_LEDNS_ACME_DNSCHALLENGE_PROVIDER: cloudflare
+      TRAEFIK_CERTIFICATESRESOLVERS_LEDNS_ACME_DNSCHALLENGE_RESOLVERS: "1.1.1.1:53,8.8.8.8:53"
+
+  web:
+    labels:
+      # Router de subdomínio por tenant. Prioridade menor que app/api.
+      traefik.http.routers.sora-tenant.rule: HostRegexp(`^[a-z0-9-]+[.]${DOMAIN_BASE}$$`)
+      traefik.http.routers.sora-tenant.entrypoints: websecure
+      traefik.http.routers.sora-tenant.priority: "10"
+      traefik.http.routers.sora-tenant.tls: "true"
+      traefik.http.routers.sora-tenant.tls.certresolver: ledns
+      traefik.http.routers.sora-tenant.tls.domains[0].main: ${DOMAIN_BASE}
+      traefik.http.routers.sora-tenant.tls.domains[0].sans: "*.${DOMAIN_BASE}"
+      traefik.http.routers.sora-tenant.middlewares: sec-headers@file,compress@file,web-rate-limit@file
+      traefik.http.routers.sora-tenant.service: sora-web
