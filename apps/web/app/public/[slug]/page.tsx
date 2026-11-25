@@ -51,6 +51,7 @@ export default function PublicBookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [linkInvalid, setLinkInvalid] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<PublicAppointment | null>(
     null,
   );
@@ -105,6 +106,7 @@ export default function PublicBookingPage() {
       return;
     }
     setLoadingSlots(true);
+    setSlotsError(null);
     try {
       const data = await getPublicAvailability(
         slug,
@@ -122,6 +124,8 @@ export default function PublicBookingPage() {
       setSelectedSlot("");
       if (err instanceof ApiError && err.status === 401) {
         setLinkInvalid(true);
+      } else {
+        setSlotsError("Não foi possível carregar os horários. Tente novamente.");
       }
     } finally {
       setLoadingSlots(false);
@@ -216,11 +220,31 @@ export default function PublicBookingPage() {
     );
   }
 
-  if (loading || !context) {
+  if (loading) {
     return (
       <main className="public-shell">
         <div className="public-card public-card-narrow">
           <p className="subtitle">Carregando a agenda da clínica…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!context) {
+    return (
+      <main className="public-shell">
+        <div className="public-card public-card-narrow">
+          <div className="brand">
+            <div className="brand-mark">S</div>
+            <div>
+              <div className="brand-name">Sora Studio</div>
+              <div className="brand-tag">Agendamento online</div>
+            </div>
+          </div>
+          <h1>Não foi possível abrir a agenda</h1>
+          <p className="subtitle">
+            {error ?? "Tente novamente em instantes ou fale com a clínica."}
+          </p>
         </div>
       </main>
     );
@@ -412,7 +436,9 @@ export default function PublicBookingPage() {
                 {date ? formatDateLabel(date) : "Escolha uma data"}
               </p>
 
-              {loadingSlots ? (
+              {slotsError ? (
+                <p className="error">{slotsError}</p>
+              ) : loadingSlots ? (
                 <p className="public-empty">Buscando horários livres…</p>
               ) : slots.length === 0 ? (
                 <p className="public-empty">
