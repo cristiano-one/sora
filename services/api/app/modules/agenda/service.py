@@ -342,6 +342,9 @@ async def availability(
     slot = day_start
     while slot + timedelta(minutes=total) <= day_end:
         slot_utc = slot.astimezone(UTC)
+        if slot_utc <= datetime.now(UTC):
+            slot += timedelta(minutes=SLOT_STEP_MINUTES)
+            continue
         slot_end = slot_utc + timedelta(minutes=total)
         overlaps = any(
             slot_utc < appointment.ends_at and slot_end > appointment.starts_at

@@ -423,6 +423,30 @@ async def test_reschedule_moves_appointment(auth_client, tenant_users) -> None:
     assert conflict.status_code == 409
 
 
+async def test_availability_skips_past_slots(
+    auth_client,
+    tenant_users,
+) -> None:
+    owner = tenant_users.users[UserRole.OWNER]
+    collaborator = tenant_users.users[UserRole.COLLABORATOR]
+    token = await _login(auth_client, owner)
+    service = await _create_service(auth_client, token)
+    past_day = (datetime.now(TZ).date() - timedelta(days=1)).isoformat()
+
+    response = await auth_client.get(
+        AVAILABILITY,
+        headers=_auth(token),
+        params={
+            "service_id": service["id"],
+            "date": past_day,
+            "collaborator_id": str(collaborator.user_id),
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["available_slots"] == []
+
+
 async def test_redis_lock_prevents_concurrent_acquire(test_redis) -> None:
     key = "tenant:test:agenda:lock:collaborator"
 
