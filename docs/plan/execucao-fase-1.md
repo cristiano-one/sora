@@ -17,8 +17,9 @@
 | Init RLS do PostgreSQL (`01-init-rls-roles.sh`: role `sora_app` `NOBYPASSRLS`) | ✅ Concluído | commit `c0f78de` |
 | Traefik v3 (roteamento `api.sora.localhost` / wildcard `*.sora.localhost`) | ✅ Concluído | `infra/traefik/*` |
 | CI/CD (pipeline + PR template + dependabot) | ✅ Concluído | commit `1e5a593` |
-| **Backend `services/api`** | 🟡 **Em andamento** | Passos 1–3 (skeleton, banco/RLS, auth) |
-| **`apps/web` e `apps/mobile`** | ⏭️ Fora desta fase (Fase 3 do roadmap) | — |
+| **Backend `services/api`** | ✅ **Passos 1–3 concluídos** | skeleton, banco/RLS, auth JWT+Redis |
+| **`apps/web` (preview)** | 🟡 **Slice de login + dashboard** | antecipação da Fase 3 |
+| **`apps/mobile`** | ⏭️ Fora desta fase (Fase 3 do roadmap) | — |
 
 > **Conclusão:** a "fundação" de infraestrutura já está entregue. A Fase 1, a
 > partir daqui, concentra-se no **backend FastAPI** (`services/api`).
@@ -61,7 +62,7 @@
 - **Critério de aceite:** `alembic upgrade head` e `downgrade base` funcionais;
   teste de integração prova que query sem filtro de tenant é bloqueada pela RLS.
 
-### Passo 3 — Auth JWT + Refresh Token no Redis · branch `feat/api-auth` · 🟡 Nesta PR
+### Passo 3 — Auth JWT + Refresh Token no Redis · branch `feat/api-auth` · ✅ Concluído
 - **Objetivo:** access token (15 min) + refresh rotativo no Redis + revogação
   instantânea.
 - **Critério de aceite:** login gera par; token revogado → `401` imediato;
