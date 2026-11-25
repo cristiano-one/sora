@@ -241,7 +241,9 @@ jobs:
           uv run ruff check .
           uv run mypy app
           uv run pytest -q --cov=app --cov-fail-under=80
-          uv run pytest -q -m security
+          # A suíte Zero-Leak (`-m security`) começa no Passo 2 da Fase 1.
+          # Exit 5 = nenhum teste marcado ainda; não deve quebrar o CI.
+          uv run pytest -q -m security || [ $? -eq 5 ]
 
   # ============================================================================
   # Testes e Build — Web (Next.js)
