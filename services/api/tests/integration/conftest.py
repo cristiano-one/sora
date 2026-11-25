@@ -6,15 +6,19 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
+import boto3
 import httpx
 import pytest
 from alembic import command
 from alembic.config import Config
 from app.core.auth.security import hash_password
+from app.core.config import settings
 from app.core.redis import create_redis, get_redis
+from app.core.storage import S3Storage, get_storage
 from app.db.session import create_engine, create_session_factory, get_session
 from app.main import app
 from app.models import Tenant, User, UserRole
+from moto import mock_aws
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from testcontainers.community.postgres import PostgresContainer
@@ -104,6 +108,25 @@ def redis_url(redis_container) -> str:
 
 
 @pytest.fixture(scope="session")
+def s3_mock() -> Iterator[None]:
+    """Ativa o mock do S3 (moto) para os testes de anexos."""
+    with mock_aws():
+        boto3.client("s3", region_name="us-east-1").create_bucket(
+            Bucket="sora-private"
+        )
+        yield
+
+
+@pytest.fixture
+def test_storage(s3_mock, monkeypatch) -> S3Storage:
+    """Storage S3 apontando para o moto (sem depender do MinIO externo)."""
+    monkeypatch.setattr(settings, "storage_endpoint", None)
+    monkeypatch.setattr(settings, "storage_access_key_id", "testing")
+    monkeypatch.setattr(settings, "storage_secret_access_key", "testing")
+    return S3Storage(bucket="sora-private", region="us-east-1")
+
+
+@pytest.fixture(scope="session")
 def migrated_database(database_urls) -> Iterator[None]:
     """Aplica todas as migrations Alembic no banco de teste (uma vez por sessão)."""
     config = Config(str(API_DIR / "alembic.ini"))
@@ -139,8 +162,12 @@ async def test_redis(redis_url) -> AsyncIterator[Redis]:
 
 
 @pytest.fixture
-async def auth_client(app_engine, test_redis) -> AsyncIterator[httpx.AsyncClient]:
-    """Cliente HTTP com banco/Redis de teste injetados via dependency_overrides."""
+async def auth_client(
+    app_engine,
+    test_redis,
+    test_storage,
+) -> AsyncIterator[httpx.AsyncClient]:
+    """Cliente HTTP com banco/Redis/storage de teste injetados."""
 
     async def override_get_session() -> AsyncIterator[AsyncSession]:
         factory = create_session_factory(app_engine)
@@ -150,8 +177,12 @@ async def auth_client(app_engine, test_redis) -> AsyncIterator[httpx.AsyncClient
     async def override_get_redis() -> Redis:
         return test_redis
 
+    def override_get_storage() -> S3Storage:
+        return test_storage
+
     app.dependency_overrides[get_session] = override_get_session
     app.dependency_overrides[get_redis] = override_get_redis
+    app.dependency_overrides[get_storage] = override_get_storage
     try:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),
@@ -161,6 +192,7 @@ async def auth_client(app_engine, test_redis) -> AsyncIterator[httpx.AsyncClient
     finally:
         app.dependency_overrides.pop(get_session, None)
         app.dependency_overrides.pop(get_redis, None)
+        app.dependency_overrides.pop(get_storage, None)
 
 
 @pytest.fixture

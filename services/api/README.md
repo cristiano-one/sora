@@ -75,6 +75,19 @@ Leitura liberada para `OWNER`/`ADMIN`/`COLLABORATOR`; escrita apenas
 `OWNER`/`ADMIN`. Preços, custos e sinal usam `Decimal`/`Numeric`. Planos têm
 cotas por ciclo, intervalo mínimo e dias da semana permitidos.
 
+## Clientes, Score e Prontuário
+
+- `GET/POST /api/v1/clients` e `GET/PATCH /api/v1/clients/{id}` — telefone
+  mascarado para `COLLABORATOR`.
+- `POST /api/v1/clients/{id}/score-events` — avaliação pós-atendimento.
+- `POST /api/v1/clients/{id}/consents` — aceite LGPD.
+- `POST/GET /api/v1/clients/{id}/records` — evolução clínica com notas cifradas.
+- `POST .../attachments/presign` e `GET .../attachments/{id}/url` — URLs S3
+  pré-assinadas com TTL de **60s**.
+
+Ações sensíveis gravam `AuditLog` append-only (UPDATE/DELETE revogados para
+`sora_app`). O score e o bloqueio são confidenciais da clínica.
+
 ## Testes de integração
 
 Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**
