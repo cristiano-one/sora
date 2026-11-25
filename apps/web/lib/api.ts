@@ -14,6 +14,66 @@ export type Me = {
   role: "OWNER" | "ADMIN" | "COLLABORATOR";
 };
 
+export type Service = {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  buffer_minutes: number;
+  price: string;
+  is_active: boolean;
+};
+
+export type Client = {
+  id: string;
+  full_name: string;
+  phone: string;
+  email: string | null;
+  score: number;
+  is_blocked: boolean;
+};
+
+export type UserSummary = {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+};
+
+export type Appointment = {
+  id: string;
+  tenant_id: string;
+  collaborator_id: string;
+  client_id: string;
+  service_id: string;
+  client_name: string;
+  service_name: string;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+  deposit_amount: string | null;
+};
+
+export type Availability = {
+  collaborator_id: string;
+  service_id: string;
+  date: string;
+  duration_minutes: number;
+  buffer_minutes: number;
+  available: boolean;
+  available_slots: string[];
+};
+
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 type LoginInput = {
   tenant_slug: string;
   email: string;
@@ -82,7 +142,7 @@ async function authenticatedRequest<T>(
   }
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new ApiError(response.status, `HTTP ${response.status}`);
   }
 
   if (response.status === 204) {
@@ -117,4 +177,62 @@ export async function logout(): Promise<void> {
 
 export async function getMe(): Promise<Me> {
   return authenticatedRequest<Me>("/api/v1/auth/me");
+}
+
+export async function getServices(): Promise<Service[]> {
+  return authenticatedRequest<Service[]>("/api/v1/services");
+}
+
+export async function getClients(): Promise<Client[]> {
+  return authenticatedRequest<Client[]>("/api/v1/clients");
+}
+
+export async function getUsers(): Promise<UserSummary[]> {
+  return authenticatedRequest<UserSummary[]>("/api/v1/users");
+}
+
+export async function getAppointments(
+  date: string,
+  collaboratorId?: string,
+): Promise<Appointment[]> {
+  const params = new URLSearchParams({ from_date: date, to_date: date });
+  if (collaboratorId) params.set("collaborator_id", collaboratorId);
+  return authenticatedRequest<Appointment[]>(
+    `/api/v1/appointments?${params.toString()}`,
+  );
+}
+
+export async function getAvailability(
+  serviceId: string,
+  date: string,
+  collaboratorId?: string,
+): Promise<Availability> {
+  const params = new URLSearchParams({ service_id: serviceId, date });
+  if (collaboratorId) params.set("collaborator_id", collaboratorId);
+  return authenticatedRequest<Availability>(
+    `/api/v1/agenda/availability?${params.toString()}`,
+  );
+}
+
+type CreateAppointmentInput = {
+  client_id: string;
+  service_id: string;
+  collaborator_id?: string;
+  starts_at: string;
+};
+
+export async function createAppointment(
+  input: CreateAppointmentInput,
+): Promise<Appointment> {
+  return authenticatedRequest<Appointment>("/api/v1/appointments", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function cancelAppointment(id: string): Promise<void> {
+  await authenticatedRequest<void>(`/api/v1/appointments/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: "CANCELLED" }),
+  });
 }

@@ -180,6 +180,189 @@ h1 {
   background: #f1f5f9;
 }
 
+.button-small {
+  width: auto;
+  padding: 7px 11px;
+  font-size: 12px;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.select,
+.field select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+  color: var(--text);
+  outline: none;
+}
+
+.select:focus,
+.field select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+  background: white;
+}
+
+.agenda-datebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.agenda-datebar input[type="date"],
+.agenda-datebar .select {
+  width: auto;
+}
+
+.agenda-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.agenda-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.appointment-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.appointment-time {
+  font-weight: 700;
+  font-size: 18px;
+  min-width: 56px;
+  letter-spacing: -0.02em;
+}
+
+.appointment-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.appointment-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.appointment-sub {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.appointment-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.status {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-scheduled {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.status-pending_deposit {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.status-confirmed {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.status-cancelled,
+.status-expired {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.status-completed {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.status-no_show {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.slot-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.slot {
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.slot.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.agenda-empty {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.agenda-form h2 {
+  margin-top: 0;
+}
+
+.panel-link {
+  display: block;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.panel-link:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 900px) {
+  .agenda-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .error {
   margin-top: 14px;
   padding: 10px 12px;
