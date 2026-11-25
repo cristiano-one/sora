@@ -64,6 +64,36 @@ export type Availability = {
   available_slots: string[];
 };
 
+export type PublicService = {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  price: string | null;
+};
+
+export type PublicProfessional = {
+  id: string;
+  full_name: string;
+};
+
+export type PublicContext = {
+  tenant_name: string;
+  tenant_slug: string;
+  client_name: string | null;
+  services: PublicService[];
+  professionals: PublicProfessional[];
+};
+
+export type PublicAppointment = {
+  id: string;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+  service_name: string;
+  collaborator_name: string;
+  deposit_amount: string | null;
+};
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -80,6 +110,17 @@ type LoginInput = {
   password: string;
 };
 
+async function toApiError(response: Response): Promise<ApiError> {
+  let message = `HTTP ${response.status}`;
+  try {
+    const body = (await response.json()) as { detail?: unknown };
+    if (typeof body.detail === "string") message = body.detail;
+  } catch {
+    // Resposta sem corpo JSON: mantém a mensagem padrão.
+  }
+  return new ApiError(response.status, message);
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -91,7 +132,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw await toApiError(response);
   }
 
   if (response.status === 204) {
@@ -142,7 +183,7 @@ async function authenticatedRequest<T>(
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, `HTTP ${response.status}`);
+    throw await toApiError(response);
   }
 
   if (response.status === 204) {
@@ -235,4 +276,59 @@ export async function cancelAppointment(id: string): Promise<void> {
     method: "PATCH",
     body: JSON.stringify({ status: "CANCELLED" }),
   });
+}
+
+export async function getPublicContext(
+  slug: string,
+  token: string,
+): Promise<PublicContext> {
+  const params = new URLSearchParams({ t: token });
+  return request<PublicContext>(
+    `/api/v1/public/${encodeURIComponent(slug)}/context?${params.toString()}`,
+  );
+}
+
+export async function getPublicAvailability(
+  slug: string,
+  token: string,
+  serviceId: string,
+  collaboratorId: string,
+  date: string,
+): Promise<Availability> {
+  const params = new URLSearchParams({
+    t: token,
+    service_id: serviceId,
+    collaborator_id: collaboratorId,
+    date,
+  });
+  return request<Availability>(
+    `/api/v1/public/${encodeURIComponent(slug)}/availability?${params.toString()}`,
+  );
+}
+
+type PublicAppointmentInput = {
+  token: string;
+  service_id: string;
+  collaborator_id: string;
+  starts_at: string;
+  full_name: string;
+};
+
+export async function createPublicAppointment(
+  slug: string,
+  input: PublicAppointmentInput,
+): Promise<PublicAppointment> {
+  const params = new URLSearchParams({ t: input.token });
+  return request<PublicAppointment>(
+    `/api/v1/public/${encodeURIComponent(slug)}/appointments?${params.toString()}`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        service_id: input.service_id,
+        collaborator_id: input.collaborator_id,
+        starts_at: input.starts_at,
+        full_name: input.full_name,
+      }),
+    },
+  );
 }
