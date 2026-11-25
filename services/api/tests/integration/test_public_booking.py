@@ -218,6 +218,8 @@ async def test_context_exposes_only_public_data(
         "client_name",
         "services",
         "professionals",
+        "plans",
+        "subscription",
     }
     assert body["tenant_slug"] == tenant_users.tenant_slug
     assert body["client_name"] == client["full_name"]

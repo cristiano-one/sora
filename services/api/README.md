@@ -122,6 +122,18 @@ conflito (“Não foi possível concluir o agendamento. Fale com a recepção.�
 sem revelar o motivo. Serviços com `requires_deposit=true` entram como
 `PENDING_DEPOSIT` (o Pix real fica para o Passo 3).
 
+## Assinaturas de clientes e cotas (Fase 2)
+
+- `GET /api/v1/subscriptions` — lista assinaturas (`OWNER`/`ADMIN`).
+- `GET /api/v1/clients/{id}/subscriptions` — assinaturas do cliente.
+- `POST /api/v1/clients/{id}/subscriptions` — contratação manual de plano.
+- `POST /api/v1/subscriptions/{id}/cancel` — cancela a assinatura.
+- `POST /api/v1/public/{slug}/subscriptions?t=` — contratação pelo link mágico.
+
+`ClientSubscription` guarda o ciclo atual e `SubscriptionUsage` registra cada
+cota consumida. O contexto público expõe planos ativos, a assinatura do próprio
+cliente e suas cotas (`used`/`remaining`), sem dados de terceiros.
+
 ## Testes de integração
 
 Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**

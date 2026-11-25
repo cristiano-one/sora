@@ -13,6 +13,8 @@ RLS_TABLES = {
     "package_items",
     "subscription_plans",
     "subscription_plan_items",
+    "client_subscriptions",
+    "subscription_usages",
     "clients",
     "client_score_events",
     "lgpd_consents",

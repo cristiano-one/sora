@@ -12,14 +12,31 @@ from app.api.schemas.public_booking import (
     PublicProfessionalResponse,
     PublicServiceResponse,
 )
+from app.api.schemas.subscriptions import PublicSubscriptionResponse
 from app.core.config import settings
 from app.core.redis import tenant_key
 from app.db.rls import set_tenant_context
-from app.models import Client, Service, Tenant, User, UserRole
+from app.models import (
+    Client,
+    ClientSubscriptionStatus,
+    Service,
+    SubscriptionPlan,
+    Tenant,
+    User,
+    UserRole,
+)
 from app.modules.agenda.service import (
     _as_utc,
     _compute_slots,
     _insert_appointment,
+)
+from app.modules.subscriptions.service import (
+    SubscriptionConflictError,
+    SubscriptionNotFoundError,
+    create_client_subscription,
+    get_active_subscription,
+    public_plan_response,
+    public_subscription_response,
 )
 from redis.asyncio import Redis
 from sqlalchemy import func, select, text
@@ -146,6 +163,18 @@ async def get_public_context(
         )
     ).all()
     client = await _client_by_phone(session, phone)
+    plans = (
+        await session.scalars(
+            select(SubscriptionPlan)
+            .where(SubscriptionPlan.is_active)
+            .order_by(SubscriptionPlan.name)
+        )
+    ).all()
+    active_subscription = (
+        await get_active_subscription(session, client_id=client.id)
+        if client is not None
+        else None
+    )
 
     return PublicContextResponse(
         tenant_name=tenant.name,
@@ -164,6 +193,12 @@ async def get_public_context(
             PublicProfessionalResponse(id=user.id, full_name=user.full_name)
             for user in professionals
         ],
+        plans=[public_plan_response(plan) for plan in plans],
+        subscription=(
+            await public_subscription_response(session, active_subscription)
+            if active_subscription is not None
+            else None
+        ),
     )
 
 
@@ -296,3 +331,57 @@ async def public_create_appointment(
         collaborator_name=professional.full_name,
         deposit_amount=appointment.deposit_amount,
     )
+
+
+async def public_create_subscription(
+    session: AsyncSession,
+    redis: Redis,
+    *,
+    slug: str,
+    token: str,
+    plan_id: UUID,
+    full_name: str | None,
+) -> PublicSubscriptionResponse:
+    """Contrata um plano pelo link mágico (cliente existente ou novo)."""
+    tenant_id, phone = await _validate_magic(
+        session,
+        redis,
+        slug=slug,
+        token=token,
+    )
+    client = await _client_by_phone(session, phone)
+    if client is not None and client.is_blocked:
+        raise PublicBookingConflictError(
+            "Não foi possível concluir a contratação. Fale com a recepção."
+        )
+
+    if client is None:
+        name = (full_name or "").strip()
+        if len(name) < 2:
+            raise PublicBookingError("Informe seu nome")
+        client = Client(
+            tenant_id=tenant_id,
+            full_name=name,
+            phone=phone,
+            score=100,
+            is_blocked=False,
+        )
+        session.add(client)
+        await session.flush()
+
+    try:
+        subscription = await create_client_subscription(
+            session,
+            tenant_id=tenant_id,
+            client=client,
+            plan_id=plan_id,
+            status=ClientSubscriptionStatus.ACTIVE,
+        )
+    except SubscriptionConflictError as exc:
+        raise PublicBookingConflictError(
+            "Você já possui este plano ativo."
+        ) from exc
+    except SubscriptionNotFoundError as exc:
+        raise PublicBookingError("Plano inválido") from exc
+
+    return await public_subscription_response(session, subscription)
