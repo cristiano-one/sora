@@ -16,6 +16,10 @@ from app.api.schemas.public_booking import (
     PublicAppointmentResponse,
     PublicContextResponse,
 )
+from app.api.schemas.subscriptions import (
+    PublicSubscriptionCreateRequest,
+    PublicSubscriptionResponse,
+)
 from app.core.config import settings
 from app.core.redis import get_redis
 from app.db.session import get_session
@@ -28,6 +32,7 @@ from app.modules.agenda.public_service import (
     get_public_context,
     public_availability,
     public_create_appointment,
+    public_create_subscription,
 )
 from app.modules.agenda.service import (
     AgendaBusyError,
@@ -156,6 +161,37 @@ async def public_availability_endpoint(
         PublicTenantNotFoundError,
         PublicBookingError,
         InvalidAppointmentError,
+    ) as exc:
+        raise _map_public_error(exc) from exc
+
+
+@router.post(
+    "/{slug}/subscriptions",
+    response_model=PublicSubscriptionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Contrata plano de assinatura pelo link mágico",
+)
+async def public_create_subscription_endpoint(
+    slug: str,
+    body: PublicSubscriptionCreateRequest,
+    t: str = Query(...),
+    session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> PublicSubscriptionResponse:
+    try:
+        return await public_create_subscription(
+            session,
+            redis,
+            slug=slug,
+            token=t,
+            plan_id=body.plan_id,
+            full_name=body.full_name,
+        )
+    except (
+        InvalidMagicLinkError,
+        PublicTenantNotFoundError,
+        PublicBookingError,
+        PublicBookingConflictError,
     ) as exc:
         raise _map_public_error(exc) from exc
 

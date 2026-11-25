@@ -32,6 +32,16 @@
   - web: página pública `/public/[slug]?t=` com serviços, profissionais,
     horários livres, nome do cliente e confirmação (mobile-first).
 - [ ] **Passo 3 — Assinaturas/cotas + score no agendamento + sinal Pix (mock)**.
+  - [x] **3.1 Assinaturas de clientes + cotas** · branch `feat/api-subscriptions`
+    - models `ClientSubscription`/`SubscriptionUsage`, migration `0008`, RLS `FORCE`.
+    - contratação pelo painel e pelo link público (`POST /public/{slug}/subscriptions`).
+    - contexto público com planos ativos, assinatura do cliente e cotas usadas/restantes.
+    - listagem/cancelamento interno restrito a `OWNER`/`ADMIN`.
+    - testes: contratação, cotas, conflito de plano ativo, cross-tenant e RBAC.
+  - [ ] 3.2 Consumo de cotas na agenda + tag `ASSINANTE`.
+  - [ ] 3.3 Score mínimo + sinal e expiração de reserva.
+  - [ ] 3.4 Pix mock (copia-e-cola, QR e confirmação).
+  - [ ] 3.5 Web público: planos, cotas e sinal Pix.
 - [x] **Passo 4 — Tela de agenda no web preview** (consumindo os endpoints acima).
 
 ## Regras de aceite

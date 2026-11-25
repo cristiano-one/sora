@@ -6,6 +6,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.api.schemas.subscriptions import (
+    PublicSubscriptionPlanResponse,
+    PublicSubscriptionResponse,
+)
 from app.models import AppointmentStatus
 
 
@@ -46,6 +50,8 @@ class PublicContextResponse(BaseModel):
     client_name: str | None
     services: list[PublicServiceResponse]
     professionals: list[PublicProfessionalResponse]
+    plans: list[PublicSubscriptionPlanResponse]
+    subscription: PublicSubscriptionResponse | None
 
 
 class PublicAppointmentCreateRequest(BaseModel):
