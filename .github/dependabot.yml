@@ -8,6 +8,10 @@ updates:
     target-branch: "develop"
     schedule:
       interval: "weekly"
-    labels:
-      - "dependencies"
-      - "ci"
+    # Os rótulos abaixo exigem que os labels existam no repositório.
+    # Crie-os em Settings > Labels (nomes: "dependencies" e "ci") e então
+    # descomente o bloco. Sem isso, o Dependabot emite o aviso:
+    # "Não foi possível encontrar os seguintes rótulos: ci, dependencies".
+    # labels:
+    #   - "dependencies"
+    #   - "ci"
