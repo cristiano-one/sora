@@ -17,7 +17,7 @@
 | Init RLS do PostgreSQL (`01-init-rls-roles.sh`: role `sora_app` `NOBYPASSRLS`) | ✅ Concluído | commit `c0f78de` |
 | Traefik v3 (roteamento `api.sora.localhost` / wildcard `*.sora.localhost`) | ✅ Concluído | `infra/traefik/*` |
 | CI/CD (pipeline + PR template + dependabot) | ✅ Concluído | commit `1e5a593` |
-| **Backend `services/api`** | 🟡 **Em andamento** | Passo 1 (skeleton) + Passo 2 (banco/RLS) |
+| **Backend `services/api`** | ✅ **Fundação concluída** | Passo 1 (skeleton) + Passo 2 (banco/RLS) |
 | **`apps/web` e `apps/mobile`** | ⏭️ Fora desta fase (Fase 3 do roadmap) | — |
 
 > **Conclusão:** a "fundação" de infraestrutura já está entregue. A Fase 1, a
@@ -53,7 +53,7 @@
   - `GET /health` → `200 {"status": "ok"}`.
 - **Zero-Leak:** logging configurado sem PII; config não loga credenciais.
 
-### Passo 2 — Banco multi-tenant base + Alembic + RLS · branch `feat/api-db-rls` · 🟡 Nesta PR
+### Passo 2 — Banco multi-tenant base + Alembic + RLS · branch `feat/api-db-rls` · ✅ Concluído
 - **Objetivo:** modelo `tenants` + `users` com `tenant_id`, policies RLS e
   migrations idempotentes (`up` **e** `downgrade`).
 - **Entregáveis:** `app/db/` (engine/session), `app/models/`, `alembic.ini`,
