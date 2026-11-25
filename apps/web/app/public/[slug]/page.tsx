@@ -6,34 +6,49 @@ import {
   useEffect,
   useMemo,
   useState,
+  type CSSProperties,
   type FormEvent,
 } from "react";
 
 import {
   ApiError,
+  confirmMockPublicPayment,
   createPublicAppointment,
+  createPublicSubscription,
   getPublicAvailability,
   getPublicContext,
   type PublicAppointment,
   type PublicContext,
+  type PublicPayment,
+  type PublicPlan,
 } from "@/lib/api";
 import {
   formatDateLabel,
+  formatIsoDate,
   formatTime,
   shiftDate,
   toTenantIso,
   todayInTenant,
 } from "@/lib/agenda";
-import { formatPrice, parseMagicToken } from "@/lib/public";
+import { billingCycleLabel, formatPrice, parseMagicToken } from "@/lib/public";
 
 const STATUS_LABEL: Record<string, string> = {
   SCHEDULED: "Agendado",
   PENDING_DEPOSIT: "Aguardando sinal",
   CONFIRMED: "Confirmado",
+  CANCELLED: "Cancelado",
+  EXPIRED: "Expirado",
 };
 
 const INVALID_LINK_MESSAGE =
   "Este link é inválido ou expirou. Peça um novo link para a clínica no WhatsApp.";
+
+type PendingPayment = {
+  payment: PublicPayment;
+  kind: "appointment" | "subscription";
+  appointment?: PublicAppointment;
+  plan?: PublicPlan;
+};
 
 export default function PublicBookingPage() {
   const params = useParams<{ slug: string }>();
@@ -49,12 +64,21 @@ export default function PublicBookingPage() {
   const [loading, setLoading] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [subscribingPlanId, setSubscribingPlanId] = useState<string | null>(
+    null,
+  );
   const [linkInvalid, setLinkInvalid] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<PublicAppointment | null>(
     null,
   );
+  const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(
+    null,
+  );
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  const [copyLabel, setCopyLabel] = useState("Copiar código Pix");
 
   useEffect(() => {
     if (!slug) {
@@ -136,6 +160,13 @@ export default function PublicBookingPage() {
     void refreshSlots();
   }, [refreshSlots]);
 
+  const reloadContext = useCallback(async () => {
+    if (!slug || !token) return null;
+    const data = await getPublicContext(slug, token);
+    setContext(data);
+    return data;
+  }, [slug, token]);
+
   const service = useMemo(
     () => context?.services.find((item) => item.id === serviceId) ?? null,
     [context, serviceId],
@@ -150,10 +181,22 @@ export default function PublicBookingPage() {
     Boolean(context) &&
     (context?.services.length ?? 0) > 0 &&
     (context?.professionals.length ?? 0) > 0;
+  const themeStyle = context
+    ? ({ "--primary": context.theme_primary_color } as CSSProperties)
+    : undefined;
+
+  function openPayment(next: PendingPayment) {
+    setPendingPayment(next);
+    setConfirmation(null);
+    setError(null);
+    setCopyLabel("Copiar código Pix");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setNotice(null);
     if (
       !slug ||
       !token ||
@@ -175,8 +218,16 @@ export default function PublicBookingPage() {
         starts_at: toTenantIso(date, selectedSlot),
         full_name: fullName.trim(),
       });
-      setConfirmation(appointment);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (appointment.payment) {
+        openPayment({
+          payment: appointment.payment,
+          kind: "appointment",
+          appointment,
+        });
+      } else {
+        setConfirmation(appointment);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401) {
@@ -195,10 +246,121 @@ export default function PublicBookingPage() {
     }
   }
 
+  async function handleSubscribe(plan: PublicPlan) {
+    setError(null);
+    setNotice(null);
+    if (!slug || !token) return;
+    if (!fullName.trim()) {
+      setError("Informe seu nome antes de assinar o plano.");
+      return;
+    }
+
+    setSubscribingPlanId(plan.id);
+    try {
+      const subscription = await createPublicSubscription(slug, {
+        token,
+        plan_id: plan.id,
+        full_name: fullName.trim(),
+      });
+      if (subscription.payment) {
+        openPayment({
+          payment: subscription.payment,
+          kind: "subscription",
+          plan,
+        });
+      } else {
+        await reloadContext();
+        setNotice(`Plano ${plan.name} ativado!`);
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 401) {
+          setLinkInvalid(true);
+        } else if (err.status === 409 || err.status === 422) {
+          setError(err.message);
+        } else {
+          setError("Não foi possível contratar o plano. Tente novamente.");
+        }
+      } else {
+        setError("Não foi possível contratar o plano. Tente novamente.");
+      }
+    } finally {
+      setSubscribingPlanId(null);
+    }
+  }
+
+  async function handlePaymentConfirm() {
+    if (!pendingPayment || !slug || !token) return;
+    setPaymentBusy(true);
+    setError(null);
+    try {
+      const result = await confirmMockPublicPayment(
+        slug,
+        token,
+        pendingPayment.payment.id,
+      );
+      if (pendingPayment.kind === "appointment" && pendingPayment.appointment) {
+        setConfirmation({
+          ...pendingPayment.appointment,
+          status: result.appointment_status ?? pendingPayment.appointment.status,
+          payment: result,
+        });
+        setPendingPayment(null);
+      } else {
+        await reloadContext();
+        const planName = pendingPayment.plan?.name;
+        setPendingPayment(null);
+        setNotice(planName ? `Plano ${planName} ativado!` : "Plano ativado!");
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 401) {
+          setLinkInvalid(true);
+        } else if (
+          err.status === 409 &&
+          err.message.toLowerCase().includes("expirado")
+        ) {
+          setPendingPayment(null);
+          setError("O pagamento expirou. Escolha um novo horário.");
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError("Não foi possível confirmar o Pix. Tente novamente.");
+      }
+      await reloadContext();
+      await refreshSlots();
+    } finally {
+      setPaymentBusy(false);
+    }
+  }
+
+  async function handleCopyPix() {
+    if (!pendingPayment) return;
+    try {
+      await navigator.clipboard.writeText(
+        pendingPayment.payment.pix_copy_paste,
+      );
+      setCopyLabel("Copiado!");
+    } catch {
+      setCopyLabel("Selecione e copie o código");
+    }
+  }
+
+  function closePayment() {
+    if (pendingPayment?.kind === "appointment" && pendingPayment.appointment) {
+      setConfirmation(pendingPayment.appointment);
+    }
+    setPendingPayment(null);
+    setError(null);
+  }
+
   function resetBooking() {
     setConfirmation(null);
     setSelectedSlot("");
     setError(null);
+    setNotice(null);
     void refreshSlots();
   }
 
@@ -250,10 +412,109 @@ export default function PublicBookingPage() {
     );
   }
 
+  if (pendingPayment) {
+    const amount = formatPrice(pendingPayment.payment.amount);
+    return (
+      <main className="public-shell" style={themeStyle}>
+        <div className="public-card">
+          <div className="brand">
+            <div className="brand-mark">S</div>
+            <div>
+              <div className="brand-name">{context.tenant_name}</div>
+              <div className="brand-tag">Pagamento Pix</div>
+            </div>
+          </div>
+
+          <h1>
+            {pendingPayment.kind === "appointment"
+              ? "Pague o sinal"
+              : "Ative seu plano"}
+          </h1>
+          <p className="subtitle">
+            Escaneie o QR Code ou copie o código Pix. A confirmação libera{" "}
+            {pendingPayment.kind === "appointment"
+              ? "o seu horário."
+              : "as cotas do plano."}
+          </p>
+
+          {pendingPayment.plan ? (
+            <div className="public-resume">
+              <strong>{pendingPayment.plan.name}</strong>
+              <span>
+                {formatPrice(pendingPayment.plan.price)} ·{" "}
+                {billingCycleLabel(pendingPayment.plan.billing_cycle)}
+              </span>
+            </div>
+          ) : null}
+
+          {pendingPayment.appointment ? (
+            <div className="public-resume">
+              <strong>{pendingPayment.appointment.service_name}</strong>
+              <span>
+                {formatDateLabel(date)} ·{" "}
+                {formatTime(pendingPayment.appointment.starts_at)}–
+                {formatTime(pendingPayment.appointment.ends_at)}
+              </span>
+            </div>
+          ) : null}
+
+          <div className="public-payment-amount">{amount}</div>
+
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="public-qr"
+            src={pendingPayment.payment.qr_code_data_uri}
+            alt="QR Code Pix"
+          />
+
+          <div className="public-pix-box">
+            <code>{pendingPayment.payment.pix_copy_paste}</code>
+            <button
+              className="button button-ghost button-small"
+              type="button"
+              onClick={handleCopyPix}
+            >
+              {copyLabel}
+            </button>
+          </div>
+
+          <p className="public-note">
+            Expira às {formatTime(pendingPayment.payment.expires_at)}. Depois
+            disso, o horário volta a ficar disponível.
+          </p>
+
+          <button
+            className="button"
+            type="button"
+            onClick={handlePaymentConfirm}
+            disabled={paymentBusy}
+          >
+            {paymentBusy ? "Confirmando…" : "Simular pagamento Pix"}
+          </button>
+          <button
+            className="button button-ghost"
+            type="button"
+            onClick={closePayment}
+            disabled={paymentBusy}
+          >
+            Voltar
+          </button>
+
+          {error ? <p className="error">{error}</p> : null}
+
+          <p className="public-note">
+            Ambiente de demonstração: o botão acima simula a confirmação do
+            Pix. Na produção, o gateway confirma via webhook.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   if (confirmation) {
     const confirmedDeposit = formatPrice(confirmation.deposit_amount);
     return (
-      <main className="public-shell">
+      <main className="public-shell" style={themeStyle}>
         <div className="public-card">
           <div className="brand">
             <div className="brand-mark">S</div>
@@ -305,11 +566,34 @@ export default function PublicBookingPage() {
             ) : null}
           </dl>
 
-          {confirmation.status === "PENDING_DEPOSIT" ? (
+          {confirmation.used_subscription ? (
             <p className="public-note">
-              Este serviço exige um sinal. A clínica entrará em contato para
-              combinar o Pix.
+              Cota do seu plano utilizada neste agendamento.
             </p>
+          ) : null}
+
+          {confirmation.status === "PENDING_DEPOSIT" ? (
+            <>
+              <p className="public-note">
+                Pague o sinal para confirmar seu horário. Sem o pagamento, ele
+                é liberado após 10 minutos.
+              </p>
+              {confirmation.payment ? (
+                <button
+                  className="button"
+                  type="button"
+                  onClick={() =>
+                    openPayment({
+                      payment: confirmation.payment as PublicPayment,
+                      kind: "appointment",
+                      appointment: confirmation,
+                    })
+                  }
+                >
+                  Pagar sinal
+                </button>
+              ) : null}
+            </>
           ) : (
             <p className="public-note">
               Guarde estas informações. Para remarcar, fale com a recepção da
@@ -317,7 +601,7 @@ export default function PublicBookingPage() {
             </p>
           )}
 
-          <button className="button" type="button" onClick={resetBooking}>
+          <button className="button button-ghost" type="button" onClick={resetBooking}>
             Fazer outro agendamento
           </button>
         </div>
@@ -326,7 +610,7 @@ export default function PublicBookingPage() {
   }
 
   return (
-    <main className="public-shell">
+    <main className="public-shell" style={themeStyle}>
       <div className="public-card">
         <div className="brand">
           <div className="brand-mark">S</div>
@@ -345,6 +629,8 @@ export default function PublicBookingPage() {
           Escolha o serviço, o profissional e um horário livre. Leva menos de um
           minuto.
         </p>
+
+        {notice ? <p className="public-notice">{notice}</p> : null}
 
         {!hasOptions ? (
           <p className="public-empty">
@@ -474,6 +760,75 @@ export default function PublicBookingPage() {
                 />
               </div>
             </section>
+
+            {context.plans.length > 0 || context.subscription ? (
+              <section className="public-step">
+                <h2>5. Clube de assinatura</h2>
+                {context.subscription ? (
+                  <div className="public-subscription">
+                    <div className="public-subscription-head">
+                      <strong>{context.subscription.plan_name}</strong>
+                      <span>
+                        Ativo até{" "}
+                        {formatIsoDate(context.subscription.current_period_end)}
+                      </span>
+                    </div>
+                    <div className="public-quota-list">
+                      {context.subscription.quotas.map((quota) => (
+                        <div key={quota.service_id}>
+                          <span>{quota.service_name}</span>
+                          <strong>
+                            {quota.remaining} de {quota.uses_per_cycle}{" "}
+                            restantes
+                          </strong>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="public-note">
+                      Ao agendar um serviço com cota disponível, ela é usada
+                      automaticamente e o sinal é dispensado.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="public-plans">
+                    {context.plans.map((plan) => (
+                      <article className="public-plan" key={plan.id}>
+                        <div className="public-plan-info">
+                          <strong>{plan.name}</strong>
+                          {plan.description ? (
+                            <span>{plan.description}</span>
+                          ) : null}
+                          <div className="public-plan-price">
+                            {formatPrice(plan.price)}{" "}
+                            <small>
+                              {billingCycleLabel(plan.billing_cycle)}
+                            </small>
+                          </div>
+                          <ul>
+                            {plan.items.map((item) => (
+                              <li key={item.service_id}>
+                                {item.service_name} · {item.uses_per_cycle}x por
+                                ciclo
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <button
+                          className="button button-ghost button-small"
+                          type="button"
+                          onClick={() => handleSubscribe(plan)}
+                          disabled={subscribingPlanId !== null}
+                        >
+                          {subscribingPlanId === plan.id
+                            ? "Abrindo…"
+                            : "Assinar"}
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+            ) : null}
 
             {service && professional ? (
               <div className="public-resume">

@@ -31,7 +31,7 @@
     disponibilidade, criação, conflito, bloqueio neutro, sinal e TTL no Redis.
   - web: página pública `/public/[slug]?t=` com serviços, profissionais,
     horários livres, nome do cliente e confirmação (mobile-first).
-- [ ] **Passo 3 — Assinaturas/cotas + score no agendamento + sinal Pix (mock)**.
+- [x] **Passo 3 — Assinaturas/cotas + score no agendamento + sinal Pix (mock)**.
   - [x] **3.1 Assinaturas de clientes + cotas** · branch `feat/api-subscriptions`
     - models `ClientSubscription`/`SubscriptionUsage`, migration `0008`, RLS `FORCE`.
     - contratação pelo painel e pelo link público (`POST /public/{slug}/subscriptions`).
@@ -65,7 +65,12 @@
       (somente `PAYMENT_PROVIDER=mock`), com posse pelo token e idempotência.
     - pagamento aprovado confirma o agendamento/ativa a assinatura; expirado
       libera horário e encerra a assinatura pendente.
-  - [ ] 3.5 Web público: planos, cotas e sinal Pix.
+  - [x] 3.5 Web público: planos, cotas e sinal Pix · branch
+    `feat/web-public-plans-pix`
+    - vitrine de planos com preço/ciclo/cotas e assinatura pelo link.
+    - tela de pagamento com QR, copia-e-cola, expiração e confirmação mock.
+    - cotas restantes do plano e tag `Assinante` na agenda interna.
+    - tema primário do tenant aplicado ao link público.
 - [x] **Passo 4 — Tela de agenda no web preview** (consumindo os endpoints acima).
 
 ## Regras de aceite

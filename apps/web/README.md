@@ -36,7 +36,8 @@ uv run uvicorn app.main:app --reload --port 8010
 - `/agenda` — board do dia, disponibilidade em tempo real, criação e
   cancelamento de agendamentos (anti-conflito no backend).
 - `/public/[slug]?t=<token>` — página pública do link mágico (sem login):
-  serviços, profissionais, horários livres e confirmação do agendamento.
+  serviços, profissionais, horários livres, planos de assinatura, cotas e
+  pagamento Pix (mock).
 
 ### Testar o link público (demo)
 
@@ -50,8 +51,14 @@ curl -X POST http://127.0.0.1:8010/api/v1/public/demo/magic-link \
 # 2) Abra a URL retornada no navegador (http://localhost:3000/public/demo?t=...)
 ```
 
-O token expira em **20 min** e o cliente bloqueado recebe horários vazios e
-uma mensagem genérica (sem revelar score/bloqueio).
+O token expira em **20 min**. Na página você pode:
+
+- agendar um horário e pagar o sinal pelo **Pix mock** (QR + copia-e-cola);
+- assinar o clube da clínica e ativar o plano com o mesmo Pix simulado;
+- acompanhar as cotas restantes e agendar usando o plano (tag `Assinante`).
+
+O cliente bloqueado recebe horários vazios e uma mensagem genérica, sem revelar
+score/bloqueio.
 
 ## Validação
 

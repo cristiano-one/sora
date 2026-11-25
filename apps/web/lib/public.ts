@@ -10,3 +10,7 @@ export function formatPrice(value: string | null): string | null {
   const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return `R$ ${grouped},${cents}`;
 }
+
+export function billingCycleLabel(cycle: "MONTHLY" | "QUARTERLY"): string {
+  return cycle === "MONTHLY" ? "por mês" : "por trimestre";
+}

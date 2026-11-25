@@ -52,6 +52,7 @@ export type Appointment = {
   ends_at: string;
   status: string;
   deposit_amount: string | null;
+  subscription_id: string | null;
 };
 
 export type Availability = {
@@ -76,12 +77,66 @@ export type PublicProfessional = {
   full_name: string;
 };
 
+export type PublicPlanItem = {
+  service_id: string;
+  service_name: string;
+  uses_per_cycle: number;
+  min_interval_days: number | null;
+  allowed_weekdays: number[] | null;
+};
+
+export type PublicPlan = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: string;
+  billing_cycle: "MONTHLY" | "QUARTERLY";
+  items: PublicPlanItem[];
+};
+
+export type PublicQuota = {
+  service_id: string;
+  service_name: string;
+  uses_per_cycle: number;
+  used: number;
+  remaining: number;
+  min_interval_days: number | null;
+  allowed_weekdays: number[] | null;
+};
+
+export type PublicPayment = {
+  id: string;
+  amount: string;
+  status: "PENDING" | "PAID" | "EXPIRED" | "CANCELLED";
+  pix_copy_paste: string;
+  qr_code_data_uri: string;
+  expires_at: string;
+};
+
+export type PublicPaymentConfirm = PublicPayment & {
+  appointment_status: string | null;
+  subscription_status: string | null;
+};
+
+export type PublicSubscription = {
+  status: "PENDING_PAYMENT" | "ACTIVE" | "CANCELLED" | "EXPIRED";
+  plan_id: string;
+  plan_name: string;
+  current_period_start: string;
+  current_period_end: string;
+  quotas: PublicQuota[];
+  payment: PublicPayment | null;
+};
+
 export type PublicContext = {
   tenant_name: string;
   tenant_slug: string;
   client_name: string | null;
+  theme_primary_color: string;
   services: PublicService[];
   professionals: PublicProfessional[];
+  plans: PublicPlan[];
+  subscription: PublicSubscription | null;
 };
 
 export type PublicAppointment = {
@@ -92,6 +147,8 @@ export type PublicAppointment = {
   service_name: string;
   collaborator_name: string;
   deposit_amount: string | null;
+  used_subscription: boolean;
+  payment: PublicPayment | null;
 };
 
 export class ApiError extends Error {
@@ -330,5 +387,45 @@ export async function createPublicAppointment(
         full_name: input.full_name,
       }),
     },
+  );
+}
+
+export async function createPublicSubscription(
+  slug: string,
+  input: { token: string; plan_id: string; full_name?: string },
+): Promise<PublicSubscription> {
+  const params = new URLSearchParams({ t: input.token });
+  return request<PublicSubscription>(
+    `/api/v1/public/${encodeURIComponent(slug)}/subscriptions?${params.toString()}`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        plan_id: input.plan_id,
+        full_name: input.full_name,
+      }),
+    },
+  );
+}
+
+export async function getPublicPayment(
+  slug: string,
+  token: string,
+  paymentId: string,
+): Promise<PublicPaymentConfirm> {
+  const params = new URLSearchParams({ t: token });
+  return request<PublicPaymentConfirm>(
+    `/api/v1/public/${encodeURIComponent(slug)}/payments/${encodeURIComponent(paymentId)}?${params.toString()}`,
+  );
+}
+
+export async function confirmMockPublicPayment(
+  slug: string,
+  token: string,
+  paymentId: string,
+): Promise<PublicPaymentConfirm> {
+  const params = new URLSearchParams({ t: token });
+  return request<PublicPaymentConfirm>(
+    `/api/v1/public/${encodeURIComponent(slug)}/payments/${encodeURIComponent(paymentId)}/mock-confirm?${params.toString()}`,
+    { method: "POST" },
   );
 }

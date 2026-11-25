@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatIsoDate,
   formatTime,
   shiftDate,
   toTenantIso,
@@ -25,5 +26,9 @@ describe("agenda helpers", () => {
     expect(toTenantIso("2027-01-11", "10:00")).toBe(
       "2027-01-11T13:00:00.000Z",
     );
+  });
+
+  it("formata data ISO no fuso da clínica", () => {
+    expect(formatIsoDate("2027-01-11T13:00:00Z")).toBe("11/01/2027");
   });
 });

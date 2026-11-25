@@ -286,6 +286,9 @@ export default function AgendaPage() {
                   <div className="appointment-main">
                     <div className="appointment-title">
                       {appointment.client_name}
+                      {appointment.subscription_id ? (
+                        <span className="badge-subscriber">Assinante</span>
+                      ) : null}
                     </div>
                     <div className="appointment-sub">
                       {appointment.service_name} ·{" "}

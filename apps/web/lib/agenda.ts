@@ -33,6 +33,15 @@ export function formatDateLabel(date: string): string {
   }).format(parsed);
 }
 
+export function formatIsoDate(iso: string): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: TENANT_TIME_ZONE,
+  }).format(new Date(iso));
+}
+
 export function toTenantIso(date: string, time: string): string {
   return new Date(`${date}T${time}:00-03:00`).toISOString();
 }

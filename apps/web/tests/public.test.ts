@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatPrice, parseMagicToken } from "../lib/public";
+import { billingCycleLabel, formatPrice, parseMagicToken } from "../lib/public";
 
 describe("public booking helpers", () => {
   it("extrai o token do link mágico", () => {
@@ -19,5 +19,10 @@ describe("public booking helpers", () => {
     expect(formatPrice("1234.5")).toBe("R$ 1.234,50");
     expect(formatPrice("0.00")).toBe("R$ 0,00");
     expect(formatPrice(null)).toBeNull();
+  });
+
+  it("rotula o ciclo do plano", () => {
+    expect(billingCycleLabel("MONTHLY")).toBe("por mês");
+    expect(billingCycleLabel("QUARTERLY")).toBe("por trimestre");
   });
 });
