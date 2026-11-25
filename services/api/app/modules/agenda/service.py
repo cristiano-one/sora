@@ -111,6 +111,63 @@ def _total_minutes(service: Service) -> int:
     return service.duration_minutes + service.buffer_minutes
 
 
+async def _insert_appointment(
+    session: AsyncSession,
+    redis: Redis,
+    *,
+    tenant_id: UUID,
+    collaborator: User,
+    client: Client,
+    service: Service,
+    start: datetime,
+    notes: str | None,
+    created_by: UUID | None,
+) -> Appointment:
+    """Insere com lock Redis + EXCLUDE gist (usado nos fluxos interno e público)."""
+    ends_at = start + timedelta(minutes=_total_minutes(service))
+    lock_key = _lock_key(
+        tenant_id=tenant_id,
+        collaborator_id=collaborator.id,
+        starts_at=start,
+    )
+    token = await acquire_lock(redis, lock_key, ttl_seconds=LOCK_TTL_SECONDS)
+    if token is None:
+        raise AgendaBusyError
+
+    try:
+        requires_deposit = service.requires_deposit
+        appointment = Appointment(
+            tenant_id=tenant_id,
+            collaborator_id=collaborator.id,
+            client_id=client.id,
+            service_id=service.id,
+            starts_at=start,
+            ends_at=ends_at,
+            status=(
+                AppointmentStatus.PENDING_DEPOSIT
+                if requires_deposit
+                else AppointmentStatus.SCHEDULED
+            ),
+            deposit_amount=service.deposit_amount if requires_deposit else None,
+            notes=notes,
+            created_by=created_by,
+            client=client,
+            service=service,
+            collaborator=collaborator,
+        )
+        session.add(appointment)
+        try:
+            await session.commit()
+        except IntegrityError as exc:
+            await session.rollback()
+            if _is_overlap_conflict(exc):
+                raise SlotUnavailableError from exc
+            raise
+        return appointment
+    finally:
+        await release_lock(redis, lock_key, token)
+
+
 async def create_appointment(
     session: AsyncSession,
     redis: Redis,
@@ -135,48 +192,17 @@ async def create_appointment(
     client = await _resolve_client(session, client_id)
     service = await _resolve_service(session, service_id)
 
-    ends_at = start + timedelta(minutes=_total_minutes(service))
-    lock_key = _lock_key(
+    return await _insert_appointment(
+        session,
+        redis,
         tenant_id=principal.tenant_id,
-        collaborator_id=collaborator.id,
-        starts_at=start,
+        collaborator=collaborator,
+        client=client,
+        service=service,
+        start=start,
+        notes=notes,
+        created_by=principal.user_id,
     )
-    token = await acquire_lock(redis, lock_key, ttl_seconds=LOCK_TTL_SECONDS)
-    if token is None:
-        raise AgendaBusyError
-
-    try:
-        requires_deposit = service.requires_deposit
-        appointment = Appointment(
-            tenant_id=principal.tenant_id,
-            collaborator_id=collaborator.id,
-            client_id=client.id,
-            service_id=service.id,
-            starts_at=start,
-            ends_at=ends_at,
-            status=(
-                AppointmentStatus.PENDING_DEPOSIT
-                if requires_deposit
-                else AppointmentStatus.SCHEDULED
-            ),
-            deposit_amount=service.deposit_amount if requires_deposit else None,
-            notes=notes,
-            created_by=principal.user_id,
-            client=client,
-            service=service,
-            collaborator=collaborator,
-        )
-        session.add(appointment)
-        try:
-            await session.commit()
-        except IntegrityError as exc:
-            await session.rollback()
-            if _is_overlap_conflict(exc):
-                raise SlotUnavailableError from exc
-            raise
-        return appointment
-    finally:
-        await release_lock(redis, lock_key, token)
 
 
 async def list_appointments(
@@ -305,21 +331,14 @@ async def update_appointment(
     return appointment
 
 
-async def availability(
+async def _compute_slots(
     session: AsyncSession,
     *,
-    principal: Principal,
-    service_id: UUID,
-    collaborator_id: UUID | None,
+    collaborator: User,
+    service: Service,
     day: date,
 ) -> AvailabilityResponse:
-    """Calcula horários livres sem expor agendamentos de terceiros."""
-    collaborator = await _resolve_collaborator(
-        session,
-        principal=principal,
-        collaborator_id=collaborator_id,
-    )
-    service = await _resolve_service(session, service_id)
+    """Calcula horários livres (sem expor agendamentos de terceiros)."""
     total = _total_minutes(service)
     tz = ZoneInfo(settings.default_tenant_timezone)
 
@@ -362,4 +381,27 @@ async def availability(
         buffer_minutes=service.buffer_minutes,
         available=bool(slots),
         available_slots=slots,
+    )
+
+
+async def availability(
+    session: AsyncSession,
+    *,
+    principal: Principal,
+    service_id: UUID,
+    collaborator_id: UUID | None,
+    day: date,
+) -> AvailabilityResponse:
+    """Calcula horários livres sem expor agendamentos de terceiros."""
+    collaborator = await _resolve_collaborator(
+        session,
+        principal=principal,
+        collaborator_id=collaborator_id,
+    )
+    service = await _resolve_service(session, service_id)
+    return await _compute_slots(
+        session,
+        collaborator=collaborator,
+        service=service,
+        day=day,
     )

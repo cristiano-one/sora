@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     log_level: str = "DEBUG"
     api_v1_prefix: str = "/api/v1"
     default_tenant_timezone: str = "America/Sao_Paulo"
+    public_booking_base_url: str = "http://localhost:3000"
+    internal_api_token: str = "dev-internal-token"
 
     # Infraestrutura (portas do HOST do compose de dev; ver .env.example)
     database_url: str = "postgresql+asyncpg://sora_app:sora_app_dev_only@127.0.0.1:5433/sora"
