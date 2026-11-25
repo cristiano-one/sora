@@ -65,6 +65,16 @@ injeta o mesmo contexto nas requisições autenticadas.
 Comissões usam `Decimal`/`Numeric` (`commission_percentage`, `commission_fixed`,
 `commission_base`), nunca `float`.
 
+## Catálogo (serviços, pacotes e planos)
+
+- `GET/POST /api/v1/services` e `PATCH /api/v1/services/{id}`.
+- `GET/POST /api/v1/packages` e `PATCH /api/v1/packages/{id}`.
+- `GET/POST /api/v1/subscription-plans` e `PATCH /api/v1/subscription-plans/{id}`.
+
+Leitura liberada para `OWNER`/`ADMIN`/`COLLABORATOR`; escrita apenas
+`OWNER`/`ADMIN`. Preços, custos e sinal usam `Decimal`/`Numeric`. Planos têm
+cotas por ciclo, intervalo mínimo e dias da semana permitidos.
+
 ## Testes de integração
 
 Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**
