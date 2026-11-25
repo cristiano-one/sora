@@ -17,7 +17,7 @@
 | Init RLS do PostgreSQL (`01-init-rls-roles.sh`: role `sora_app` `NOBYPASSRLS`) | ✅ Concluído | commit `c0f78de` |
 | Traefik v3 (roteamento `api.sora.localhost` / wildcard `*.sora.localhost`) | ✅ Concluído | `infra/traefik/*` |
 | CI/CD (pipeline + PR template + dependabot) | ✅ Concluído | commit `1e5a593` |
-| **Backend `services/api`** | 🟡 **Em andamento** | Passos 1–8 (clientes/prontuário nesta PR) |
+| **Backend `services/api`** | ✅ **Passos 1–8 concluídos** | skeleton, RLS, auth, RBAC, empresa, colaboradores, catálogo, clientes/prontuário |
 | **`apps/web` (preview)** | 🟡 **Slice de login + dashboard** | antecipação da Fase 3 |
 | **`apps/mobile`** | ⏭️ Fora desta fase (Fase 3 do roadmap) | — |
 
@@ -86,7 +86,7 @@
 - **Objetivo:** catálogo com `duration_minutes`, `buffer_minutes`, `requires_deposit`,
   custo de insumo, valor médio (toggle público) e planos recorrentes.
 
-### Passo 8 — Clientes + Score + Prontuário multimídia · branch `feat/api-clients` · 🟡 Nesta PR
+### Passo 8 — Clientes + Score + Prontuário multimídia · branch `feat/api-clients` · ✅ Concluído
 - **Objetivo:** clientes com score confidencial, prontuário em storage privado com
   pre-signed URL (TTL 60s), consentimento LGPD e `AuditLog`.
 - **Critério de aceite:** URL exige JWT + `tenant_id` + papel; expirada → erro;
