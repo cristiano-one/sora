@@ -64,6 +64,21 @@ async def revoke_refresh_token(
         await redis.delete(refresh_key(payload.tenant_id, payload.jti))
 
 
+async def revoke_all_sessions(
+    redis: Redis,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+) -> None:
+    """Invalida todos os tokens do usuário a partir de agora."""
+    ttl = settings.jwt_refresh_token_expire_days * 24 * 60 * 60
+    await redis.set(
+        revoked_at_key(tenant_id, user_id),
+        str(int(time.time() * 1000)),
+        ex=ttl,
+    )
+
+
 class AuthService:
     """Orquestra login e rotação de tokens com contexto RLS."""
 
@@ -106,7 +121,11 @@ class AuthService:
         )
         if stored_user_id is None or stored_user_id != str(payload.user_id):
             # Reuso de token (ou token já rotacionado): revoga todas as sessões.
-            await self.revoke_all_sessions(payload.tenant_id, payload.user_id)
+            await revoke_all_sessions(
+                self.redis,
+                tenant_id=payload.tenant_id,
+                user_id=payload.user_id,
+            )
             raise InvalidRefreshTokenError
 
         await set_tenant_context(self.session, payload.tenant_id)
@@ -115,15 +134,6 @@ class AuthService:
             raise InvalidRefreshTokenError
 
         return await self._issue_pair(user)
-
-    async def revoke_all_sessions(self, tenant_id: UUID, user_id: UUID) -> None:
-        """Invalida todos os tokens do usuário a partir de agora."""
-        ttl = settings.jwt_refresh_token_expire_days * 24 * 60 * 60
-        await self.redis.set(
-            revoked_at_key(tenant_id, user_id),
-            str(int(time.time() * 1000)),
-            ex=ttl,
-        )
 
     async def _resolve_tenant(self, slug: str) -> UUID | None:
         value = await self.session.scalar(

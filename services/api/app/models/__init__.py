@@ -1,6 +1,6 @@
 """Modelos ORM da aplicação."""
 
 from app.models.tenant import TaxRegime, Tenant
-from app.models.user import User, UserRole
+from app.models.user import CommissionBase, User, UserRole
 
-__all__ = ["TaxRegime", "Tenant", "User", "UserRole"]
+__all__ = ["CommissionBase", "TaxRegime", "Tenant", "User", "UserRole"]

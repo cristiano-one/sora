@@ -53,6 +53,18 @@ O cadastro define `app.current_tenant_id` com o UUID gerado antes do INSERT,
 atendendo à policy `WITH CHECK` da RLS. A dependência `get_tenant_session`
 injeta o mesmo contexto nas requisições autenticadas.
 
+## Usuários / Colaboradores
+
+- `GET /api/v1/users` — lista usuários do tenant (`OWNER`/`ADMIN`).
+- `POST /api/v1/users` — cadastra colaborador/admin (`OWNER` cria
+  `ADMIN`/`COLLABORATOR`; `ADMIN` cria apenas `COLLABORATOR`).
+- `PATCH /api/v1/users/{id}` — atualiza nome, status, papel e comissão;
+  `is_active=false` revoga as sessões no Redis.
+- `GET /api/v1/users/me/commission` — comissão do próprio usuário autenticado.
+
+Comissões usam `Decimal`/`Numeric` (`commission_percentage`, `commission_fixed`,
+`commission_base`), nunca `float`.
+
 ## Testes de integração
 
 Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**

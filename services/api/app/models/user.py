@@ -2,6 +2,7 @@
 
 import enum
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -9,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Numeric,
     String,
     UniqueConstraint,
     func,
@@ -26,6 +28,13 @@ class UserRole(enum.StrEnum):
     OWNER = "OWNER"
     ADMIN = "ADMIN"
     COLLABORATOR = "COLLABORATOR"
+
+
+class CommissionBase(enum.StrEnum):
+    """Base de cálculo da comissão do colaborador."""
+
+    GROSS = "GROSS"
+    NET = "NET"
 
 
 class User(Base):
@@ -54,6 +63,20 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role", native_enum=True),
         nullable=False,
+    )
+    commission_percentage: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 2),
+        nullable=True,
+    )
+    commission_fixed: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2),
+        nullable=True,
+    )
+    commission_base: Mapped[CommissionBase] = mapped_column(
+        Enum(CommissionBase, name="commission_base", native_enum=True),
+        nullable=False,
+        default=CommissionBase.GROSS,
+        server_default=text("'GROSS'"),
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,

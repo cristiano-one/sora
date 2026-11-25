@@ -17,7 +17,7 @@
 | Init RLS do PostgreSQL (`01-init-rls-roles.sh`: role `sora_app` `NOBYPASSRLS`) | ✅ Concluído | commit `c0f78de` |
 | Traefik v3 (roteamento `api.sora.localhost` / wildcard `*.sora.localhost`) | ✅ Concluído | `infra/traefik/*` |
 | CI/CD (pipeline + PR template + dependabot) | ✅ Concluído | commit `1e5a593` |
-| **Backend `services/api`** | ✅ **Passos 1–5 concluídos** | skeleton, banco/RLS, auth, RBAC, cadastro de empresa |
+| **Backend `services/api`** | 🟡 **Em andamento** | Passos 1–6 (colaboradores nesta PR) |
 | **`apps/web` (preview)** | 🟡 **Slice de login + dashboard** | antecipação da Fase 3 |
 | **`apps/mobile`** | ⏭️ Fora desta fase (Fase 3 do roadmap) | — |
 
@@ -78,7 +78,7 @@
 - **Objetivo:** empresa (MEI vs Completo), usuário OWNER inicial e bootstrap do
   tenant com políticas RLS aplicadas.
 
-### Passo 6 — Colaboradores + regras de comissão
+### Passo 6 — Colaboradores + regras de comissão · branch `feat/api-collaborators` · 🟡 Nesta PR
 - **Objetivo:** CRUD de colaboradores com percentuais/regras de comissão
   (base `Decimal`), restrito a `ADMIN`/`OWNER`.
 
