@@ -30,10 +30,10 @@ class Settings(BaseSettings):
     log_level: str = "DEBUG"
     api_v1_prefix: str = "/api/v1"
 
-    # Infraestrutura
-    database_url: str = "postgresql+asyncpg://sora_app:sora_app_dev_only@127.0.0.1:5432/sora"
-    migration_database_url: str = "postgresql+asyncpg://sora:sora_dev_only@127.0.0.1:5432/sora"
-    redis_url: str = "redis://:sora_dev_only@127.0.0.1:6379/0"
+    # Infraestrutura (portas do HOST do compose de dev; ver .env.example)
+    database_url: str = "postgresql+asyncpg://sora_app:sora_app_dev_only@127.0.0.1:5433/sora"
+    migration_database_url: str = "postgresql+asyncpg://sora:sora_dev_only@127.0.0.1:5433/sora"
+    redis_url: str = "redis://:sora_dev_only@127.0.0.1:6380/0"
 
     # Segurança / Autenticação
     jwt_secret_key: str = "change-me-in-production"

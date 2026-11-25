@@ -87,9 +87,9 @@ Sobe Traefik + PostgreSQL 16 (com init do role RLS `sora_app`) + Redis 7 + MinIO
 - API: `http://api.sora.localhost:8000`
 - Painel Web: `http://app.sora.localhost:8000`
 - Link Público (Slug ou Subdomínio): `http://sora.localhost:8000/{clinica}` ou `http://{clinica}.sora.localhost:8000`
-- Dashboard Traefik: `http://localhost:8080`
-- PostgreSQL: `127.0.0.1:5432` (`sora` p/ migrations DDL | `sora_app` com `NOBYPASSRLS` p/ API)
-- Redis: `127.0.0.1:6379`
+- Dashboard Traefik: `http://localhost:8081`
+- PostgreSQL: `127.0.0.1:5433` (`sora` p/ migrations DDL | `sora_app` com `NOBYPASSRLS` p/ API)
+- Redis: `127.0.0.1:6380`
 - MinIO S3 (Prontuários / Pre-signed URLs): `http://127.0.0.1:9000` (Console: `http://127.0.0.1:9001`)
 
 Atalhos disponíveis na raiz via `Makefile`: `make dev`, `make down`, `make logs`, `make validate-infra`, `make test`, `make test-security`, `make migrate`.

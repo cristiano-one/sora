@@ -12,10 +12,13 @@
 #   - API:           http://api.sora.localhost:8000
 #   - Painel Web:    http://app.sora.localhost:8000
 #   - Link Público:  http://{clinica}.sora.localhost:8000 ou http://sora.localhost:8000/{clinica}
-#   - Traefik UI:    http://localhost:8080
-#   - PostgreSQL:    127.0.0.1:5432  (owner/migrations: sora | app RLS: sora_app)
-#   - Redis:         127.0.0.1:6379
+#   - Traefik UI:    http://localhost:8081  (TRAEFIK_DASHBOARD_PORT)
+#   - PostgreSQL:    127.0.0.1:5433  (POSTGRES_PORT; owner/migrations: sora | app RLS: sora_app)
+#   - Redis:         127.0.0.1:6380  (REDIS_PORT)
 #   - MinIO S3 API:  http://127.0.0.1:9000 (Console: http://127.0.0.1:9001)
+#
+# As portas do HOST são parametrizáveis para evitar conflito com outras stacks
+# locais. Dentro da rede Docker os serviços seguem nas portas padrão.
 
 name: sora-dev
 
@@ -32,8 +35,8 @@ services:
       - --providers.file.watch=true
       - --entrypoints.web.address=:80
     ports:
-      - "127.0.0.1:8000:80"
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${TRAEFIK_HTTP_PORT:-8000}:80"
+      - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8081}:8080"
     volumes:
       - ../traefik/dynamic-dev.yml:/etc/traefik/dynamic-dev.yml:ro
     extra_hosts:
@@ -60,7 +63,7 @@ services:
       POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-sora_app_dev_only}
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ../postgres/init/01-init-rls-roles.sh:/docker-entrypoint-initdb.d/01-init-rls-roles.sh:ro
@@ -85,7 +88,7 @@ services:
       - -c
       - exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
     volumes:
       - redisdata:/data
     networks:
