@@ -82,7 +82,7 @@ def test_migrations_upgrade_and_downgrade(database_urls) -> None:
         command.upgrade(config, "head")
         tables, enums, functions = asyncio.run(_schema(owner_url))
         assert {"tenants", "users"} <= tables
-        assert "user_role" in enums
+        assert {"user_role", "tax_regime"} <= enums
         assert "resolve_tenant_id_by_slug" in functions
 
         command.downgrade(config, "base")
@@ -90,6 +90,7 @@ def test_migrations_upgrade_and_downgrade(database_urls) -> None:
         assert "tenants" not in tables
         assert "users" not in tables
         assert "user_role" not in enums
+        assert "tax_regime" not in enums
         assert "resolve_tenant_id_by_slug" not in functions
 
         command.upgrade(config, "head")

@@ -1,13 +1,21 @@
 """Modelo de tenant (clínica, salão, barbearia ou studio)."""
 
+import enum
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, String, func, text
+from sqlalchemy import Boolean, DateTime, Enum, String, func, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+
+
+class TaxRegime(enum.StrEnum):
+    """Regime tributário simplificado da empresa."""
+
+    MEI = "MEI"
+    COMPLETE = "COMPLETE"
 
 
 class Tenant(Base):
@@ -23,6 +31,12 @@ class Tenant(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    tax_regime: Mapped[TaxRegime] = mapped_column(
+        Enum(TaxRegime, name="tax_regime", native_enum=True),
+        nullable=False,
+        default=TaxRegime.COMPLETE,
+        server_default=text("'COMPLETE'"),
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
