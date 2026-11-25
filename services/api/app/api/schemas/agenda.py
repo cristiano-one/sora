@@ -42,6 +42,7 @@ class AppointmentResponse(BaseModel):
     ends_at: datetime
     status: AppointmentStatus
     deposit_amount: Decimal | None
+    subscription_id: UUID | None
 
 
 class AvailabilityResponse(BaseModel):

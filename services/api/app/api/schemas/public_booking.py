@@ -73,3 +73,4 @@ class PublicAppointmentResponse(BaseModel):
     service_name: str
     collaborator_name: str
     deposit_amount: Decimal | None
+    used_subscription: bool

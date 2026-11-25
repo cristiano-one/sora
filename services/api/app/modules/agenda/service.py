@@ -14,9 +14,17 @@ from app.models import (
     Appointment,
     AppointmentStatus,
     Client,
+    ClientSubscription,
     Service,
     User,
     UserRole,
+)
+from app.modules.subscriptions.service import (
+    consume_quota,
+    get_active_subscription,
+    quota_decision,
+    quota_lock_key,
+    release_quota,
 )
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -44,6 +52,10 @@ class AgendaBusyError(Exception):
 
 class ForbiddenAgendaError(Exception):
     """COLLABORATOR tentando operar a agenda de outro profissional."""
+
+
+class QuotaUnavailableError(Exception):
+    """Cota de assinatura esgotada durante a confirmação."""
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -122,6 +134,7 @@ async def _insert_appointment(
     start: datetime,
     notes: str | None,
     created_by: UUID | None,
+    subscription: ClientSubscription | None = None,
 ) -> Appointment:
     """Insere com lock Redis + EXCLUDE gist (usado nos fluxos interno e público)."""
     ends_at = start + timedelta(minutes=_total_minutes(service))
@@ -134,8 +147,32 @@ async def _insert_appointment(
     if token is None:
         raise AgendaBusyError
 
+    quota_key: str | None = None
+    quota_token: str | None = None
     try:
-        requires_deposit = service.requires_deposit
+        if subscription is not None:
+            quota_key = quota_lock_key(
+                tenant_id,
+                subscription.id,
+                service.id,
+            )
+            quota_token = await acquire_lock(
+                redis,
+                quota_key,
+                ttl_seconds=LOCK_TTL_SECONDS,
+            )
+            if quota_token is None:
+                raise AgendaBusyError
+            decision = await quota_decision(
+                session,
+                subscription=subscription,
+                service_id=service.id,
+                starts_at=start,
+            )
+            if not decision.available:
+                raise QuotaUnavailableError
+
+        requires_deposit = service.requires_deposit and subscription is None
         appointment = Appointment(
             tenant_id=tenant_id,
             collaborator_id=collaborator.id,
@@ -151,12 +188,22 @@ async def _insert_appointment(
             deposit_amount=service.deposit_amount if requires_deposit else None,
             notes=notes,
             created_by=created_by,
+            subscription_id=subscription.id if subscription is not None else None,
             client=client,
             service=service,
             collaborator=collaborator,
         )
         session.add(appointment)
         try:
+            await session.flush()
+            if subscription is not None:
+                await consume_quota(
+                    session,
+                    subscription=subscription,
+                    service=service,
+                    appointment_id=appointment.id,
+                    used_at=start,
+                )
             await session.commit()
         except IntegrityError as exc:
             await session.rollback()
@@ -165,7 +212,33 @@ async def _insert_appointment(
             raise
         return appointment
     finally:
+        if quota_key is not None and quota_token is not None:
+            await release_lock(redis, quota_key, quota_token)
         await release_lock(redis, lock_key, token)
+
+
+async def resolve_quota_subscription(
+    session: AsyncSession,
+    *,
+    client: Client,
+    service: Service,
+    start: datetime,
+) -> ClientSubscription | None:
+    """Retorna a assinatura ativa se o serviço tem cota disponível."""
+    subscription = await get_active_subscription(
+        session,
+        client_id=client.id,
+        at=start,
+    )
+    if subscription is None:
+        return None
+    decision = await quota_decision(
+        session,
+        subscription=subscription,
+        service_id=service.id,
+        starts_at=start,
+    )
+    return subscription if decision.available else None
 
 
 async def create_appointment(
@@ -191,6 +264,12 @@ async def create_appointment(
     )
     client = await _resolve_client(session, client_id)
     service = await _resolve_service(session, service_id)
+    subscription = await resolve_quota_subscription(
+        session,
+        client=client,
+        service=service,
+        start=start,
+    )
 
     return await _insert_appointment(
         session,
@@ -202,6 +281,7 @@ async def create_appointment(
         start=start,
         notes=notes,
         created_by=principal.user_id,
+        subscription=subscription,
     )
 
 
@@ -308,6 +388,14 @@ async def update_appointment(
                 new_status = changes["status"]
                 if new_status is not None:
                     appointment.status = cast(AppointmentStatus, new_status)
+                    if appointment.status in (
+                        AppointmentStatus.CANCELLED,
+                        AppointmentStatus.EXPIRED,
+                    ):
+                        await release_quota(
+                            session,
+                            appointment_id=appointment.id,
+                        )
             if "notes" in changes:
                 appointment.notes = cast(str | None, changes["notes"])
             await session.commit()
@@ -325,6 +413,14 @@ async def update_appointment(
         new_status = changes["status"]
         if new_status is not None:
             appointment.status = cast(AppointmentStatus, new_status)
+            if appointment.status in (
+                AppointmentStatus.CANCELLED,
+                AppointmentStatus.EXPIRED,
+            ):
+                await release_quota(
+                    session,
+                    appointment_id=appointment.id,
+                )
     if "notes" in changes:
         appointment.notes = cast(str | None, changes["notes"])
     await session.commit()

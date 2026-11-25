@@ -27,6 +27,7 @@ from app.modules.agenda.service import (
     AgendaBusyError,
     ForbiddenAgendaError,
     InvalidAppointmentError,
+    QuotaUnavailableError,
     SlotUnavailableError,
     availability,
     create_appointment,
@@ -49,6 +50,11 @@ def _map_agenda_error(exc: Exception) -> HTTPException:
             status_code=status.HTTP_409_CONFLICT,
             detail="Horário indisponível",
         )
+    if isinstance(exc, QuotaUnavailableError):
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cota do plano indisponível",
+        )
     return HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail=str(exc),
@@ -68,6 +74,7 @@ def _appointment_response(appointment: Appointment) -> AppointmentResponse:
         ends_at=appointment.ends_at,
         status=appointment.status,
         deposit_amount=appointment.deposit_amount,
+        subscription_id=appointment.subscription_id,
     )
 
 
@@ -120,6 +127,7 @@ async def create_appointment_endpoint(
         InvalidAppointmentError,
         ForbiddenAgendaError,
         AgendaBusyError,
+        QuotaUnavailableError,
         SlotUnavailableError,
     ) as exc:
         raise _map_agenda_error(exc) from exc
@@ -222,6 +230,7 @@ async def update_appointment_endpoint(
         InvalidAppointmentError,
         ForbiddenAgendaError,
         AgendaBusyError,
+        QuotaUnavailableError,
         SlotUnavailableError,
     ) as exc:
         raise _map_agenda_error(exc) from exc

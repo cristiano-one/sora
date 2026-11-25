@@ -37,6 +37,7 @@ from app.modules.agenda.public_service import (
 from app.modules.agenda.service import (
     AgendaBusyError,
     InvalidAppointmentError,
+    QuotaUnavailableError,
     SlotUnavailableError,
 )
 
@@ -71,6 +72,11 @@ def _map_public_error(exc: Exception) -> HTTPException:
         return HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Horário indisponível",
+        )
+    if isinstance(exc, QuotaUnavailableError):
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cota do plano indisponível",
         )
     if isinstance(exc, (PublicBookingError, InvalidAppointmentError)):
         return HTTPException(
@@ -227,6 +233,7 @@ async def public_create_appointment_endpoint(
         PublicBookingConflictError,
         InvalidAppointmentError,
         AgendaBusyError,
+        QuotaUnavailableError,
         SlotUnavailableError,
     ) as exc:
         raise _map_public_error(exc) from exc

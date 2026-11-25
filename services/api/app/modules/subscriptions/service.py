@@ -14,6 +14,7 @@ from app.api.schemas.subscriptions import (
     SubscriptionQuotaResponse,
 )
 from app.core.config import settings
+from app.core.redis import tenant_key
 from app.models import (
     BillingCycle,
     Client,
@@ -63,6 +64,21 @@ def period_end(plan: SubscriptionPlan, start: datetime) -> datetime:
     return _add_months(start, months)
 
 
+def quota_lock_key(
+    tenant_id: UUID,
+    subscription_id: UUID,
+    service_id: UUID,
+) -> str:
+    """Chave Redis que serializa o consumo de uma cota."""
+    return tenant_key(
+        tenant_id,
+        "subscription",
+        str(subscription_id),
+        "quota",
+        str(service_id),
+    )
+
+
 async def _get_plan(session: AsyncSession, plan_id: UUID) -> SubscriptionPlan:
     plan = await session.get(SubscriptionPlan, plan_id)
     if plan is None or not plan.is_active:
@@ -88,7 +104,6 @@ async def create_client_subscription(
             select(ClientSubscription)
             .where(
                 ClientSubscription.client_id == client.id,
-                ClientSubscription.plan_id == plan.id,
                 ClientSubscription.status == ClientSubscriptionStatus.ACTIVE,
             )
             .limit(1)

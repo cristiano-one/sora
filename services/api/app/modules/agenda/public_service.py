@@ -29,6 +29,7 @@ from app.modules.agenda.service import (
     _as_utc,
     _compute_slots,
     _insert_appointment,
+    resolve_quota_subscription,
 )
 from app.modules.subscriptions.service import (
     SubscriptionConflictError,
@@ -321,6 +322,12 @@ async def public_create_appointment(
         start=start,
         notes=None,
         created_by=None,
+        subscription=await resolve_quota_subscription(
+            session,
+            client=client,
+            service=service,
+            start=start,
+        ),
     )
     return PublicAppointmentResponse(
         id=appointment.id,
@@ -330,6 +337,7 @@ async def public_create_appointment(
         service_name=service.name,
         collaborator_name=professional.full_name,
         deposit_amount=appointment.deposit_amount,
+        used_subscription=appointment.subscription_id is not None,
     )
 
 
@@ -379,7 +387,7 @@ async def public_create_subscription(
         )
     except SubscriptionConflictError as exc:
         raise PublicBookingConflictError(
-            "Você já possui este plano ativo."
+            "Você já possui uma assinatura ativa."
         ) from exc
     except SubscriptionNotFoundError as exc:
         raise PublicBookingError("Plano inválido") from exc

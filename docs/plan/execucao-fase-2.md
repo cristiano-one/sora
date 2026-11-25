@@ -38,7 +38,15 @@
     - contexto público com planos ativos, assinatura do cliente e cotas usadas/restantes.
     - listagem/cancelamento interno restrito a `OWNER`/`ADMIN`.
     - testes: contratação, cotas, conflito de plano ativo, cross-tenant e RBAC.
-  - [ ] 3.2 Consumo de cotas na agenda + tag `ASSINANTE`.
+  - [x] 3.2 Consumo de cotas na agenda + tag `ASSINANTE` · branch
+    `feat/agenda-subscription-quota`
+    - `Appointment.subscription_id` (migration `0009`), cota consumida na
+      criação e liberada em `CANCELLED`/`EXPIRED`.
+    - cota disponível dispensa sinal do serviço; sem cota/intervalo/dia
+      permitido o fluxo cai para o agendamento avulso normal.
+    - lock Redis por assinatura+serviço serializa o consumo concorrente.
+    - resposta pública sinaliza `used_subscription`; agenda interna recebe
+      `subscription_id` para a tag `ASSINANTE`.
   - [ ] 3.3 Score mínimo + sinal e expiração de reserva.
   - [ ] 3.4 Pix mock (copia-e-cola, QR e confirmação).
   - [ ] 3.5 Web público: planos, cotas e sinal Pix.

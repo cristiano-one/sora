@@ -347,6 +347,7 @@ async def test_public_booking_creates_scheduled_appointment_and_client(
         "service_name",
         "collaborator_name",
         "deposit_amount",
+        "used_subscription",
     }
     assert body["status"] == "SCHEDULED"
     assert body["deposit_amount"] is None
