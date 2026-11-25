@@ -140,6 +140,15 @@ Cancelar/expirar devolve a cota. Sem cota, intervalo mínimo ou dia permitido, o
 agendamento segue o fluxo avulso normal. Cada cliente pode ter **uma assinatura
 ativa** por vez.
 
+## Configurações de sinal e score (Fase 2)
+
+- `GET/PATCH /api/v1/tenants/settings` (`OWNER`/`ADMIN`).
+- `deposit_score_threshold` + `deposit_amount_low_score`: score abaixo do limite
+  passa a exigir sinal, sem revelar o motivo ao cliente.
+- `theme_primary_color` e `agent_name` preparam o tema dinâmico da Fase 3.
+- `PENDING_DEPOSIT` carrega `deposit_expires_at` (10 min). A expiração é aplicada
+  de forma preguiçosa na disponibilidade/agendamento, liberando horário e cota.
+
 ## Testes de integração
 
 Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**

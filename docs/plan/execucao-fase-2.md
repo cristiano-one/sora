@@ -47,7 +47,15 @@
     - lock Redis por assinatura+serviço serializa o consumo concorrente.
     - resposta pública sinaliza `used_subscription`; agenda interna recebe
       `subscription_id` para a tag `ASSINANTE`.
-  - [ ] 3.3 Score mínimo + sinal e expiração de reserva.
+  - [x] 3.3 Score mínimo + sinal e expiração de reserva · branch
+    `feat/deposit-score-settings`
+    - `tenant_settings` (migration `0010`, RLS) com limite de score, valor do
+      sinal, cor primária e nome do agente.
+    - `GET/PATCH /api/v1/tenants/settings` exclusivo de `OWNER`/`ADMIN`.
+    - score abaixo do limite exige sinal mesmo sem regra do serviço; o motivo
+      nunca é exposto ao cliente.
+    - `PENDING_DEPOSIT` expira em 10 min e libera horário/cota na próxima
+      consulta de disponibilidade ou agendamento.
   - [ ] 3.4 Pix mock (copia-e-cola, QR e confirmação).
   - [ ] 3.5 Web público: planos, cotas e sinal Pix.
 - [x] **Passo 4 — Tela de agenda no web preview** (consumindo os endpoints acima).

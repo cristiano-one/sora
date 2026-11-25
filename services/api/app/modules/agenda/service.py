@@ -1,6 +1,7 @@
 """Motor de agenda: locks, anti-conflito, RBAC e disponibilidade."""
 
 from datetime import UTC, date, datetime, time, timedelta
+from decimal import Decimal
 from typing import cast
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -10,12 +11,14 @@ from app.core.auth.dependencies import Principal
 from app.core.config import settings
 from app.core.locks import acquire_lock, release_lock
 from app.core.redis import tenant_key
+from app.db.rls import set_tenant_context
 from app.models import (
     Appointment,
     AppointmentStatus,
     Client,
     ClientSubscription,
     Service,
+    TenantSettings,
     User,
     UserRole,
 )
@@ -35,6 +38,7 @@ WORKDAY_START = time(8, 0)
 WORKDAY_END = time(19, 0)
 SLOT_STEP_MINUTES = 30
 LOCK_TTL_SECONDS = 10
+PENDING_DEPOSIT_TTL_MINUTES = 10
 BLOCKED_STATUSES = (AppointmentStatus.CANCELLED, AppointmentStatus.EXPIRED)
 
 
@@ -123,6 +127,57 @@ def _total_minutes(service: Service) -> int:
     return service.duration_minutes + service.buffer_minutes
 
 
+async def resolve_deposit_amount(
+    session: AsyncSession,
+    *,
+    tenant_id: UUID,
+    client: Client,
+    service: Service,
+) -> Decimal | None:
+    """Decide o sinal por score baixo ou regra do serviço (nunca expõe motivo)."""
+    tenant_settings = await session.get(TenantSettings, tenant_id)
+    if (
+        tenant_settings is not None
+        and tenant_settings.deposit_score_threshold is not None
+        and client.score < tenant_settings.deposit_score_threshold
+        and tenant_settings.deposit_amount_low_score is not None
+        and tenant_settings.deposit_amount_low_score > 0
+    ):
+        return tenant_settings.deposit_amount_low_score
+    if service.requires_deposit:
+        return service.deposit_amount
+    return None
+
+
+async def expire_pending_deposits(
+    session: AsyncSession,
+    *,
+    tenant_id: UUID,
+) -> int:
+    """Expira reservas com sinal vencido, liberando o horário e a cota."""
+    expired = list(
+        (
+            await session.scalars(
+                select(Appointment).where(
+                    Appointment.status == AppointmentStatus.PENDING_DEPOSIT,
+                    Appointment.deposit_expires_at.is_not(None),
+                    Appointment.deposit_expires_at <= datetime.now(UTC),
+                )
+            )
+        ).all()
+    )
+    if not expired:
+        return 0
+
+    for appointment in expired:
+        appointment.status = AppointmentStatus.EXPIRED
+        await release_quota(session, appointment_id=appointment.id)
+    await session.commit()
+    # O commit encerra o SET LOCAL do RLS; reaplica para o restante da requisição.
+    await set_tenant_context(session, tenant_id)
+    return len(expired)
+
+
 async def _insert_appointment(
     session: AsyncSession,
     redis: Redis,
@@ -134,6 +189,7 @@ async def _insert_appointment(
     start: datetime,
     notes: str | None,
     created_by: UUID | None,
+    deposit_amount: Decimal | None = None,
     subscription: ClientSubscription | None = None,
 ) -> Appointment:
     """Insere com lock Redis + EXCLUDE gist (usado nos fluxos interno e público)."""
@@ -172,7 +228,7 @@ async def _insert_appointment(
             if not decision.available:
                 raise QuotaUnavailableError
 
-        requires_deposit = service.requires_deposit and subscription is None
+        requires_deposit = deposit_amount is not None and subscription is None
         appointment = Appointment(
             tenant_id=tenant_id,
             collaborator_id=collaborator.id,
@@ -185,7 +241,13 @@ async def _insert_appointment(
                 if requires_deposit
                 else AppointmentStatus.SCHEDULED
             ),
-            deposit_amount=service.deposit_amount if requires_deposit else None,
+            deposit_amount=deposit_amount if requires_deposit else None,
+            deposit_expires_at=(
+                datetime.now(UTC)
+                + timedelta(minutes=PENDING_DEPOSIT_TTL_MINUTES)
+                if requires_deposit
+                else None
+            ),
             notes=notes,
             created_by=created_by,
             subscription_id=subscription.id if subscription is not None else None,
@@ -256,6 +318,7 @@ async def create_appointment(
     start = _as_utc(starts_at)
     if start <= datetime.now(UTC):
         raise InvalidAppointmentError("starts_at deve estar no futuro")
+    await expire_pending_deposits(session, tenant_id=principal.tenant_id)
 
     collaborator = await _resolve_collaborator(
         session,
@@ -270,6 +333,16 @@ async def create_appointment(
         service=service,
         start=start,
     )
+    deposit_amount = (
+        None
+        if subscription is not None
+        else await resolve_deposit_amount(
+            session,
+            tenant_id=principal.tenant_id,
+            client=client,
+            service=service,
+        )
+    )
 
     return await _insert_appointment(
         session,
@@ -281,6 +354,7 @@ async def create_appointment(
         start=start,
         notes=notes,
         created_by=principal.user_id,
+        deposit_amount=deposit_amount,
         subscription=subscription,
     )
 
@@ -437,6 +511,7 @@ async def _compute_slots(
     """Calcula horários livres (sem expor agendamentos de terceiros)."""
     total = _total_minutes(service)
     tz = ZoneInfo(settings.default_tenant_timezone)
+    await expire_pending_deposits(session, tenant_id=collaborator.tenant_id)
 
     day_start = datetime.combine(day, WORKDAY_START, tzinfo=tz)
     day_end = datetime.combine(day, WORKDAY_END, tzinfo=tz)

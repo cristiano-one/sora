@@ -29,6 +29,8 @@ from app.modules.agenda.service import (
     _as_utc,
     _compute_slots,
     _insert_appointment,
+    expire_pending_deposits,
+    resolve_deposit_amount,
     resolve_quota_subscription,
 )
 from app.modules.subscriptions.service import (
@@ -38,6 +40,10 @@ from app.modules.subscriptions.service import (
     get_active_subscription,
     public_plan_response,
     public_subscription_response,
+)
+from app.modules.tenants.settings import (
+    DEFAULT_THEME_COLOR,
+    get_tenant_settings,
 )
 from redis.asyncio import Redis
 from sqlalchemy import func, select, text
@@ -150,6 +156,7 @@ async def get_public_context(
     tenant = await session.get(Tenant, tenant_id)
     if tenant is None:
         raise PublicTenantNotFoundError
+    tenant_settings = await get_tenant_settings(session, tenant_id)
 
     services = (
         await session.scalars(
@@ -181,6 +188,11 @@ async def get_public_context(
         tenant_name=tenant.name,
         tenant_slug=tenant.slug,
         client_name=client.full_name if client is not None else None,
+        theme_primary_color=(
+            tenant_settings.theme_primary_color
+            if tenant_settings is not None
+            else DEFAULT_THEME_COLOR
+        ),
         services=[
             PublicServiceResponse(
                 id=service.id,
@@ -285,6 +297,7 @@ async def public_create_appointment(
         slug=slug,
         token=token,
     )
+    await expire_pending_deposits(session, tenant_id=tenant_id)
     service = await _public_service(session, service_id)
     professional = await _public_professional(session, collaborator_id)
 
@@ -312,6 +325,23 @@ async def public_create_appointment(
         session.add(client)
         await session.flush()
 
+    subscription = await resolve_quota_subscription(
+        session,
+        client=client,
+        service=service,
+        start=start,
+    )
+    deposit_amount = (
+        None
+        if subscription is not None
+        else await resolve_deposit_amount(
+            session,
+            tenant_id=tenant_id,
+            client=client,
+            service=service,
+        )
+    )
+
     appointment = await _insert_appointment(
         session,
         redis,
@@ -322,12 +352,8 @@ async def public_create_appointment(
         start=start,
         notes=None,
         created_by=None,
-        subscription=await resolve_quota_subscription(
-            session,
-            client=client,
-            service=service,
-            start=start,
-        ),
+        deposit_amount=deposit_amount,
+        subscription=subscription,
     )
     return PublicAppointmentResponse(
         id=appointment.id,
