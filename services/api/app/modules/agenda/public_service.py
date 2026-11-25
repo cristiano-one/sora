@@ -1,10 +1,11 @@
 """Link mágico e agendamento público (sem login)."""
 
 import re
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID, uuid4
 
 from app.api.schemas.agenda import AvailabilityResponse
+from app.api.schemas.payments import PublicPaymentConfirmResponse
 from app.api.schemas.public_booking import (
     MagicLinkResponse,
     PublicAppointmentResponse,
@@ -17,8 +18,12 @@ from app.core.config import settings
 from app.core.redis import tenant_key
 from app.db.rls import set_tenant_context
 from app.models import (
+    Appointment,
+    AppointmentStatus,
     Client,
+    ClientSubscription,
     ClientSubscriptionStatus,
+    PaymentStatus,
     Service,
     SubscriptionPlan,
     Tenant,
@@ -33,11 +38,21 @@ from app.modules.agenda.service import (
     resolve_deposit_amount,
     resolve_quota_subscription,
 )
+from app.modules.payments.service import (
+    confirm_payment,
+    create_payment_intent,
+    expire_payment,
+    get_payment,
+    get_payment_for_appointment,
+    get_payment_for_subscription,
+    payment_response,
+)
 from app.modules.subscriptions.service import (
     SubscriptionConflictError,
     SubscriptionNotFoundError,
     create_client_subscription,
     get_active_subscription,
+    get_latest_subscription,
     public_plan_response,
     public_subscription_response,
 )
@@ -66,6 +81,10 @@ class PublicBookingError(Exception):
 
 class PublicBookingConflictError(Exception):
     """Conflito genérico (inclui cliente bloqueado, sem revelar o motivo)."""
+
+
+class PaymentNotFoundError(Exception):
+    """Pagamento inexistente ou de outro cliente."""
 
 
 def normalize_phone(value: str) -> str:
@@ -355,6 +374,7 @@ async def public_create_appointment(
         deposit_amount=deposit_amount,
         subscription=subscription,
     )
+    payment = await get_payment_for_appointment(session, appointment.id)
     return PublicAppointmentResponse(
         id=appointment.id,
         starts_at=appointment.starts_at,
@@ -364,6 +384,7 @@ async def public_create_appointment(
         collaborator_name=professional.full_name,
         deposit_amount=appointment.deposit_amount,
         used_subscription=appointment.subscription_id is not None,
+        payment=payment_response(payment) if payment is not None else None,
     )
 
 
@@ -403,13 +424,34 @@ async def public_create_subscription(
         session.add(client)
         await session.flush()
 
+    now = datetime.now(UTC)
+    latest = await get_latest_subscription(session, client_id=client.id)
+    if latest is not None:
+        if latest.status == ClientSubscriptionStatus.ACTIVE:
+            raise PublicBookingConflictError("Você já possui uma assinatura ativa.")
+        pending = await get_payment_for_subscription(session, latest.id)
+        if (
+            pending is not None
+            and pending.status == PaymentStatus.PENDING
+            and pending.expires_at > now
+        ):
+            raise PublicBookingConflictError(
+                "Você já possui uma assinatura aguardando pagamento."
+            )
+        if pending is not None and pending.status == PaymentStatus.PENDING:
+            pending.status = PaymentStatus.EXPIRED
+        latest.status = ClientSubscriptionStatus.EXPIRED
+        await session.flush()
+
     try:
         subscription = await create_client_subscription(
             session,
             tenant_id=tenant_id,
             client=client,
             plan_id=plan_id,
-            status=ClientSubscriptionStatus.ACTIVE,
+            status=ClientSubscriptionStatus.PENDING_PAYMENT,
+            now=now,
+            commit=False,
         )
     except SubscriptionConflictError as exc:
         raise PublicBookingConflictError(
@@ -418,4 +460,139 @@ async def public_create_subscription(
     except SubscriptionNotFoundError as exc:
         raise PublicBookingError("Plano inválido") from exc
 
-    return await public_subscription_response(session, subscription)
+    if subscription.plan.price <= 0:
+        subscription.status = ClientSubscriptionStatus.ACTIVE
+        await session.commit()
+        await set_tenant_context(session, tenant_id)
+        return await public_subscription_response(session, subscription)
+
+    payment = await create_payment_intent(
+        session,
+        tenant_id=tenant_id,
+        client_id=client.id,
+        amount=subscription.plan.price,
+        expires_at=now
+        + timedelta(minutes=settings.payment_subscription_ttl_minutes),
+        subscription_id=subscription.id,
+    )
+    await session.commit()
+    await set_tenant_context(session, tenant_id)
+    return await public_subscription_response(
+        session,
+        subscription,
+        payment_response(payment),
+    )
+
+
+async def public_get_payment(
+    session: AsyncSession,
+    redis: Redis,
+    *,
+    slug: str,
+    token: str,
+    payment_id: UUID,
+) -> PublicPaymentConfirmResponse:
+    """Consulta o status do próprio pagamento (polling do link)."""
+    tenant_id, phone = await _validate_magic(
+        session,
+        redis,
+        slug=slug,
+        token=token,
+    )
+    client = await _client_by_phone(session, phone)
+    payment = await get_payment(session, payment_id)
+    if client is None or payment is None or payment.client_id != client.id:
+        raise PaymentNotFoundError
+
+    if (
+        payment.status == PaymentStatus.PENDING
+        and payment.expires_at <= datetime.now(UTC)
+    ):
+        await expire_payment(session, payment)
+        await session.commit()
+        await set_tenant_context(session, tenant_id)
+
+    data = payment_response(payment)
+    return PublicPaymentConfirmResponse(**data.model_dump())
+
+
+async def public_confirm_mock_payment(
+    session: AsyncSession,
+    redis: Redis,
+    *,
+    slug: str,
+    token: str,
+    payment_id: UUID,
+) -> PublicPaymentConfirmResponse:
+    """Confirma o Pix no provider mock, com checagem de dono e expiração."""
+    if settings.payment_provider != "mock":
+        raise PaymentNotFoundError
+
+    tenant_id, phone = await _validate_magic(
+        session,
+        redis,
+        slug=slug,
+        token=token,
+    )
+    client = await _client_by_phone(session, phone)
+    payment = await get_payment(session, payment_id)
+    if client is None or payment is None or payment.client_id != client.id:
+        raise PaymentNotFoundError
+
+    if payment.status == PaymentStatus.PAID:
+        appointment = (
+            await session.get(Appointment, payment.appointment_id)
+            if payment.appointment_id is not None
+            else None
+        )
+        subscription = (
+            await session.get(ClientSubscription, payment.subscription_id)
+            if payment.subscription_id is not None
+            else None
+        )
+        data = payment_response(payment)
+        return PublicPaymentConfirmResponse(
+            **data.model_dump(),
+            appointment_status=(
+                appointment.status if appointment is not None else None
+            ),
+            subscription_status=(
+                subscription.status if subscription is not None else None
+            ),
+        )
+
+    if payment.status != PaymentStatus.PENDING:
+        raise PublicBookingConflictError("Pagamento indisponível")
+
+    now = datetime.now(UTC)
+    if payment.expires_at <= now:
+        await expire_payment(session, payment)
+        await session.commit()
+        await set_tenant_context(session, tenant_id)
+        raise PublicBookingConflictError("Pagamento expirado")
+
+    if payment.appointment_id is not None:
+        appointment = await session.get(Appointment, payment.appointment_id)
+        if appointment is None or appointment.status not in (
+            AppointmentStatus.PENDING_DEPOSIT,
+            AppointmentStatus.CONFIRMED,
+        ):
+            raise PublicBookingConflictError("Pagamento indisponível")
+
+    appointment, subscription = await confirm_payment(
+        session,
+        payment,
+        now=now,
+    )
+    await session.commit()
+    await set_tenant_context(session, tenant_id)
+    data = payment_response(payment)
+    return PublicPaymentConfirmResponse(
+        **data.model_dump(),
+        appointment_status=(
+            appointment.status if appointment is not None else None
+        ),
+        subscription_status=(
+            subscription.status if subscription is not None else None
+        ),
+    )

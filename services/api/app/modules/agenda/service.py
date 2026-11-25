@@ -22,6 +22,11 @@ from app.models import (
     User,
     UserRole,
 )
+from app.modules.payments.service import (
+    cancel_pending_payments,
+    create_payment_intent,
+    expire_pending_payments,
+)
 from app.modules.subscriptions.service import (
     consume_quota,
     get_active_subscription,
@@ -172,6 +177,10 @@ async def expire_pending_deposits(
     for appointment in expired:
         appointment.status = AppointmentStatus.EXPIRED
         await release_quota(session, appointment_id=appointment.id)
+    await expire_pending_payments(
+        session,
+        appointment_ids=[appointment.id for appointment in expired],
+    )
     await session.commit()
     # O commit encerra o SET LOCAL do RLS; reaplica para o restante da requisição.
     await set_tenant_context(session, tenant_id)
@@ -229,6 +238,11 @@ async def _insert_appointment(
                 raise QuotaUnavailableError
 
         requires_deposit = deposit_amount is not None and subscription is None
+        deposit_expires_at = (
+            datetime.now(UTC) + timedelta(minutes=PENDING_DEPOSIT_TTL_MINUTES)
+            if requires_deposit
+            else None
+        )
         appointment = Appointment(
             tenant_id=tenant_id,
             collaborator_id=collaborator.id,
@@ -242,12 +256,7 @@ async def _insert_appointment(
                 else AppointmentStatus.SCHEDULED
             ),
             deposit_amount=deposit_amount if requires_deposit else None,
-            deposit_expires_at=(
-                datetime.now(UTC)
-                + timedelta(minutes=PENDING_DEPOSIT_TTL_MINUTES)
-                if requires_deposit
-                else None
-            ),
+            deposit_expires_at=deposit_expires_at,
             notes=notes,
             created_by=created_by,
             subscription_id=subscription.id if subscription is not None else None,
@@ -266,7 +275,21 @@ async def _insert_appointment(
                     appointment_id=appointment.id,
                     used_at=start,
                 )
+            if (
+                requires_deposit
+                and deposit_amount is not None
+                and deposit_expires_at is not None
+            ):
+                await create_payment_intent(
+                    session,
+                    tenant_id=tenant_id,
+                    client_id=client.id,
+                    amount=deposit_amount,
+                    expires_at=deposit_expires_at,
+                    appointment_id=appointment.id,
+                )
             await session.commit()
+            await set_tenant_context(session, tenant_id)
         except IntegrityError as exc:
             await session.rollback()
             if _is_overlap_conflict(exc):
@@ -470,6 +493,10 @@ async def update_appointment(
                             session,
                             appointment_id=appointment.id,
                         )
+                        await cancel_pending_payments(
+                            session,
+                            appointment_id=appointment.id,
+                        )
             if "notes" in changes:
                 appointment.notes = cast(str | None, changes["notes"])
             await session.commit()
@@ -492,6 +519,10 @@ async def update_appointment(
                 AppointmentStatus.EXPIRED,
             ):
                 await release_quota(
+                    session,
+                    appointment_id=appointment.id,
+                )
+                await cancel_pending_payments(
                     session,
                     appointment_id=appointment.id,
                 )

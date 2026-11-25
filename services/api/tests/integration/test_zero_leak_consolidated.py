@@ -23,6 +23,7 @@ RLS_TABLES = {
     "medical_record_attachments",
     "audit_logs",
     "appointments",
+    "payment_intents",
 }
 
 

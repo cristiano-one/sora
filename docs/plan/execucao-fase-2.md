@@ -56,7 +56,15 @@
       nunca é exposto ao cliente.
     - `PENDING_DEPOSIT` expira em 10 min e libera horário/cota na próxima
       consulta de disponibilidade ou agendamento.
-  - [ ] 3.4 Pix mock (copia-e-cola, QR e confirmação).
+  - [x] 3.4 Pix mock (copia-e-cola, QR e confirmação) · branch `feat/pix-mock`
+    - `PaymentIntent` (migration `0011`, RLS) com BR Code + CRC16 e QR PNG
+      gerado localmente (`segno`), sem serviço externo.
+    - sinal cria cobrança automaticamente; contratação de plano fica
+      `PENDING_PAYMENT` até o pagamento.
+    - `GET /public/{slug}/payments/{id}` e `POST .../mock-confirm`
+      (somente `PAYMENT_PROVIDER=mock`), com posse pelo token e idempotência.
+    - pagamento aprovado confirma o agendamento/ativa a assinatura; expirado
+      libera horário e encerra a assinatura pendente.
   - [ ] 3.5 Web público: planos, cotas e sinal Pix.
 - [x] **Passo 4 — Tela de agenda no web preview** (consumindo os endpoints acima).
 

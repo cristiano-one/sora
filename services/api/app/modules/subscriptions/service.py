@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from app.api.schemas.payments import PublicPaymentResponse
 from app.api.schemas.subscriptions import (
     ClientSubscriptionResponse,
     PublicSubscriptionPlanItemResponse,
@@ -15,6 +16,7 @@ from app.api.schemas.subscriptions import (
 )
 from app.core.config import settings
 from app.core.redis import tenant_key
+from app.db.rls import set_tenant_context
 from app.models import (
     BillingCycle,
     Client,
@@ -94,6 +96,7 @@ async def create_client_subscription(
     plan_id: UUID,
     status: ClientSubscriptionStatus = ClientSubscriptionStatus.ACTIVE,
     now: datetime | None = None,
+    commit: bool = True,
 ) -> ClientSubscription:
     """Contrata um plano para o cliente e inicia o primeiro ciclo."""
     plan = await _get_plan(session, plan_id)
@@ -123,7 +126,10 @@ async def create_client_subscription(
         client=client,
     )
     session.add(subscription)
-    await session.commit()
+    await session.flush()
+    if commit:
+        await session.commit()
+        await set_tenant_context(session, tenant_id)
     return subscription
 
 
@@ -142,6 +148,7 @@ async def cancel_client_subscription(
     subscription.status = ClientSubscriptionStatus.CANCELLED
     subscription.cancelled_at = now or datetime.now(UTC)
     await session.commit()
+    await set_tenant_context(session, subscription.tenant_id)
     return subscription
 
 
@@ -175,6 +182,28 @@ async def get_active_subscription(
             ClientSubscription.status == ClientSubscriptionStatus.ACTIVE,
             ClientSubscription.current_period_start <= moment,
             ClientSubscription.current_period_end > moment,
+        )
+        .order_by(ClientSubscription.created_at.desc())
+        .limit(1)
+    )
+
+
+async def get_latest_subscription(
+    session: AsyncSession,
+    *,
+    client_id: UUID,
+) -> ClientSubscription | None:
+    """Última assinatura ativa ou aguardando pagamento do cliente."""
+    return await session.scalar(
+        select(ClientSubscription)
+        .where(
+            ClientSubscription.client_id == client_id,
+            ClientSubscription.status.in_(
+                (
+                    ClientSubscriptionStatus.ACTIVE,
+                    ClientSubscriptionStatus.PENDING_PAYMENT,
+                )
+            ),
         )
         .order_by(ClientSubscription.created_at.desc())
         .limit(1)
@@ -380,6 +409,7 @@ def public_plan_response(
 async def public_subscription_response(
     session: AsyncSession,
     subscription: ClientSubscription,
+    payment: PublicPaymentResponse | None = None,
 ) -> PublicSubscriptionResponse:
     return PublicSubscriptionResponse(
         status=subscription.status,
@@ -388,4 +418,5 @@ async def public_subscription_response(
         current_period_start=subscription.current_period_start,
         current_period_end=subscription.current_period_end,
         quotas=await subscription_quotas(session, subscription),
+        payment=payment,
     )

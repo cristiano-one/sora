@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.api.schemas.payments import PublicPaymentResponse
 from app.models import BillingCycle, ClientSubscriptionStatus
 
 
@@ -72,6 +73,7 @@ class PublicSubscriptionResponse(BaseModel):
     current_period_start: datetime
     current_period_end: datetime
     quotas: list[SubscriptionQuotaResponse]
+    payment: PublicPaymentResponse | None = None
 
 
 class PublicSubscriptionCreateRequest(BaseModel):

@@ -5,6 +5,7 @@ from app.models.audit import AuditLog
 from app.models.client import Client, ClientScoreEvent, ClientScoreRating, LgpdConsent
 from app.models.medical_record import MedicalRecord, MedicalRecordAttachment
 from app.models.package import Package, PackageItem
+from app.models.payment import PaymentIntent, PaymentStatus
 from app.models.service import Service
 from app.models.subscription import (
     ClientSubscription,
@@ -35,6 +36,8 @@ __all__ = [
     "MedicalRecordAttachment",
     "Package",
     "PackageItem",
+    "PaymentIntent",
+    "PaymentStatus",
     "Service",
     "SubscriptionPlan",
     "SubscriptionPlanItem",

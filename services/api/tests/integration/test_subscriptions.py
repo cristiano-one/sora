@@ -201,9 +201,38 @@ async def test_public_contracts_plan_and_context_shows_quota(
 
     assert contracted.status_code == 201, contracted.text
     body = contracted.json()
-    assert body["status"] == "ACTIVE"
+    assert body["status"] == "PENDING_PAYMENT"
     assert body["plan_id"] == plan["id"]
     assert body["quotas"][0]["remaining"] == 2
+    payment = body["payment"]
+    assert payment is not None
+    assert payment["status"] == "PENDING"
+    assert payment["amount"] == "199.90"
+    assert payment["pix_copy_paste"].startswith("000201")
+    assert payment["qr_code_data_uri"].startswith("data:image/png;base64,")
+
+    context_pending = await auth_client.get(
+        f"/api/v1/public/{tenant_users.tenant_slug}/context",
+        params={"t": magic},
+    )
+    assert context_pending.status_code == 200
+    assert context_pending.json()["subscription"] is None
+
+    status = await auth_client.get(
+        f"/api/v1/public/{tenant_users.tenant_slug}/payments/{payment['id']}",
+        params={"t": magic},
+    )
+    assert status.status_code == 200
+    assert status.json()["status"] == "PENDING"
+
+    confirmed = await auth_client.post(
+        f"/api/v1/public/{tenant_users.tenant_slug}/payments/"
+        f"{payment['id']}/mock-confirm",
+        params={"t": magic},
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    assert confirmed.json()["status"] == "PAID"
+    assert confirmed.json()["subscription_status"] == "ACTIVE"
 
     context_after = await auth_client.get(
         f"/api/v1/public/{tenant_users.tenant_slug}/context",
@@ -267,7 +296,10 @@ async def test_public_subscription_conflicts_for_same_active_plan(
         json={"plan_id": plan["id"], "full_name": "Cliente Plano"},
     )
     assert second.status_code == 409
-    assert second.json()["detail"] == "Você já possui uma assinatura ativa."
+    assert (
+        second.json()["detail"]
+        == "Você já possui uma assinatura aguardando pagamento."
+    )
 
 
 async def test_collaborator_cannot_list_subscriptions(
