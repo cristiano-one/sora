@@ -67,6 +67,9 @@ class TenantSettingsResponse(BaseModel):
     agent_cancellation_policy: str | None
     agent_address_info: str | None
     agent_upsell: str | None
+    ai_provider: str
+    ai_model: str
+    ai_key_configured: bool
     fiscal_enabled: bool
     fiscal_provider: str
     fiscal_municipality: str | None
@@ -99,6 +102,13 @@ class TenantSettingsUpdateRequest(BaseModel):
     agent_cancellation_policy: str | None = Field(default=None, max_length=3000)
     agent_address_info: str | None = Field(default=None, max_length=3000)
     agent_upsell: str | None = Field(default=None, max_length=1000)
+    ai_provider: str | None = Field(
+        default=None,
+        pattern=r"^(mock|groq)$",
+    )
+    ai_model: str | None = Field(default=None, min_length=2, max_length=100)
+    ai_api_key: str | None = Field(default=None, max_length=300)
+    clear_ai_api_key: bool | None = None
     fiscal_enabled: bool | None = None
     fiscal_provider: str | None = Field(default=None, max_length=30)
     fiscal_municipality: str | None = Field(default=None, max_length=120)

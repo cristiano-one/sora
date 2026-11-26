@@ -40,6 +40,7 @@ from app.modules.agenda.public_service import (
     create_magic_link,
     normalize_phone,
 )
+from app.modules.ai.llm import LLM_INTENTS, compose_reply
 from app.modules.whatsapp.service import get_credentials_for_tenant
 from redis.asyncio import Redis
 from sqlalchemy import func, select
@@ -409,6 +410,17 @@ async def handle_tenant_message(
             f"Sou a {agent_name}. Posso ajudar com agendamento, horários e "
             "valores dos serviços. O que você precisa?"
         )
+
+    if tenant_settings is not None and intent in LLM_INTENTS:
+        composed = await compose_reply(
+            tenant_name=tenant.name,
+            tenant_settings=tenant_settings,
+            intent=intent,
+            user_text=text,
+            base_reply=reply,
+        )
+        if composed is not None:
+            reply = composed
 
     _add_message(
         session,

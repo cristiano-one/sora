@@ -96,6 +96,9 @@ export type TenantSettings = {
   agent_cancellation_policy: string | null;
   agent_address_info: string | null;
   agent_upsell: string | null;
+  ai_provider: "mock" | "groq";
+  ai_model: string;
+  ai_key_configured: boolean;
   fiscal_enabled: boolean;
   fiscal_provider: string;
   fiscal_municipality: string | null;
@@ -105,6 +108,19 @@ export type TenantSettings = {
   tithe_percentage: string;
   offering_amount: string;
   birthday_credit_amount: string;
+};
+
+export type TenantSettingsUpdate = Partial<TenantSettings> & {
+  ai_api_key?: string;
+  clear_ai_api_key?: boolean;
+};
+
+export type AiProviderTestResult = {
+  ok: boolean;
+  provider: string;
+  model: string;
+  latency_ms: number;
+  reply: string;
 };
 
 export type WhatsAppConnection = {
@@ -1111,12 +1127,19 @@ export async function disconnectWhatsApp(): Promise<WhatsAppConnection> {
 }
 
 export async function updateTenantSettings(
-  changes: Partial<TenantSettings>,
+  changes: TenantSettingsUpdate,
 ): Promise<TenantSettings> {
   return authenticatedRequest<TenantSettings>("/api/v1/tenants/settings", {
     method: "PATCH",
     body: JSON.stringify(changes),
   });
+}
+
+export async function testAiProvider(): Promise<AiProviderTestResult> {
+  return authenticatedRequest<AiProviderTestResult>(
+    "/api/v1/ai/provider/test",
+    { method: "POST" },
+  );
 }
 
 export async function getTenantExport(): Promise<Record<string, unknown>> {

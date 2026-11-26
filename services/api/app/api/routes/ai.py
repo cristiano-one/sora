@@ -1,5 +1,6 @@
 """Endpoints da SORA IA: webhook interno e central de conversas."""
 
+import time
 from datetime import date
 from uuid import UUID
 
@@ -12,6 +13,7 @@ from app.api.schemas.ai import (
     AiConversationReplyRequest,
     AiConversationResponse,
     AiMessageResponse,
+    AiProviderTestResponse,
     AiSummaryResponse,
     BirthdayCreditResponse,
     BirthdayCreditRunResponse,
@@ -28,8 +30,10 @@ from app.core.auth.dependencies import (
 from app.core.internal_auth import verify_internal_token
 from app.core.redis import get_redis
 from app.db.session import get_session
-from app.models import Tenant, UserRole
+from app.integrations.groq import GroqError
+from app.models import Tenant, TenantSettings, UserRole
 from app.modules.agenda.public_service import PublicBookingError
+from app.modules.ai.llm import test_provider
 from app.modules.ai.service import (
     AiApprovalError,
     AiConversationNotFoundError,
@@ -49,6 +53,7 @@ from app.modules.ai.service import (
 router = APIRouter(prefix="/ai", tags=["sora-ai"])
 
 _require_manager = require_roles(UserRole.OWNER, UserRole.ADMIN)
+_require_owner = require_roles(UserRole.OWNER)
 
 
 @router.post(
@@ -125,6 +130,61 @@ async def simulate_whatsapp_endpoint(
         details={"intent": result.intent},
     )
     return result
+
+
+@router.post(
+    "/provider/test",
+    response_model=AiProviderTestResponse,
+    summary="Testa a conexão com o provedor de IA da clínica",
+)
+async def test_provider_endpoint(
+    request: Request,
+    principal: Principal = Depends(_require_owner),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> AiProviderTestResponse:
+    tenant_settings = await session.get(
+        TenantSettings,
+        principal.tenant_id,
+    )
+    if (
+        tenant_settings is None
+        or tenant_settings.ai_provider != "groq"
+        or not tenant_settings.ai_api_key_encrypted
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Configure e salve a chave da Groq antes de testar.",
+        )
+    started = time.perf_counter()
+    try:
+        reply = await test_provider(tenant_settings=tenant_settings)
+    except GroqError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+    latency_ms = int((time.perf_counter() - started) * 1000)
+    await record_audit(
+        session,
+        tenant_id=principal.tenant_id,
+        actor=principal,
+        action="ai.provider.test",
+        resource_type="tenant_settings",
+        resource_id=principal.tenant_id,
+        ip_address=client_ip(request),
+        details={
+            "provider": tenant_settings.ai_provider,
+            "model": tenant_settings.ai_model,
+            "latency_ms": latency_ms,
+        },
+    )
+    return AiProviderTestResponse(
+        ok=True,
+        provider=tenant_settings.ai_provider,
+        model=tenant_settings.ai_model,
+        latency_ms=latency_ms,
+        reply=reply,
+    )
 
 
 @router.get(

@@ -17,6 +17,7 @@ Concluído:
 - comanda digital, check-in e NFS-e mock;
 - automações/CRM com worker;
 - WhatsApp Tech Provider/Embedded Signup por clínica;
+- agente SORA IA com Groq por clínica (chave cifrada e teste de conexão);
 - landing de vendas em `/`;
 - configurações em submenus.
 
@@ -26,7 +27,6 @@ Pendências comerciais:
 - checkout/trial/inadimplência;
 - gateway real;
 - NFS-e real;
-- LLM real (WhatsApp real já implementado via Tech Provider);
 - deploy de produção;
 - autoatendimento completo para reagendar/cancelar;
 - painel/TV de sala de espera;
@@ -83,6 +83,14 @@ Implementado em `/configuracoes/whatsapp`:
 A Meta cobra as mensagens na conta de cada clínica. O passo a passo completo,
 incluindo sandbox e túnel HTTPS, está em
 [`whatsapp-tech-provider.md`](whatsapp-tech-provider.md).
+
+## Agente com Groq
+
+A clínica pode cadastrar a própria chave Groq em `/configuracoes/agente`.
+A chave é cifrada, nunca retornada e só o `OWNER` altera. A LLM reescreve
+saudações, fallback, preços e link de agendamento; links e preços são validados
+e todo o resto continua determinístico. Guia:
+[`groq-agent.md`](groq-agent.md).
 
 ### 3. Produção
 

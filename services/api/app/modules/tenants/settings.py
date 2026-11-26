@@ -6,11 +6,14 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.tenants import TenantSettingsResponse
+from app.core.crypto import encrypt_text
 from app.db.rls import set_tenant_context
 from app.models import TenantSettings
 
 DEFAULT_THEME_COLOR = "#4f46e5"
 DEFAULT_AGENT_NAME = "Sora"
+DEFAULT_AI_PROVIDER = "mock"
+DEFAULT_AI_MODEL = "llama-3.3-70b-versatile"
 
 
 class TenantSettingsValidationError(Exception):
@@ -60,6 +63,18 @@ def settings_response(
             settings.agent_address_info if settings is not None else None
         ),
         agent_upsell=settings.agent_upsell if settings is not None else None,
+        ai_provider=(
+            settings.ai_provider
+            if settings is not None
+            else DEFAULT_AI_PROVIDER
+        ),
+        ai_model=(
+            settings.ai_model if settings is not None else DEFAULT_AI_MODEL
+        ),
+        ai_key_configured=(
+            settings is not None
+            and settings.ai_api_key_encrypted is not None
+        ),
         fiscal_enabled=(
             settings.fiscal_enabled if settings is not None else False
         ),
@@ -111,6 +126,44 @@ async def update_tenant_settings(
     if settings is None:
         settings = TenantSettings(tenant_id=tenant_id)
         session.add(settings)
+
+    changes = dict(changes)
+    ai_key = changes.pop("ai_api_key", None)
+    clear_ai_key = bool(changes.pop("clear_ai_api_key", False))
+    if ai_key is not None and clear_ai_key:
+        raise TenantSettingsValidationError(
+            "Envie a nova chave ou solicite a remoção, não ambos."
+        )
+    new_key = settings.ai_api_key_encrypted
+    if ai_key is not None:
+        key_text = str(ai_key).strip()
+        if not key_text:
+            raise TenantSettingsValidationError("Chave da Groq vazia.")
+        new_key = encrypt_text(key_text)
+    if clear_ai_key:
+        new_key = None
+    target_provider = str(
+        changes.get("ai_provider")
+        or settings.ai_provider
+        or DEFAULT_AI_PROVIDER
+    )
+    if target_provider not in {"mock", "groq"}:
+        raise TenantSettingsValidationError("Provedor de IA inválido.")
+    if target_provider == "groq" and not new_key:
+        raise TenantSettingsValidationError(
+            "Informe a chave da Groq para usar esse provedor."
+        )
+    target_model = str(
+        changes.get("ai_model")
+        or settings.ai_model
+        or DEFAULT_AI_MODEL
+    ).strip()
+    if not target_model:
+        raise TenantSettingsValidationError("Modelo de IA inválido.")
+
+    settings.ai_provider = target_provider
+    settings.ai_model = target_model
+    settings.ai_api_key_encrypted = new_key
 
     threshold = changes.get(
         "deposit_score_threshold",

@@ -130,6 +130,10 @@ class TenantSettings(Base):
             "birthday_credit_amount >= 0",
             name="ck_tenant_settings_birthday_credit_amount",
         ),
+        CheckConstraint(
+            "ai_provider IN ('mock', 'groq')",
+            name="ck_tenant_settings_ai_provider",
+        ),
     )
 
     tenant_id: Mapped[UUID] = mapped_column(
@@ -171,6 +175,22 @@ class TenantSettings(Base):
     )
     agent_address_info: Mapped[str | None] = mapped_column(Text, nullable=True)
     agent_upsell: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_provider: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="mock",
+        server_default=text("'mock'"),
+    )
+    ai_model: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        default="llama-3.3-70b-versatile",
+        server_default=text("'llama-3.3-70b-versatile'"),
+    )
+    ai_api_key_encrypted: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
     fiscal_enabled: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

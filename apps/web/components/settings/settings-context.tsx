@@ -16,6 +16,7 @@ import {
   updateTenantSettings,
   type Me,
   type TenantSettings,
+  type TenantSettingsUpdate,
 } from "@/lib/api";
 
 type SettingsContextValue = {
@@ -25,7 +26,7 @@ type SettingsContextValue = {
   saving: boolean;
   error: string | null;
   notice: string | null;
-  save: (changes: Partial<TenantSettings>) => Promise<TenantSettings | null>;
+  save: (changes: TenantSettingsUpdate) => Promise<TenantSettings | null>;
   setError: (value: string | null) => void;
 };
 
@@ -66,7 +67,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const save = useCallback(
-    async (changes: Partial<TenantSettings>) => {
+    async (changes: TenantSettingsUpdate) => {
       setSaving(true);
       setError(null);
       setNotice(null);

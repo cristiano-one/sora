@@ -70,6 +70,16 @@ class AiConversationReplyRequest(BaseModel):
     content: str = Field(min_length=1, max_length=2000)
 
 
+class AiProviderTestResponse(BaseModel):
+    """Resultado do teste de conexão com o provedor de IA."""
+
+    ok: bool
+    provider: str
+    model: str
+    latency_ms: int
+    reply: str
+
+
 class BirthdayItemResponse(BaseModel):
     """Aniversariante dos próximos dias."""
 
