@@ -43,7 +43,9 @@ from app.models import (
     ClientCreditUsage,
     MedicalRecord,
     MedicalRecordAttachment,
+    Tenant,
     UserRole,
+    supports_medical_records,
 )
 from app.modules.clients.service import (
     ClientInUseError,
@@ -111,6 +113,27 @@ async def _get_client(session: AsyncSession, client_id: UUID) -> Client:
             detail="Cliente não encontrado",
         )
     return client
+
+
+async def _medical_records_enabled(
+    session: AsyncSession,
+    tenant_id: UUID,
+) -> bool:
+    tenant = await session.get(Tenant, tenant_id)
+    return tenant is not None and supports_medical_records(
+        tenant.business_profile
+    )
+
+
+async def _require_medical_records(
+    session: AsyncSession,
+    tenant_id: UUID,
+) -> None:
+    if not await _medical_records_enabled(session, tenant_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Prontuário não habilitado para este perfil de negócio",
+        )
 
 
 async def _get_record(
@@ -337,6 +360,7 @@ async def create_record_endpoint(
     session: AsyncSession = Depends(get_tenant_session),
 ) -> MedicalRecordResponse:
     client = await _get_client(session, client_id)
+    await _require_medical_records(session, principal.tenant_id)
     record = await create_medical_record(
         session,
         client=client,
@@ -369,6 +393,8 @@ async def list_records_endpoint(
     session: AsyncSession = Depends(get_tenant_session),
 ) -> list[MedicalRecordResponse]:
     client = await _get_client(session, client_id)
+    if not await _medical_records_enabled(session, principal.tenant_id):
+        return []
     records = (
         await session.scalars(
             select(MedicalRecord)
@@ -405,6 +431,7 @@ async def presign_attachment_endpoint(
     storage: StoragePort = Depends(get_storage),
 ) -> AttachmentPresignResponse:
     client = await _get_client(session, client_id)
+    await _require_medical_records(session, principal.tenant_id)
     record = await _get_record(
         session,
         client_id=client.id,
@@ -464,6 +491,7 @@ async def presign_attachment_url_endpoint(
     storage: StoragePort = Depends(get_storage),
 ) -> AttachmentUrlResponse:
     client = await _get_client(session, client_id)
+    await _require_medical_records(session, principal.tenant_id)
     record = await _get_record(
         session,
         client_id=client.id,
@@ -506,6 +534,7 @@ async def delete_attachment_endpoint(
     storage: StoragePort = Depends(get_storage),
 ) -> Response:
     client = await _get_client(session, client_id)
+    await _require_medical_records(session, principal.tenant_id)
     record = await _get_record(
         session,
         client_id=client.id,

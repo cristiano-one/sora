@@ -13,14 +13,18 @@ import {
   addScoreEvent,
   ApiError,
   getClients,
+  getMe,
   type Client,
+  type Me,
 } from "../api";
+import { supportsMedicalRecords } from "../profiles";
 import { ClientRecordScreen } from "./ClientRecordScreen";
 import { colors } from "../theme";
 import { ui } from "../ui";
 
 export function ClientsScreen() {
   const [clients, setClients] = useState<Client[]>([]);
+  const [me, setMe] = useState<Me | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,7 +35,12 @@ export function ClientsScreen() {
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      setClients(await getClients());
+      const [clientData, meData] = await Promise.all([
+        getClients(),
+        getMe(),
+      ]);
+      setClients(clientData);
+      setMe(meData);
       setError(null);
     } catch (err) {
       setError(
@@ -186,14 +195,18 @@ export function ClientsScreen() {
                   marginTop: 12,
                 }}
               >
-                <Pressable
-                  onPress={() => setSelectedClient(item)}
-                  style={[ui.buttonGhost, { borderColor: colors.primary }]}
-                >
-                  <Text style={[ui.buttonGhostText, { color: colors.primary }]}>
-                    Prontuário
-                  </Text>
-                </Pressable>
+                {supportsMedicalRecords(me?.business_profile) ? (
+                  <Pressable
+                    onPress={() => setSelectedClient(item)}
+                    style={[ui.buttonGhost, { borderColor: colors.primary }]}
+                  >
+                    <Text
+                      style={[ui.buttonGhostText, { color: colors.primary }]}
+                    >
+                      Prontuário
+                    </Text>
+                  </Pressable>
+                ) : null}
                 <Pressable
                   disabled={busy}
                   onPress={() => handleScore(item, "POSITIVE")}

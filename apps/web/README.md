@@ -41,7 +41,9 @@ uv run uvicorn app.main:app --reload --port 8010
   falta, reagendamento e cancelamento (anti-conflito no backend).
 - `/clientes` — cadastro, edição, exclusão, score confidencial e bloqueio
   (telefone mascarado para colaboradores).
-- `/clientes/[id]` — prontuário com evoluções cifradas, consentimento LGPD,
+- `/sistema` — console master do provedor (fora do login do tenant), protegido
+  por `SYSTEM_ADMIN_PASSWORD`; lista empresas e define o perfil de negócio.
+- `/clientes/[id]` — prontuário (quando o perfil permite), consentimento LGPD,
   anexos privados (abrir, baixar e excluir) e aplicação de créditos.
 - `/minha-comissao` — comissão do próprio usuário em qualquer papel.
 - `/pagamentos` — sinais Pix pendentes e confirmação manual (`OWNER`/`ADMIN`).
@@ -94,6 +96,24 @@ O token expira em **20 min**. Na página você pode:
 
 O cliente bloqueado recebe horários vazios e uma mensagem genérica, sem revelar
 score/bloqueio.
+
+## Perfis de negócio
+
+O administrador do provedor acessa `/sistema` com a senha master
+(`SYSTEM_ADMIN_PASSWORD`) e escolhe o segmento de cada empresa:
+
+| Perfil | Prontuário |
+| :--- | :---: |
+| Clínica médica | ✅ |
+| Clínica de estética | ✅ |
+| Podologia | ✅ |
+| Salão de beleza | ❌ |
+| Barbearia | ❌ |
+| Multisserviços | ❌ |
+
+O perfil é retornado em `/auth/me` e controla a exibição do prontuário no web e
+no mobile. Empresas novas nascem como **Multisserviços** até a configuração
+master; o demo existente foi migrado como **Clínica de estética**.
 
 ## Validação
 

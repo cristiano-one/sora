@@ -43,7 +43,6 @@ chaves sempre prefixadas por `tenant:{tenant_id}:auth:*`. Revogação em massa
 (desligamento de usuário) via `revoked_at` em milissegundos.
 
 ### Recuperação de senha e convite
-
 - `POST /api/v1/auth/forgot-password` — resposta sempre genérica; quando o
   e-mail existe, grava token no Redis (`tenant:{id}:auth:password_reset:*`, TTL
   30 min) e envia link.
@@ -54,6 +53,24 @@ chaves sempre prefixadas por `tenant:{tenant_id}:auth:*`. Revogação em massa
 - `POST /api/v1/auth/accept-invite` — aceita o convite e define a senha inicial.
 - `EMAIL_PROVIDER=mock` registra o e-mail no log; `smtp` usa `SMTP_HOST`,
   `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` e `EMAIL_FROM`.
+
+## Perfis de negócio e console master
+
+- `Tenant.business_profile`: `MEDICAL_CLINIC`, `AESTHETICS`, `PODOLOGY`,
+  `SALON`, `BARBERSHOP` ou `GENERAL` (migration `0020`). Empresas novas usam
+  `GENERAL`; tenants existentes foram migrados para `AESTHETICS`.
+- `/auth/me` devolve `business_profile` para web/mobile ajustarem os módulos.
+- Prontuário, evoluções e anexos retornam `403` para perfis sem suporte
+  clínico; a listagem retorna vazio para telas antigas.
+- `POST /api/v1/system/login` — senha master (`SYSTEM_ADMIN_PASSWORD`), sessão
+  Redis de 30 min e bloqueio após 10 tentativas por IP.
+- `GET /api/v1/system/tenants` — lista empresas (sessão master).
+- `PATCH /api/v1/system/tenants/{id}/profile` — define o perfil e audita a
+  alteração.
+- `POST /api/v1/system/logout` — encerra a sessão master.
+
+O console usa uma sessão owner isolada (`get_system_session`) apenas para
+listar/atualizar tenants; nenhuma rota de negócio usa essa credencial.
 
 ## Tenants (RBAC + RLS)
 

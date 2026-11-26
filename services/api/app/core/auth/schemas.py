@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
+from app.models.tenant import BusinessProfile
 from app.models.user import UserRole
 
 
@@ -44,6 +45,7 @@ class MeResponse(BaseModel):
     email: str
     full_name: str
     role: UserRole
+    business_profile: BusinessProfile
 
 
 class ForgotPasswordRequest(BaseModel):

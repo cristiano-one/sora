@@ -37,6 +37,7 @@ from app.core.email import send_email
 from app.core.redis import get_redis
 from app.db.rls import set_tenant_context
 from app.db.session import get_session
+from app.models import BusinessProfile, Tenant
 from app.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -125,12 +126,18 @@ async def me(
     user = await session.get(User, principal.user_id)
     if user is None:
         raise _invalid_credentials()
+    tenant = await session.get(Tenant, principal.tenant_id)
     return MeResponse(
         id=user.id,
         tenant_id=user.tenant_id,
         email=user.email,
         full_name=user.full_name,
         role=user.role,
+        business_profile=(
+            tenant.business_profile
+            if tenant is not None
+            else BusinessProfile.GENERAL
+        ),
     )
 
 

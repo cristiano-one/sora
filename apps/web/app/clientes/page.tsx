@@ -14,6 +14,7 @@ import {
   type Client,
   type Me,
 } from "@/lib/api";
+import { supportsMedicalRecords } from "@/lib/profiles";
 
 export default function ClientsPage() {
   const [me, setMe] = useState<Me | null>(null);
@@ -208,12 +209,15 @@ export default function ClientsPage() {
                         </td>
                         <td>
                           <div className="row-actions">
-                            <Link
-                              className="button button-ghost button-small"
-                              href={`/clientes/${client.id}`}
-                            >
-                              Prontuário
-                            </Link>
+                            {me &&
+                            supportsMedicalRecords(me.business_profile) ? (
+                              <Link
+                                className="button button-ghost button-small"
+                                href={`/clientes/${client.id}`}
+                              >
+                                Prontuário
+                              </Link>
+                            ) : null}
                             {isManager ? (
                               <>
                                 <button

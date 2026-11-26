@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     jwt_refresh_token_expire_days: int = 7
     jwt_issuer: str = "sora-api"
     jwt_audience: str = "sora-clients"
+    system_admin_password: str = ""
 
     # Storage privado (local assinado em dev; S3/MinIO/R2 em produção)
     storage_provider: str = "local"

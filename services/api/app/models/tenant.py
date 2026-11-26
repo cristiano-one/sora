@@ -31,6 +31,31 @@ class TaxRegime(enum.StrEnum):
     COMPLETE = "COMPLETE"
 
 
+class BusinessProfile(enum.StrEnum):
+    """Segmento de negócio que define os módulos exibidos."""
+
+    MEDICAL_CLINIC = "MEDICAL_CLINIC"
+    AESTHETICS = "AESTHETICS"
+    PODOLOGY = "PODOLOGY"
+    SALON = "SALON"
+    BARBERSHOP = "BARBERSHOP"
+    GENERAL = "GENERAL"
+
+
+MEDICAL_RECORD_PROFILES = frozenset(
+    {
+        BusinessProfile.MEDICAL_CLINIC,
+        BusinessProfile.AESTHETICS,
+        BusinessProfile.PODOLOGY,
+    }
+)
+
+
+def supports_medical_records(profile: BusinessProfile) -> bool:
+    """Indica se o segmento usa prontuário/ficha clínica."""
+    return profile in MEDICAL_RECORD_PROFILES
+
+
 class Tenant(Base):
     """Empresa assinante (tenant) isolada por RLS."""
 
@@ -49,6 +74,12 @@ class Tenant(Base):
         nullable=False,
         default=TaxRegime.COMPLETE,
         server_default=text("'COMPLETE'"),
+    )
+    business_profile: Mapped[BusinessProfile] = mapped_column(
+        Enum(BusinessProfile, name="business_profile", native_enum=True),
+        nullable=False,
+        default=BusinessProfile.GENERAL,
+        server_default=text("'GENERAL'"),
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
