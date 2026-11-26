@@ -296,6 +296,26 @@ export type TitheSummary = {
   pending_offering: string;
 };
 
+export type ClientCredit = {
+  id: string;
+  amount: string;
+  used_amount: string;
+  remaining_amount: string;
+  reason: string;
+  reference: string;
+  expires_at: string;
+  is_available: boolean;
+};
+
+export type ClientCreditUsage = {
+  id: string;
+  credit_id: string;
+  amount: string;
+  appointment_id: string | null;
+  note: string | null;
+  created_at: string;
+};
+
 export type SaleItem = {
   appointment_id: string;
   starts_at: string;
@@ -727,6 +747,33 @@ export async function deleteAttachment(
   await authenticatedRequest<void>(
     `/api/v1/clients/${clientId}/records/${recordId}/attachments/${attachmentId}`,
     { method: "DELETE" },
+  );
+}
+
+export async function getClientCredits(
+  clientId: string,
+): Promise<ClientCredit[]> {
+  return authenticatedRequest<ClientCredit[]>(
+    `/api/v1/clients/${clientId}/credits`,
+  );
+}
+
+export async function getClientCreditUsages(
+  clientId: string,
+): Promise<ClientCreditUsage[]> {
+  return authenticatedRequest<ClientCreditUsage[]>(
+    `/api/v1/clients/${clientId}/credit-usages`,
+  );
+}
+
+export async function applyClientCredit(
+  clientId: string,
+  creditId: string,
+  input: { amount: string; note?: string | null; appointment_id?: string | null },
+): Promise<ClientCreditUsage> {
+  return authenticatedRequest<ClientCreditUsage>(
+    `/api/v1/clients/${clientId}/credits/${creditId}/use`,
+    { method: "POST", body: JSON.stringify(input) },
   );
 }
 

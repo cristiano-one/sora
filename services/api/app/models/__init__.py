@@ -9,7 +9,7 @@ from app.models.ai import (
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.audit import AuditLog
 from app.models.client import Client, ClientScoreEvent, ClientScoreRating, LgpdConsent
-from app.models.client_credit import ClientCredit
+from app.models.client_credit import ClientCredit, ClientCreditUsage
 from app.models.finance import (
     AccountType,
     FinancialAccount,
@@ -48,6 +48,7 @@ __all__ = [
     "BillingCycle",
     "Client",
     "ClientCredit",
+    "ClientCreditUsage",
     "ClientScoreEvent",
     "ClientScoreRating",
     "ClientSubscription",

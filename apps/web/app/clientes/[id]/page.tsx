@@ -12,14 +12,20 @@ import {
   deleteAttachment,
   getAttachmentUrl,
   getClient,
+  getClientCredits,
+  getClientCreditUsages,
   getMedicalRecords,
   getMe,
   presignAttachment,
+  applyClientCredit,
   type Client,
+  type ClientCredit,
+  type ClientCreditUsage,
   type MedicalRecord,
   type Me,
 } from "@/lib/api";
-import { formatIsoDate } from "@/lib/agenda";
+import { formatDateOnly, formatIsoDate } from "@/lib/agenda";
+import { formatPrice } from "@/lib/public";
 
 function fileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -33,6 +39,11 @@ export default function MedicalRecordPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [role, setRole] = useState<Me["role"] | null>(null);
+  const [credits, setCredits] = useState<ClientCredit[]>([]);
+  const [creditUsages, setCreditUsages] = useState<ClientCreditUsage[]>([]);
+  const [selectedCreditId, setSelectedCreditId] = useState("");
+  const [creditAmount, setCreditAmount] = useState("0.00");
+  const [creditNote, setCreditNote] = useState("");
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
@@ -72,6 +83,31 @@ export default function MedicalRecordPage() {
       active = false;
     };
   }, [clientId]);
+
+  useEffect(() => {
+    if (!clientId || (role !== "OWNER" && role !== "ADMIN")) return;
+    let active = true;
+    Promise.all([
+      getClientCredits(clientId),
+      getClientCreditUsages(clientId),
+    ])
+      .then(([creditData, usageData]) => {
+        if (!active) return;
+        setCredits(creditData);
+        setCreditUsages(usageData);
+        const available = creditData.find((item) => item.is_available);
+        if (available) {
+          setSelectedCreditId(available.id);
+          setCreditAmount(available.remaining_amount);
+        }
+      })
+      .catch(() => {
+        // Créditos são opcionais no prontuário.
+      });
+    return () => {
+      active = false;
+    };
+  }, [clientId, role]);
 
   async function handleCreateRecord(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -221,6 +257,39 @@ export default function MedicalRecordPage() {
       );
     } finally {
       setAttachmentBusy(null);
+    }
+  }
+
+  async function handleUseCredit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!clientId || !selectedCreditId) return;
+    setError(null);
+    setNotice(null);
+    try {
+      await applyClientCredit(clientId, selectedCreditId, {
+        amount: creditAmount,
+        note: creditNote.trim() || null,
+      });
+      const [creditData, usageData] = await Promise.all([
+        getClientCredits(clientId),
+        getClientCreditUsages(clientId),
+      ]);
+      setCredits(creditData);
+      setCreditUsages(usageData);
+      setCreditNote("");
+      const available = creditData.find((item) => item.is_available);
+      if (available) {
+        setSelectedCreditId(available.id);
+        setCreditAmount(available.remaining_amount);
+      } else {
+        setSelectedCreditId("");
+        setCreditAmount("0.00");
+      }
+      setNotice("Crédito aplicado.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao aplicar crédito.",
+      );
     }
   }
 
@@ -413,6 +482,164 @@ export default function MedicalRecordPage() {
             </p>
           </section>
         </div>
+
+        {isManager ? (
+          <section className="panel section-gap">
+            <div className="panel-title">
+              <h2>Créditos do cliente</h2>
+              <span className="muted-small">
+                {credits.filter((item) => item.is_available).length} disponível(is)
+              </span>
+            </div>
+            {credits.length === 0 ? (
+              <p className="table-empty">
+                Nenhum crédito gerado para este cliente.
+              </p>
+            ) : (
+              <div className="admin-grid">
+                <div>
+                  <div className="table-wrap">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Motivo</th>
+                          <th>Valor</th>
+                          <th>Usado</th>
+                          <th>Saldo</th>
+                          <th>Validade</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {credits.map((credit) => (
+                          <tr key={credit.id}>
+                            <td>
+                              <strong>{credit.reason}</strong>
+                              <div className="muted-small">
+                                {credit.reference}
+                              </div>
+                            </td>
+                            <td className="price-cell">
+                              {formatPrice(credit.amount)}
+                            </td>
+                            <td className="price-cell">
+                              {formatPrice(credit.used_amount)}
+                            </td>
+                            <td className="price-cell">
+                              {formatPrice(credit.remaining_amount)}
+                            </td>
+                            <td>{formatDateOnly(credit.expires_at)}</td>
+                            <td>
+                              <span
+                                className={`pill ${
+                                  credit.is_available
+                                    ? "pill-active"
+                                    : "pill-blocked"
+                                }`}
+                              >
+                                {credit.is_available
+                                  ? "Disponível"
+                                  : "Indisponível"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="panel-title section-gap">
+                    <h3>Histórico de uso</h3>
+                  </div>
+                  {creditUsages.length === 0 ? (
+                    <p className="table-empty">Nenhuma utilização.</p>
+                  ) : (
+                    <div className="table-wrap">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Data</th>
+                            <th>Valor</th>
+                            <th>Observação</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {creditUsages.map((usage) => (
+                            <tr key={usage.id}>
+                              <td>{formatIsoDate(usage.created_at)}</td>
+                              <td className="price-cell">
+                                {formatPrice(usage.amount)}
+                              </td>
+                              <td>{usage.note ?? "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                <form onSubmit={handleUseCredit}>
+                  <div className="field">
+                    <label htmlFor="credit-select">Crédito</label>
+                    <select
+                      id="credit-select"
+                      value={selectedCreditId}
+                      onChange={(event) => {
+                        setSelectedCreditId(event.target.value);
+                        const credit = credits.find(
+                          (item) => item.id === event.target.value,
+                        );
+                        setCreditAmount(credit?.remaining_amount ?? "0.00");
+                      }}
+                      required
+                    >
+                      <option value="">Selecione…</option>
+                      {credits
+                        .filter((item) => item.is_available)
+                        .map((credit) => (
+                          <option key={credit.id} value={credit.id}>
+                            {credit.reason} · saldo{" "}
+                            {formatPrice(credit.remaining_amount)}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="credit-amount">Valor a aplicar (R$)</label>
+                    <input
+                      id="credit-amount"
+                      inputMode="decimal"
+                      value={creditAmount}
+                      onChange={(event) => setCreditAmount(event.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="credit-note">Observação</label>
+                    <input
+                      id="credit-note"
+                      value={creditNote}
+                      onChange={(event) => setCreditNote(event.target.value)}
+                      maxLength={1000}
+                    />
+                  </div>
+                  <button
+                    className="button"
+                    type="submit"
+                    disabled={!selectedCreditId}
+                  >
+                    Aplicar crédito
+                  </button>
+                  <p className="muted-small">
+                    O uso reduz o saldo do crédito e fica registrado no
+                    histórico e na auditoria.
+                  </p>
+                </form>
+              </div>
+            )}
+          </section>
+        ) : null}
       </div>
     </AppShell>
   );

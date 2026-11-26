@@ -1,6 +1,7 @@
 """Contratos de clientes, score, LGPD, prontuário e anexos."""
 
 from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -126,3 +127,35 @@ class AttachmentUrlResponse(BaseModel):
 
     url: str
     expires_in: int
+
+
+class ClientCreditResponse(BaseModel):
+    """Crédito promocional com saldo restante."""
+
+    id: UUID
+    amount: Decimal
+    used_amount: Decimal
+    remaining_amount: Decimal
+    reason: str
+    reference: str
+    expires_at: date
+    is_available: bool
+
+
+class ClientCreditUsageCreateRequest(BaseModel):
+    """Aplicação de crédito no atendimento/comanda."""
+
+    amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    appointment_id: UUID | None = None
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class ClientCreditUsageResponse(BaseModel):
+    """Histórico de uso do crédito."""
+
+    id: UUID
+    credit_id: UUID
+    amount: Decimal
+    appointment_id: UUID | None
+    note: str | None
+    created_at: datetime
