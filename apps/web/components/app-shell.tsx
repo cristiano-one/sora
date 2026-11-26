@@ -40,7 +40,16 @@ const SECTIONS = [
   {
     label: "Gestão",
     items: [
-      { href: "/catalogo", label: "Catálogo", icon: "◇", manager: true },
+      {
+        href: "/catalogo",
+        label: "Catálogo",
+        icon: "◇",
+        manager: true,
+        children: [
+          { href: "/catalogo/servicos", label: "Serviços" },
+          { href: "/catalogo/pacotes", label: "Pacotes" },
+        ],
+      },
       { href: "/estoque", label: "Estoque", icon: "▦", manager: true },
       { href: "/equipe", label: "Equipe", icon: "◈", manager: true },
       {
