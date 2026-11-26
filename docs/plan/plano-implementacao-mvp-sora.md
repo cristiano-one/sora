@@ -321,3 +321,22 @@ O módulo financeiro será construído em formato de **Dashboard modular**, sepa
 - **SORA IA Atendente de WhatsApp + Central de Conversas (Estilo Mangomint):** Sessão dedicada com resumo diário de atendimentos da IA, histórico de conversas com clientes, escalonamento para aprovação humana e tela de configuração do nome/persona do agente atendente pelo Admin/Gestor.
 - Worker agendado no Redis para identificar aniversariantes 7 dias antes e enviar mensagem com crédito promocional configurável.
 - **Integração do Gateway de Pagamento Real** (plugando o provedor definitivo no `PaymentGatewayPort` para Pix dinâmico, cobrança recorrente dos planos de assinatura e webhooks automáticos).
+
+---
+
+## 7. Backlog pós-MVP (referência Mangomint x Brasil)
+
+O detalhamento está em [`backlog-pos-mvp.md`](backlog-pos-mvp.md). Resumo:
+
+- **Fase 6 — Comanda e fluidez:** comanda digital, pagamento na comanda,
+  check-in/sala de espera e meta de poucos cliques.
+- **Fase 7 — Automações/CRM:** lembretes, pós-atendimento, recuperação de
+  clientes, opt-in LGPD e logs; editor visual depois.
+- **Fase 8 — Brasil:** gateway real (Pix, cartão e boleto), NFS-e, vínculo
+  parceiro/MEI e repasses sem bitributação.
+- **Fase 9 — IA avançada:** LLM/PydanticAI real, recepção por voz e automações
+  visuais avançadas.
+
+**Não copiar do Mangomint:** SMS como canal principal, preço em dólar, canvas de
+automação complexo antes dos templates e integração direta com cada maquininha
+antes de validar o gateway.

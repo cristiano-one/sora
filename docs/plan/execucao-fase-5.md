@@ -44,6 +44,13 @@
     - Gateway: escolher Asaas/Mercado Pago/Stripe/Efí e plugar `PaymentProviderPort`.
     - EAS: login + credenciais Apple/Google e build em aparelho.
 
+## Próximas fases (pós-MVP)
+
+O backlog filtrado da referência Mangomint e das exigências brasileiras está em
+[`backlog-pos-mvp.md`](backlog-pos-mvp.md): comanda rápida, automações/CRM,
+check-in digital, pagamentos locais, NFS-e, vínculo parceiro/MEI e recepção por
+voz.
+
 ## Regras de aceite
 
 - Nenhuma mensagem do cliente altera `tenant_id`, `user_id`, `role` ou o
