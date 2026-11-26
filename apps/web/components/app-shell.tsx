@@ -34,7 +34,18 @@ const SECTIONS = [
     items: [
       { href: "/catalogo", label: "Catálogo", icon: "◇", manager: true },
       { href: "/equipe", label: "Equipe", icon: "◈", manager: true },
-      { href: "/assinaturas", label: "Assinaturas", icon: "☆", manager: true },
+      {
+        href: "/assinaturas",
+        label: "Assinaturas",
+        icon: "☆",
+        manager: true,
+        children: [
+          { href: "/assinaturas/assinantes", label: "Assinantes" },
+          { href: "/assinaturas/planos", label: "Planos" },
+          { href: "/assinaturas/contratar", label: "Contratar para cliente" },
+          { href: "/assinaturas/novo-plano", label: "Novo plano" },
+        ],
+      },
       {
         href: "/financeiro",
         label: "Financeiro",

@@ -15,7 +15,8 @@
     e sinal.
   - `/equipe`: usuários com edição/exclusão, papéis, status e comissões.
 - [x] **Passo 3 — Assinaturas e configurações**
-  - `/assinaturas`: planos, cotas, contratação manual, edição e cancelamento.
+  - `/assinaturas/*` separado em Assinantes, Planos, Contratar para cliente e
+    Novo plano.
   - `/financeiro/*`: contas e lançamentos com edição/exclusão; relatórios
     separados em submenus.
   - `/configuracoes`: score mínimo, valor do sinal, cor primária e agente.

@@ -100,7 +100,7 @@ export default function DashboardPage() {
                 </p>
                 <div className="soon">Abrir equipe →</div>
               </Link>
-              <Link href="/assinaturas" className="panel panel-link">
+              <Link href="/assinaturas/assinantes" className="panel panel-link">
                 <h2>Assinaturas</h2>
                 <p>
                   Clubes de recorrência, cotas e assinantes ativos da clínica.
