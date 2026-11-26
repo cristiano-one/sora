@@ -21,6 +21,17 @@
   - aniversariantes dos próximos 7 dias e link para configurar o agente.
   - menu/dashboard com a central para `OWNER`/`ADMIN`.
 - [ ] **Passo 3 — Gateway real, envio WhatsApp e crédito de aniversário**.
+  - [x] **3.1 Adapters e crédito de aniversário** · branch `feat/integrations-birthday`
+    - envio WhatsApp com port `mock`/Meta Cloud API (`WHATSAPP_PROVIDER`).
+    - `PaymentProviderPort` com mock e erro explícito para gateway não plugado.
+    - `client_credits` + `birthday_credit_amount` (migration `0014`, RLS).
+    - geração idempotente 1x/ano, validade 30 dias, mensagem via WhatsApp mock.
+    - botão de geração na central e campo nas configurações.
+    - `eas.json` com perfis preview/production.
+  - [ ] **3.2 Credenciais reais**.
+    - Meta WhatsApp: token + phone_number_id.
+    - Gateway: escolher Asaas/Mercado Pago/Stripe/Efí e plugar `PaymentProviderPort`.
+    - EAS: login + credenciais Apple/Google e build em aparelho.
 
 ## Regras de aceite
 

@@ -94,6 +94,10 @@ class TenantSettings(Base):
             "offering_amount >= 0",
             name="ck_tenant_settings_offering_amount",
         ),
+        CheckConstraint(
+            "birthday_credit_amount >= 0",
+            name="ck_tenant_settings_birthday_credit_amount",
+        ),
     )
 
     tenant_id: Mapped[UUID] = mapped_column(
@@ -134,6 +138,12 @@ class TenantSettings(Base):
         server_default=text("10"),
     )
     offering_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        nullable=False,
+        default=Decimal("0.00"),
+        server_default=text("0"),
+    )
+    birthday_credit_amount: Mapped[Decimal] = mapped_column(
         Numeric(12, 2),
         nullable=False,
         default=Decimal("0.00"),

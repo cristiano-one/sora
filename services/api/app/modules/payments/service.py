@@ -8,7 +8,6 @@ from uuid import UUID, uuid4
 
 import segno
 from app.api.schemas.payments import PublicPaymentResponse
-from app.core.config import settings
 from app.models import (
     Appointment,
     AppointmentStatus,
@@ -17,7 +16,7 @@ from app.models import (
     PaymentIntent,
     PaymentStatus,
 )
-from app.modules.payments.pix import build_pix_payload
+from app.modules.payments.providers import get_payment_provider
 from app.modules.subscriptions.service import period_end
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,12 +56,11 @@ async def create_payment_intent(
     if amount <= 0:
         raise ValueError("amount deve ser positivo")
     reference = appointment_id or subscription_id or uuid4()
-    payload = build_pix_payload(
-        key=settings.payment_pix_key,
-        merchant_name=settings.payment_merchant_name,
-        merchant_city=settings.payment_merchant_city,
+    provider = get_payment_provider()
+    charge = provider.create_pix_charge(
         amount=amount,
-        txid=str(reference).replace("-", ""),
+        txid=reference,
+        description="Sinal/assinatura Sora Studio",
     )
     payment = PaymentIntent(
         tenant_id=tenant_id,
@@ -71,8 +69,8 @@ async def create_payment_intent(
         subscription_id=subscription_id,
         amount=amount,
         status=PaymentStatus.PENDING,
-        provider=settings.payment_provider,
-        pix_payload=payload,
+        provider=charge.provider,
+        pix_payload=charge.payload,
         expires_at=expires_at,
     )
     session.add(payment)

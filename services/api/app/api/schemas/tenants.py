@@ -61,6 +61,7 @@ class TenantSettingsResponse(BaseModel):
     enable_tithe_and_offering: bool
     tithe_percentage: Decimal
     offering_amount: Decimal
+    birthday_credit_amount: Decimal
 
 
 class TenantSettingsUpdateRequest(BaseModel):
@@ -87,6 +88,12 @@ class TenantSettingsUpdateRequest(BaseModel):
         decimal_places=2,
     )
     offering_amount: Decimal | None = Field(
+        default=None,
+        ge=0,
+        max_digits=12,
+        decimal_places=2,
+    )
+    birthday_credit_amount: Decimal | None = Field(
         default=None,
         ge=0,
         max_digits=12,

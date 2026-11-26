@@ -53,6 +53,11 @@ def settings_response(
         offering_amount=(
             settings.offering_amount if settings is not None else Decimal("0.00")
         ),
+        birthday_credit_amount=(
+            settings.birthday_credit_amount
+            if settings is not None
+            else Decimal("0.00")
+        ),
     )
 
 
@@ -110,6 +115,10 @@ async def update_tenant_settings(
         settings.tithe_percentage = Decimal(str(changes["tithe_percentage"]))
     if changes.get("offering_amount") is not None:
         settings.offering_amount = Decimal(str(changes["offering_amount"]))
+    if changes.get("birthday_credit_amount") is not None:
+        settings.birthday_credit_amount = Decimal(
+            str(changes["birthday_credit_amount"])
+        )
 
     await session.commit()
     # O commit encerra o SET LOCAL do RLS; reaplica para a resposta.

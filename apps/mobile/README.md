@@ -44,3 +44,17 @@ pnpm test
 
 > O build nativo (`expo prebuild`/EAS) roda fora deste ambiente; a validação
 > aqui é TypeScript + testes + lint.
+
+## Build EAS
+
+O perfil está em `eas.json` (preview interno e production). Requer login e
+credenciais da Apple/Google:
+
+```bash
+npx eas-cli login
+npx eas-cli build --profile preview --platform android
+npx eas-cli build --profile production --platform ios
+```
+
+`app.json` já define `app.sora.studio` como bundle/package. O projeto EAS
+(`extra.eas.projectId`) é criado no primeiro `eas build`/`eas init`.

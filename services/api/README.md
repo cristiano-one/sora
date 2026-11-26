@@ -192,6 +192,13 @@ gateway real; ele usa os lançamentos manuais para validar o fluxo.
 - `POST /conversations/{id}/takeover`, `/messages` e `/close` — assume,
   responde e encerra o atendimento humano.
 - `GET /api/v1/ai/summary?date=` — resumo diário e aniversariantes (7 dias).
+- `GET /api/v1/ai/birthday-credits?year=` e `POST /birthday-credits/run` —
+  créditos idempotentes (1x/ano, 30 dias), valor em
+  `tenant_settings.birthday_credit_amount`.
+- Envio WhatsApp: `WHATSAPP_PROVIDER=mock` (padrão) ou `meta` com
+  `WHATSAPP_META_TOKEN` + `WHATSAPP_META_PHONE_NUMBER_ID`.
+- Pagamentos: `PaymentProviderPort` em `modules/payments/providers.py`; o mock
+  gera BR Code local e o gateway real deve implementar a porta.
 
 O webhook é mock: o envio real pelo WhatsApp e o LLM (PydanticAI) entram na
 integração final. O motor atual é determinístico para validar o fluxo com custo

@@ -13,10 +13,13 @@ from app.api.schemas.ai import (
     AiConversationResponse,
     AiMessageResponse,
     AiSummaryResponse,
+    BirthdayCreditResponse,
+    BirthdayCreditRunResponse,
     BirthdayItemResponse,
     WhatsAppWebhookResponse,
 )
 from app.core.config import settings
+from app.core.whatsapp import send_whatsapp_message
 from app.db.rls import set_tenant_context
 from app.models import (
     AiConversation,
@@ -24,6 +27,7 @@ from app.models import (
     Appointment,
     AppointmentStatus,
     Client,
+    ClientCredit,
     ConversationStatus,
     MessageDirection,
     Service,
@@ -62,6 +66,7 @@ MY_APPOINTMENT_MARKERS = (
 )
 HUMAN_MARKERS = ("atendente", "humano", "falar com", "recepcao")
 GREETING_MARKERS = ("oi", "ola", "bom dia", "boa tarde", "boa noite")
+ZERO = Decimal("0.00")
 
 
 class AiTenantNotFoundError(Exception):
@@ -303,6 +308,7 @@ async def handle_whatsapp_message(
         intent=intent,
     )
     await session.commit()
+    await send_whatsapp_message(phone=digits, text=reply)
     return WhatsAppWebhookResponse(
         conversation_id=conversation.id,
         reply=reply,
@@ -430,6 +436,10 @@ async def send_human_message(
         intent="human",
     )
     await session.commit()
+    await send_whatsapp_message(
+        phone=conversation.phone,
+        text=content.strip(),
+    )
     return _message_response(message)
 
 
@@ -538,3 +548,103 @@ async def ai_summary(
         appointments_today=int(appointments_today or 0),
         birthdays=await _birthdays(session, today=today),
     )
+
+
+def _credit_response(credit: ClientCredit) -> BirthdayCreditResponse:
+    return BirthdayCreditResponse(
+        id=credit.id,
+        client_id=credit.client_id,
+        client_name=credit.client.full_name,
+        amount=credit.amount,
+        used_amount=credit.used_amount,
+        reason=credit.reason,
+        reference=credit.reference,
+        expires_at=credit.expires_at,
+    )
+
+
+async def create_birthday_credits(
+    session: AsyncSession,
+    *,
+    tenant_id: UUID,
+    today: date | None = None,
+) -> BirthdayCreditRunResponse:
+    """Gera créditos idempotentes para aniversariantes dos próximos 7 dias."""
+    current = today or datetime.now(
+        ZoneInfo(settings.default_tenant_timezone)
+    ).date()
+    reference = str(current.year)
+    tenant_settings = await session.get(TenantSettings, tenant_id)
+    amount = (
+        tenant_settings.birthday_credit_amount
+        if tenant_settings is not None
+        else ZERO
+    )
+    if amount <= 0:
+        return BirthdayCreditRunResponse(
+            year=reference,
+            created=0,
+            total_amount=ZERO,
+            credits=[],
+        )
+
+    items = await _birthdays(session, today=current)
+    created: list[ClientCredit] = []
+    notifications: list[tuple[str, str]] = []
+    for item in items:
+        existing = await session.scalar(
+            select(ClientCredit).where(
+                ClientCredit.client_id == item.client_id,
+                ClientCredit.reason == "BIRTHDAY",
+                ClientCredit.reference == reference,
+            )
+        )
+        if existing is not None:
+            continue
+        client = await session.get(Client, item.client_id)
+        if client is None:
+            continue
+        credit = ClientCredit(
+            tenant_id=tenant_id,
+            client_id=client.id,
+            amount=amount,
+            used_amount=ZERO,
+            reason="BIRTHDAY",
+            reference=reference,
+            expires_at=current + timedelta(days=30),
+            client=client,
+        )
+        session.add(credit)
+        created.append(credit)
+        notifications.append(
+            (
+                client.phone,
+                f"Feliz aniversário, {client.full_name}! "
+                f"Você ganhou {_money(amount)} de crédito na clínica, "
+                "válido por 30 dias.",
+            )
+        )
+    await session.commit()
+    for phone, message in notifications:
+        await send_whatsapp_message(phone=phone, text=message)
+    return BirthdayCreditRunResponse(
+        year=reference,
+        created=len(created),
+        total_amount=(amount * len(created)).quantize(Decimal("0.01")),
+        credits=[_credit_response(credit) for credit in created],
+    )
+
+
+async def list_birthday_credits(
+    session: AsyncSession,
+    *,
+    year: str | None = None,
+) -> list[BirthdayCreditResponse]:
+    query = select(ClientCredit).where(ClientCredit.reason == "BIRTHDAY")
+    if year:
+        query = query.where(ClientCredit.reference == year)
+    credits = (
+        await session.scalars(query.order_by(ClientCredit.created_at.desc()))
+    ).all()
+    return [_credit_response(credit) for credit in credits]
+
