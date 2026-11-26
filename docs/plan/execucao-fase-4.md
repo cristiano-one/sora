@@ -15,8 +15,10 @@
   - tudo restrito a `OWNER`; comissão própria continua em
     `/users/me/commission`.
 - [x] **Passo 2 — Dashboard financeiro no web** · branch `feat/web-finance`
-  - `/financeiro` com filtro de período, caixa, DRE, contas/saldos,
-    lançamentos, comissões e valor líquido por venda.
+  - menu Financeiro com submenus: Fluxo de caixa, DRE, Lançamentos,
+    Contas e caixa, Comissões e Vendas.
+  - cada seção tem rota própria (`/financeiro/*`) e não mistura formulários
+    com relatórios.
   - criação de conta, criação/baixa de lançamentos e exportação CSV.
   - dízimo/oferta configuráveis em `/configuracoes` e refletidos na DRE.
   - link de financeiro apenas para `OWNER` no menu e no dashboard.

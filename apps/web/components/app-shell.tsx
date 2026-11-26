@@ -41,6 +41,14 @@ const SECTIONS = [
         icon: "◭",
         manager: true,
         ownerOnly: true,
+        children: [
+          { href: "/financeiro/fluxo-caixa", label: "Fluxo de caixa" },
+          { href: "/financeiro/dre", label: "DRE" },
+          { href: "/financeiro/lancamentos", label: "Lançamentos" },
+          { href: "/financeiro/contas", label: "Contas e caixa" },
+          { href: "/financeiro/comissoes", label: "Comissões" },
+          { href: "/financeiro/vendas", label: "Vendas" },
+        ],
       },
       { href: "/sora-ia", label: "SORA IA", icon: "✦", manager: true },
       { href: "/configuracoes", label: "Configurações", icon: "⚙", manager: true },
@@ -53,6 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [me, setMe] = useState<Me | null>(null);
   const [theme, setTheme] = useState("#4f46e5");
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let active = true;
@@ -131,18 +140,67 @@ export function AppShell({ children }: { children: ReactNode }) {
             return (
               <div className="sidebar-section" key={section.label}>
                 <span className="sidebar-label">{section.label}</span>
-                {items.map((item) => (
-                  <Link
-                    key={item.href}
-                    className={`sidebar-link ${
-                      pathname === item.href ? "active" : ""
-                    }`}
-                    href={item.href}
-                  >
-                    <span className="sidebar-icon">{item.icon}</span>
-                    {item.label}
-                  </Link>
-                ))}
+                {items.map((item) => {
+                  const children = "children" in item ? item.children : null;
+                  if (children) {
+                    const isOpen =
+                      openMenus[item.href] ??
+                      pathname.startsWith(`${item.href}/`);
+                    return (
+                      <div className="sidebar-group" key={item.href}>
+                        <button
+                          className={`sidebar-link sidebar-link-button ${
+                            pathname.startsWith(item.href) ? "active" : ""
+                          }`}
+                          type="button"
+                          onClick={() =>
+                            setOpenMenus((current) => ({
+                              ...current,
+                              [item.href]: !isOpen,
+                            }))
+                          }
+                        >
+                          <span className="sidebar-icon">{item.icon}</span>
+                          {item.label}
+                          <span
+                            className={`sidebar-chevron ${
+                              isOpen ? "open" : ""
+                            }`}
+                          >
+                            ⌄
+                          </span>
+                        </button>
+                        {isOpen ? (
+                          <div className="sidebar-submenu">
+                            {children.map((child) => (
+                              <Link
+                                key={child.href}
+                                className={`sidebar-sublink ${
+                                  pathname === child.href ? "active" : ""
+                                }`}
+                                href={child.href}
+                              >
+                                {child.label}
+                              </Link>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  }
+                  return (
+                    <Link
+                      key={item.href}
+                      className={`sidebar-link ${
+                        pathname === item.href ? "active" : ""
+                      }`}
+                      href={item.href}
+                    >
+                      <span className="sidebar-icon">{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  );
+                })}
               </div>
             );
           })}
