@@ -309,6 +309,9 @@ export default function AgendaPage() {
         starts_at: toTenantIso(reschedule.date, reschedule.time),
       });
       setSelectedDate(reschedule.date);
+      if (!reschedule.date.startsWith(month.slice(0, 7))) {
+        setMonth(monthStart(reschedule.date));
+      }
       setReschedule(null);
       await refreshAgenda();
       setNotice("Atendimento reagendado.");
