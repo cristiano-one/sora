@@ -967,6 +967,48 @@ h1 {
   color: white;
 }
 
+.sidebar-link-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar-chevron {
+  margin-left: auto;
+  font-size: 11px;
+  transition: transform 0.15s;
+}
+
+.sidebar-chevron.open {
+  transform: rotate(180deg);
+}
+
+.sidebar-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0 4px 36px;
+}
+
+.sidebar-sublink {
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.sidebar-sublink:hover {
+  background: #1e293b;
+  color: white;
+}
+
+.sidebar-sublink.active {
+  background: var(--primary);
+  color: white;
+}
+
 .sidebar-icon {
   width: 18px;
   text-align: center;

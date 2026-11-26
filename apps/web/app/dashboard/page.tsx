@@ -108,7 +108,7 @@ export default function DashboardPage() {
                 <div className="soon">Abrir assinaturas →</div>
               </Link>
               {isOwner ? (
-                <Link href="/financeiro" className="panel panel-link">
+                <Link href="/financeiro/fluxo-caixa" className="panel panel-link">
                   <h2>Financeiro</h2>
                   <p>
                     Caixa, DRE por competência, comissões, saldos e exportação.

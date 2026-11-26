@@ -40,7 +40,12 @@ uv run uvicorn app.main:app --reload --port 8010
 - `/catalogo` — serviços, duração, buffer, preço, custo e sinal.
 - `/equipe` — usuários, papéis e comissões (`OWNER`/`ADMIN`).
 - `/assinaturas` — planos, cotas, contratação e cancelamento (`OWNER`/`ADMIN`).
-- `/financeiro` — caixa, DRE, comissões, saldos e exportação CSV (`OWNER`).
+- `/financeiro/fluxo-caixa` — fluxo de caixa realizado (`OWNER`).
+- `/financeiro/dre` — DRE por competência (`OWNER`).
+- `/financeiro/lancamentos` — lançamentos e baixa de títulos (`OWNER`).
+- `/financeiro/contas` — contas/caixas e saldos (`OWNER`).
+- `/financeiro/comissoes` — comissões apuradas (`OWNER`).
+- `/financeiro/vendas` — valor líquido por atendimento (`OWNER`).
 - `/sora-ia` — resumo diário, conversas do WhatsApp, takeover humano,
   respostas e aniversariantes (`OWNER`/`ADMIN`).
 - `/configuracoes` — score mínimo, sinal, dízimo/oferta, tema e nome do agente
