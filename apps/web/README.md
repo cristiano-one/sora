@@ -32,7 +32,8 @@ uv run uvicorn app.main:app --reload --port 8010
 ## Telas
 
 - `/login` — login real (JWT + Redis), recuperação de senha e link de cadastro.
-- `/cadastro` — criação de clínica + OWNER e login automático.
+- `/cadastro` — criação de clínica + OWNER, escolha do tipo de negócio e login
+  automático.
 - `/esqueci-senha` — solicita link de recuperação por e-mail.
 - `/redefinir-senha` — define nova senha e revoga sessões antigas.
 - `/aceitar-convite` — colaborador convidado define a senha inicial.
@@ -70,8 +71,13 @@ uv run uvicorn app.main:app --reload --port 8010
 - `/financeiro/vendas` — valor líquido por atendimento (`OWNER`).
 - `/sora-ia` — resumo diário, conversas com tags/filtros, aprovação de
   exceções, takeover humano, respostas e aniversariantes (`OWNER`/`ADMIN`).
-- `/configuracoes` — score, sinal, dízimo/oferta, tema, persona do agente e
-  **exportação LGPD** (`OWNER`/`ADMIN`; exportação só `OWNER`).
+- `/configuracoes` — redireciona para Aparência; submenus:
+  - `/configuracoes/aparencia` — tema e prévia.
+  - `/configuracoes/agenda` — score mínimo e sinal.
+  - `/configuracoes/agente` — persona completa da SORA IA.
+  - `/configuracoes/financeiro` — dízimo/oferta (`OWNER`).
+  - `/configuracoes/automacoes` — crédito de aniversário.
+  - `/configuracoes/dados` — perfil do negócio e exportação LGPD.
 - `/public/[slug]?t=<token>` — página pública do link mágico (sem login):
   serviços, profissionais, horários livres, planos de assinatura, cotas e
   pagamento Pix (mock).
@@ -112,8 +118,9 @@ O administrador do provedor acessa `/sistema` com a senha master
 | Multisserviços | ❌ |
 
 O perfil é retornado em `/auth/me` e controla a exibição do prontuário no web e
-no mobile. Empresas novas nascem como **Multisserviços** até a configuração
-master; o demo existente foi migrado como **Clínica de estética**.
+no mobile. O cliente escolhe o perfil no `/cadastro` no momento da compra; se
+não enviar, a API cria como **Multisserviços**. O administrador do sistema pode
+alterar depois no console master.
 
 ## Validação
 

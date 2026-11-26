@@ -12,11 +12,17 @@ TENANT_CURRENT = "/api/v1/tenants/current"
 LOGIN = "/api/v1/auth/login"
 
 
-def _payload(suffix: str, *, tax_regime: str = "COMPLETE") -> dict[str, str]:
+def _payload(
+    suffix: str,
+    *,
+    tax_regime: str = "COMPLETE",
+    business_profile: str = "AESTHETICS",
+) -> dict[str, str]:
     return {
         "name": f"Clínica {suffix}",
         "slug": f"clinica-{suffix}",
         "tax_regime": tax_regime,
+        "business_profile": business_profile,
         "owner_full_name": f"Owner {suffix}",
         "owner_email": f"owner-{suffix}@example.com",
         "owner_password": "senha-forte-123",
@@ -50,6 +56,7 @@ async def test_create_tenant_with_owner(auth_client) -> None:
     data = response.json()
     assert data["slug"] == payload["slug"]
     assert data["tax_regime"] == "COMPLETE"
+    assert data["business_profile"] == "AESTHETICS"
     assert data["owner"]["email"] == payload["owner_email"]
     assert data["owner"]["role"] == UserRole.OWNER.value
     assert "password" not in data["owner"]
@@ -61,6 +68,22 @@ async def test_create_tenant_with_owner(auth_client) -> None:
     assert current.status_code == 200
     assert current.json()["id"] == data["id"]
     assert current.json()["tax_regime"] == "COMPLETE"
+    assert current.json()["business_profile"] == "AESTHETICS"
+
+
+async def test_signup_can_choose_podology_profile(auth_client) -> None:
+    suffix = f"pod-{uuid4().hex[:8]}"
+    payload = _payload(suffix, business_profile="PODOLOGY")
+
+    response = await auth_client.post(TENANTS, json=payload)
+
+    assert response.status_code == 201
+    assert response.json()["business_profile"] == "PODOLOGY"
+
+    token = await _login(auth_client, payload)
+    me = await auth_client.get("/api/v1/auth/me", headers=_auth(token))
+    assert me.status_code == 200
+    assert me.json()["business_profile"] == "PODOLOGY"
 
 
 async def test_create_mei_tenant(auth_client) -> None:

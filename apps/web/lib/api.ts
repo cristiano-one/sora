@@ -619,14 +619,28 @@ export async function createTenant(input: {
   name: string;
   slug: string;
   tax_regime: "MEI" | "COMPLETE";
+  business_profile:
+    | "MEDICAL_CLINIC"
+    | "AESTHETICS"
+    | "PODOLOGY"
+    | "SALON"
+    | "BARBERSHOP"
+    | "GENERAL";
   owner_full_name: string;
   owner_email: string;
   owner_password: string;
-}): Promise<{ id: string; name: string; slug: string }> {
-  return request<{ id: string; name: string; slug: string }>(
-    "/api/v1/tenants",
-    { method: "POST", body: JSON.stringify(input) },
-  );
+}): Promise<{
+  id: string;
+  name: string;
+  slug: string;
+  business_profile: string;
+}> {
+  return request<{
+    id: string;
+    name: string;
+    slug: string;
+    business_profile: string;
+  }>("/api/v1/tenants", { method: "POST", body: JSON.stringify(input) });
 }
 
 export async function forgotPassword(input: {

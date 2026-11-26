@@ -47,6 +47,10 @@
   - perfis de negócio (clínica, estética, podologia, salão, barbearia,
     multisserviços) definidos no console master `/sistema` com senha
     `SYSTEM_ADMIN_PASSWORD`; o prontuário aparece só nos perfis clínicos.
+  - cadastro público permite escolher o perfil já na compra e o master pode
+    ajustar depois.
+  - Configurações separadas em Aparência, Agenda & score, Agente SORA IA,
+    Financeiro, Automações e Dados & LGPD.
 
 ## Regras de aceite
 

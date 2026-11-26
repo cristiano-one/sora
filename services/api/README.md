@@ -60,6 +60,9 @@ chaves sempre prefixadas por `tenant:{tenant_id}:auth:*`. Revogação em massa
   `SALON`, `BARBERSHOP` ou `GENERAL` (migration `0020`). Empresas novas usam
   `GENERAL`; tenants existentes foram migrados para `AESTHETICS`.
 - `/auth/me` devolve `business_profile` para web/mobile ajustarem os módulos.
+- `POST /api/v1/tenants` aceita `business_profile` no cadastro público
+  (omitido = `GENERAL`), permitindo que a compra já crie a empresa no segmento
+  correto.
 - Prontuário, evoluções e anexos retornam `403` para perfis sem suporte
   clínico; a listagem retorna vazio para telas antigas.
 - `POST /api/v1/system/login` — senha master (`SYSTEM_ADMIN_PASSWORD`), sessão

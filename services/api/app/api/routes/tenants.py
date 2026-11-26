@@ -49,6 +49,7 @@ async def create_tenant(
             name=body.name,
             slug=body.slug,
             tax_regime=body.tax_regime,
+            business_profile=body.business_profile,
             owner_full_name=body.owner_full_name,
             owner_email=str(body.owner_email),
             owner_password=body.owner_password,
@@ -64,6 +65,7 @@ async def create_tenant(
         name=tenant.name,
         slug=tenant.slug,
         tax_regime=tenant.tax_regime,
+        business_profile=tenant.business_profile,
         owner=OwnerCreatedResponse(
             id=owner.id,
             email=owner.email,
@@ -93,6 +95,7 @@ async def current_tenant(
         name=tenant.name,
         slug=tenant.slug,
         tax_regime=tenant.tax_regime,
+        business_profile=tenant.business_profile,
     )
 
 

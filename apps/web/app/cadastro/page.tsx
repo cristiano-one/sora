@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { ApiError, createTenant, login } from "@/lib/api";
+import {
+  BUSINESS_PROFILES,
+  profileOption,
+  type BusinessProfile,
+} from "@/lib/profiles";
 
 function slugify(value: string): string {
   return value
@@ -21,6 +26,8 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [taxRegime, setTaxRegime] = useState<"MEI" | "COMPLETE">("MEI");
+  const [businessProfile, setBusinessProfile] =
+    useState<BusinessProfile>("AESTHETICS");
   const [ownerName, setOwnerName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,6 +48,7 @@ export default function SignupPage() {
         name: name.trim(),
         slug: slug || slugify(name),
         tax_regime: taxRegime,
+        business_profile: businessProfile,
         owner_full_name: ownerName.trim(),
         owner_email: ownerEmail.trim(),
         owner_password: password,
@@ -119,6 +127,26 @@ export default function SignupPage() {
               <option value="MEI">MEI (simplificado)</option>
               <option value="COMPLETE">Completo</option>
             </select>
+          </div>
+          <div className="field">
+            <label htmlFor="business-profile">Tipo de negócio</label>
+            <select
+              id="business-profile"
+              value={businessProfile}
+              onChange={(event) =>
+                setBusinessProfile(event.target.value as BusinessProfile)
+              }
+              required
+            >
+              {BUSINESS_PROFILES.map((profile) => (
+                <option key={profile.value} value={profile.value}>
+                  {profile.label}
+                </option>
+              ))}
+            </select>
+            <p className="muted-small">
+              {profileOption(businessProfile).description}
+            </p>
           </div>
           <div className="field">
             <label htmlFor="owner-name">Seu nome</label>
