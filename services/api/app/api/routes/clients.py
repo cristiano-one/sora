@@ -1,6 +1,8 @@
 """Endpoints de clientes, score, LGPD, prontuário e anexos."""
 
+from datetime import date, datetime
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
@@ -12,6 +14,9 @@ from app.api.schemas.clients import (
     AttachmentResponse,
     AttachmentUrlResponse,
     ClientCreateRequest,
+    ClientCreditResponse,
+    ClientCreditUsageCreateRequest,
+    ClientCreditUsageResponse,
     ClientResponse,
     ClientUpdateRequest,
     ConsentCreateRequest,
@@ -32,7 +37,14 @@ from app.core.config import settings
 from app.core.crypto import decrypt_text
 from app.core.formatting import mask_phone
 from app.core.storage import StoragePort, get_storage
-from app.models import Client, MedicalRecord, MedicalRecordAttachment, UserRole
+from app.models import (
+    Client,
+    ClientCredit,
+    ClientCreditUsage,
+    MedicalRecord,
+    MedicalRecordAttachment,
+    UserRole,
+)
 from app.modules.clients.service import (
     ClientInUseError,
     InvalidAttachmentError,
@@ -44,6 +56,13 @@ from app.modules.clients.service import (
     delete_attachment,
     delete_client,
     update_client,
+)
+from app.modules.credits.service import (
+    ClientCreditValidationError,
+    list_credits,
+    list_usages,
+    remaining_amount,
+    use_credit,
 )
 
 router = APIRouter(prefix="/clients", tags=["clients"])
@@ -524,3 +543,125 @@ async def delete_attachment_endpoint(
         },
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _today() -> date:
+    return datetime.now(
+        ZoneInfo(settings.default_tenant_timezone)
+    ).date()
+
+
+def _credit_response(
+    credit: ClientCredit,
+    today: date,
+) -> ClientCreditResponse:
+    remaining = remaining_amount(credit)
+    return ClientCreditResponse(
+        id=credit.id,
+        amount=credit.amount,
+        used_amount=credit.used_amount,
+        remaining_amount=remaining,
+        reason=credit.reason,
+        reference=credit.reference,
+        expires_at=credit.expires_at,
+        is_available=remaining > 0 and credit.expires_at >= today,
+    )
+
+
+def _usage_response(usage: ClientCreditUsage) -> ClientCreditUsageResponse:
+    return ClientCreditUsageResponse(
+        id=usage.id,
+        credit_id=usage.credit_id,
+        amount=usage.amount,
+        appointment_id=usage.appointment_id,
+        note=usage.note,
+        created_at=usage.created_at,
+    )
+
+
+@router.get(
+    "/{client_id}/credits",
+    response_model=list[ClientCreditResponse],
+    summary="Lista créditos do cliente",
+)
+async def list_credits_endpoint(
+    client_id: UUID,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> list[ClientCreditResponse]:
+    client = await _get_client(session, client_id)
+    today = _today()
+    return [
+        _credit_response(credit, today)
+        for credit in await list_credits(session, client_id=client.id)
+    ]
+
+
+@router.get(
+    "/{client_id}/credit-usages",
+    response_model=list[ClientCreditUsageResponse],
+    summary="Histórico de uso de créditos do cliente",
+)
+async def list_credit_usages_endpoint(
+    client_id: UUID,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> list[ClientCreditUsageResponse]:
+    client = await _get_client(session, client_id)
+    return [
+        _usage_response(usage)
+        for usage in await list_usages(session, client_id=client.id)
+    ]
+
+
+@router.post(
+    "/{client_id}/credits/{credit_id}/use",
+    response_model=ClientCreditUsageResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Aplica crédito do cliente no atendimento",
+)
+async def use_credit_endpoint(
+    client_id: UUID,
+    credit_id: UUID,
+    body: ClientCreditUsageCreateRequest,
+    request: Request,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> ClientCreditUsageResponse:
+    client = await _get_client(session, client_id)
+    credit = await session.get(ClientCredit, credit_id)
+    if credit is None or credit.client_id != client.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Crédito não encontrado",
+        )
+    try:
+        usage = await use_credit(
+            session,
+            credit=credit,
+            actor_id=principal.user_id,
+            body=body,
+            today=_today(),
+        )
+    except ClientCreditValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    await record_audit(
+        session,
+        tenant_id=principal.tenant_id,
+        actor=principal,
+        action="client_credit.use",
+        resource_type="client_credit",
+        resource_id=credit.id,
+        ip_address=client_ip(request),
+        details={
+            "client_id": str(client.id),
+            "amount": str(usage.amount),
+            "appointment_id": str(usage.appointment_id)
+            if usage.appointment_id
+            else None,
+        },
+    )
+    return _usage_response(usage)
