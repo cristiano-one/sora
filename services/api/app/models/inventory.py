@@ -1,13 +1,14 @@
 """Modelos de estoque de insumos e movimentações."""
 
 import enum
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Numeric,
@@ -29,6 +30,25 @@ class StockMovementType(enum.StrEnum):
     IN = "IN"
     OUT = "OUT"
     ADJUSTMENT = "ADJUSTMENT"
+
+
+class StockDocumentType(enum.StrEnum):
+    """Documento de compra vinculado a uma entrada de estoque."""
+
+    NFE = "NFE"
+    RECEIPT = "RECEIPT"
+    OTHER = "OTHER"
+
+
+class StockPaymentMethod(enum.StrEnum):
+    """Forma de pagamento da compra."""
+
+    CASH = "CASH"
+    PIX = "PIX"
+    CARD = "CARD"
+    TRANSFER = "TRANSFER"
+    BOLETO = "BOLETO"
+    OTHER = "OTHER"
 
 
 class InventoryItem(Base):
@@ -110,6 +130,10 @@ class StockMovement(Base):
     __tablename__ = "stock_movements"
     __table_args__ = (
         CheckConstraint("quantity >= 0", name="ck_stock_movements_quantity"),
+        CheckConstraint(
+            "total_amount IS NULL OR total_amount >= 0",
+            name="ck_stock_movements_total_amount",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -133,6 +157,39 @@ class StockMovement(Base):
     kind: Mapped[str] = mapped_column(String(20), nullable=False)
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    document_type: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+    document_number: Mapped[str | None] = mapped_column(
+        String(60),
+        nullable=True,
+    )
+    document_series: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+    supplier_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    supplier_tax_id: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+    issue_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    total_amount: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2),
+        nullable=True,
+    )
+    payment_method: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+    )
+    access_key: Mapped[str | None] = mapped_column(
+        String(44),
+        nullable=True,
+    )
     created_by: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),

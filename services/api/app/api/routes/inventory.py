@@ -61,6 +61,15 @@ def _movement_response(movement: StockMovement) -> StockMovementResponse:
         kind=movement.kind,
         quantity=movement.quantity,
         reason=movement.reason,
+        document_type=movement.document_type,
+        document_number=movement.document_number,
+        document_series=movement.document_series,
+        supplier_name=movement.supplier_name,
+        supplier_tax_id=movement.supplier_tax_id,
+        issue_date=movement.issue_date,
+        total_amount=movement.total_amount,
+        payment_method=movement.payment_method,
+        access_key=movement.access_key,
         created_at=movement.created_at,
     )
 
@@ -221,6 +230,8 @@ async def create_movement_endpoint(
         details={
             "kind": movement.kind,
             "quantity": str(movement.quantity),
+            "document_type": movement.document_type,
+            "document_number": movement.document_number,
         },
     )
     return _movement_response(movement)

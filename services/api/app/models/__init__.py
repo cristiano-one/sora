@@ -25,7 +25,13 @@ from app.models.finance import (
     FinancialEntryType,
 )
 from app.models.fiscal import FiscalInvoice, FiscalInvoiceStatus
-from app.models.inventory import InventoryItem, StockMovement, StockMovementType
+from app.models.inventory import (
+    InventoryItem,
+    StockDocumentType,
+    StockMovement,
+    StockMovementType,
+    StockPaymentMethod,
+)
 from app.models.medical_record import MedicalRecord, MedicalRecordAttachment
 from app.models.package import Package, PackageItem
 from app.models.payment import PaymentIntent, PaymentStatus
@@ -110,8 +116,10 @@ __all__ = [
     "SalePaymentMethod",
     "SaleStatus",
     "Service",
+    "StockDocumentType",
     "StockMovement",
     "StockMovementType",
+    "StockPaymentMethod",
     "SubscriptionPlan",
     "SubscriptionPlanItem",
     "SubscriptionUsage",

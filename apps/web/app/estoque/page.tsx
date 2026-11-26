@@ -17,12 +17,35 @@ import {
   type StockMovement,
 } from "@/lib/api";
 import { formatIsoDate } from "@/lib/agenda";
+import { formatAccessKey, formatTaxId, onlyDigits } from "@/lib/masks";
+import { normalizeDecimal } from "@/lib/money";
 import { formatPrice } from "@/lib/public";
 
 const MOVEMENT_LABEL: Record<StockMovement["kind"], string> = {
   IN: "Entrada",
   OUT: "Saída",
   ADJUSTMENT: "Ajuste",
+};
+
+const DOCUMENT_LABEL: Record<
+  NonNullable<StockMovement["document_type"]>,
+  string
+> = {
+  NFE: "NF-e",
+  RECEIPT: "Recibo",
+  OTHER: "Outro",
+};
+
+const PAYMENT_LABEL: Record<
+  NonNullable<StockMovement["payment_method"]>,
+  string
+> = {
+  CASH: "Dinheiro",
+  PIX: "Pix",
+  CARD: "Cartão",
+  TRANSFER: "Transferência",
+  BOLETO: "Boleto",
+  OTHER: "Outro",
 };
 
 export default function InventoryPage() {
@@ -46,6 +69,19 @@ export default function InventoryPage() {
     useState<StockMovement["kind"]>("IN");
   const [movementQuantity, setMovementQuantity] = useState("1.000");
   const [movementReason, setMovementReason] = useState("");
+  const [documentType, setDocumentType] = useState<
+    NonNullable<StockMovement["document_type"]> | ""
+  >("");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [documentSeries, setDocumentSeries] = useState("");
+  const [supplierName, setSupplierName] = useState("");
+  const [supplierTaxId, setSupplierTaxId] = useState("");
+  const [issueDate, setIssueDate] = useState("");
+  const [totalAmount, setTotalAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<
+    NonNullable<StockMovement["payment_method"]> | ""
+  >("");
+  const [accessKey, setAccessKey] = useState("");
   const [movements, setMovements] = useState<StockMovement[]>([]);
 
   const load = useCallback(async () => {
@@ -106,17 +142,17 @@ export default function InventoryPage() {
         await updateInventoryItem(editing.id, {
           name: name.trim(),
           unit: unit.trim(),
-          min_quantity: minQuantity,
-          unit_cost: unitCost,
+          min_quantity: normalizeDecimal(minQuantity),
+          unit_cost: normalizeDecimal(unitCost),
           is_active: active,
         });
       } else {
         await createInventoryItem({
           name: name.trim(),
           unit: unit.trim(),
-          quantity,
-          min_quantity: minQuantity,
-          unit_cost: unitCost,
+          quantity: normalizeDecimal(quantity),
+          min_quantity: normalizeDecimal(minQuantity),
+          unit_cost: normalizeDecimal(unitCost),
           is_active: active,
         });
       }
@@ -147,12 +183,25 @@ export default function InventoryPage() {
     }
   }
 
+  function resetMovementDocument() {
+    setDocumentType("");
+    setDocumentNumber("");
+    setDocumentSeries("");
+    setSupplierName("");
+    setSupplierTaxId("");
+    setIssueDate("");
+    setTotalAmount("");
+    setPaymentMethod("");
+    setAccessKey("");
+  }
+
   async function startMovement(item: InventoryItem) {
     setEditing(null);
     setMovingItem(item);
     setMovementKind("IN");
     setMovementQuantity("1.000");
     setMovementReason("");
+    resetMovementDocument();
     setError(null);
     setNotice(null);
     try {
@@ -171,8 +220,23 @@ export default function InventoryPage() {
     try {
       await addStockMovement(movingItem.id, {
         kind: movementKind,
-        quantity: movementQuantity,
+        quantity: normalizeDecimal(movementQuantity),
         reason: movementReason.trim() || null,
+        ...(movementKind === "IN"
+          ? {
+              document_type: documentType || null,
+              document_number: documentNumber.trim() || null,
+              document_series: documentSeries.trim() || null,
+              supplier_name: supplierName.trim() || null,
+              supplier_tax_id: supplierTaxId.trim() || null,
+              issue_date: issueDate || null,
+              total_amount: totalAmount.trim()
+                ? normalizeDecimal(totalAmount)
+                : null,
+              payment_method: paymentMethod || null,
+              access_key: onlyDigits(accessKey) || null,
+            }
+          : {}),
       });
       const refreshed = await getInventory();
       setItems(refreshed);
@@ -180,6 +244,7 @@ export default function InventoryPage() {
       if (current) setMovingItem(current);
       setMovements(await getStockMovements(movingItem.id));
       setMovementReason("");
+      resetMovementDocument();
       setNotice("Movimentação registrada.");
     } catch (err) {
       setError(
@@ -377,6 +442,154 @@ export default function InventoryPage() {
                         placeholder="Compra, uso em atendimento, contagem…"
                       />
                     </div>
+                    {movementKind === "IN" ? (
+                      <div className="section-gap">
+                        <div className="panel-title">
+                          <h3>Nota fiscal / recibo</h3>
+                        </div>
+                        <p className="muted-small">
+                          Preencha os dados do documento de compra para
+                          rastrear a entrada.
+                        </p>
+                        <div className="form-grid">
+                          <div className="field">
+                            <label htmlFor="document-type">Documento</label>
+                            <select
+                              id="document-type"
+                              value={documentType}
+                              onChange={(event) =>
+                                setDocumentType(
+                                  event.target
+                                    .value as NonNullable<
+                                    StockMovement["document_type"]
+                                  >,
+                                )
+                              }
+                            >
+                              <option value="">Sem documento</option>
+                              <option value="NFE">NF-e</option>
+                              <option value="RECEIPT">Recibo</option>
+                              <option value="OTHER">Outro</option>
+                            </select>
+                          </div>
+                          <div className="field">
+                            <label htmlFor="document-number">Número</label>
+                            <input
+                              id="document-number"
+                              value={documentNumber}
+                              onChange={(event) =>
+                                setDocumentNumber(event.target.value)
+                              }
+                              maxLength={60}
+                              placeholder="000123"
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor="document-series">Série</label>
+                            <input
+                              id="document-series"
+                              value={documentSeries}
+                              onChange={(event) =>
+                                setDocumentSeries(event.target.value)
+                              }
+                              maxLength={20}
+                              placeholder="1"
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor="issue-date">Emissão</label>
+                            <input
+                              id="issue-date"
+                              type="date"
+                              value={issueDate}
+                              onChange={(event) =>
+                                setIssueDate(event.target.value)
+                              }
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor="supplier-name">Fornecedor</label>
+                            <input
+                              id="supplier-name"
+                              value={supplierName}
+                              onChange={(event) =>
+                                setSupplierName(event.target.value)
+                              }
+                              maxLength={255}
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor="supplier-tax-id">CNPJ/CPF</label>
+                            <input
+                              id="supplier-tax-id"
+                              value={supplierTaxId}
+                              onChange={(event) =>
+                                setSupplierTaxId(formatTaxId(event.target.value))
+                              }
+                              maxLength={18}
+                              inputMode="numeric"
+                              placeholder="00.000.000/0000-00"
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor="total-amount">
+                              Valor total (R$)
+                            </label>
+                            <input
+                              id="total-amount"
+                              inputMode="decimal"
+                              value={totalAmount}
+                              onChange={(event) =>
+                                setTotalAmount(event.target.value)
+                              }
+                              placeholder="0,00"
+                            />
+                            <span className="muted-small">
+                              Aceita vírgula ou ponto; será convertido para
+                              decimal.
+                            </span>
+                          </div>
+                          <div className="field">
+                            <label htmlFor="payment-method">Pagamento</label>
+                            <select
+                              id="payment-method"
+                              value={paymentMethod}
+                              onChange={(event) =>
+                                setPaymentMethod(
+                                  event.target
+                                    .value as NonNullable<
+                                    StockMovement["payment_method"]
+                                  >,
+                                )
+                              }
+                            >
+                              <option value="">Não informado</option>
+                              <option value="CASH">Dinheiro</option>
+                              <option value="PIX">Pix</option>
+                              <option value="CARD">Cartão</option>
+                              <option value="TRANSFER">Transferência</option>
+                              <option value="BOLETO">Boleto</option>
+                              <option value="OTHER">Outro</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="field">
+                          <label htmlFor="access-key">
+                            Chave de acesso (NF-e)
+                          </label>
+                          <input
+                            id="access-key"
+                            inputMode="numeric"
+                            value={accessKey}
+                            onChange={(event) =>
+                              setAccessKey(event.target.value)
+                            }
+                            maxLength={44}
+                            placeholder="44 dígitos"
+                          />
+                        </div>
+                      </div>
+                    ) : null}
                     <button className="button" type="submit" disabled={saving}>
                       {saving ? "Registrando…" : "Registrar movimentação"}
                     </button>
@@ -394,6 +607,9 @@ export default function InventoryPage() {
                           <tr>
                             <th>Tipo</th>
                             <th>Qtd.</th>
+                            <th>Documento</th>
+                            <th>Fornecedor</th>
+                            <th>Valor</th>
                             <th>Motivo</th>
                             <th>Data</th>
                           </tr>
@@ -403,6 +619,24 @@ export default function InventoryPage() {
                             <tr key={movement.id}>
                               <td>{MOVEMENT_LABEL[movement.kind]}</td>
                               <td>{movement.quantity}</td>
+                              <td>
+                                {movement.document_type
+                                  ? `${DOCUMENT_LABEL[movement.document_type]}${
+                                      movement.document_number
+                                        ? ` ${movement.document_number}`
+                                        : ""
+                                    }`
+                                  : "—"}
+                                {movement.payment_method
+                                  ? ` · ${PAYMENT_LABEL[movement.payment_method]}`
+                                  : ""}
+                              </td>
+                              <td>{movement.supplier_name ?? "—"}</td>
+                              <td>
+                                {movement.total_amount
+                                  ? formatPrice(movement.total_amount)
+                                  : "—"}
+                              </td>
                               <td>{movement.reason ?? "—"}</td>
                               <td>{formatIsoDate(movement.created_at)}</td>
                             </tr>
@@ -489,7 +723,12 @@ export default function InventoryPage() {
                     <p className="muted-small">
                       O saldo só muda por movimentação de estoque.
                     </p>
-                  ) : null}
+                  ) : (
+                    <p className="muted-small">
+                      Para registrar nota fiscal ou recibo de compra, cadastre
+                      o insumo e use “Movimentar → Entrada (compra)”.
+                    </p>
+                  )}
                 </form>
               )}
             </section>

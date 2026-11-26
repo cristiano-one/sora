@@ -57,9 +57,32 @@ async def test_owner_manages_inventory_and_movements(
     entry = await auth_client.post(
         f"{INVENTORY}/{item['id']}/movements",
         headers=_auth(token),
-        json={"kind": "IN", "quantity": "10.000", "reason": "Compra"},
+        json={
+            "kind": "IN",
+            "quantity": "10.000",
+            "reason": "Compra",
+            "document_type": "NFE",
+            "document_number": "12345",
+            "document_series": "1",
+            "supplier_name": "Fornecedor Demo",
+            "supplier_tax_id": "12.345.678/0001-90",
+            "issue_date": "2027-02-10",
+            "total_amount": "35.00",
+            "payment_method": "PIX",
+            "access_key": "1" * 44,
+        },
     )
     assert entry.status_code == 201, entry.text
+    entry_body = entry.json()
+    assert entry_body["document_type"] == "NFE"
+    assert entry_body["document_number"] == "12345"
+    assert entry_body["document_series"] == "1"
+    assert entry_body["supplier_name"] == "Fornecedor Demo"
+    assert entry_body["supplier_tax_id"] == "12.345.678/0001-90"
+    assert entry_body["issue_date"] == "2027-02-10"
+    assert entry_body["total_amount"] == "35.00"
+    assert entry_body["payment_method"] == "PIX"
+    assert entry_body["access_key"] == "1" * 44
 
     output = await auth_client.post(
         f"{INVENTORY}/{item['id']}/movements",
@@ -87,6 +110,10 @@ async def test_owner_manages_inventory_and_movements(
     assert movements.status_code == 200
     assert len(movements.json()) == 3
     assert movements.json()[0]["kind"] == "ADJUSTMENT"
+    entry_saved = next(row for row in movements.json() if row["kind"] == "IN")
+    assert entry_saved["document_number"] == "12345"
+    assert entry_saved["supplier_name"] == "Fornecedor Demo"
+    assert entry_saved["total_amount"] == "35.00"
 
     renamed = await auth_client.patch(
         f"{INVENTORY}/{item['id']}",
@@ -95,6 +122,50 @@ async def test_owner_manages_inventory_and_movements(
     )
     assert renamed.status_code == 200
     assert renamed.json()["name"].startswith("Renomeado")
+
+
+async def test_inventory_document_fields_only_for_entries(
+    auth_client,
+    tenant_users,
+) -> None:
+    token = await _login(auth_client, tenant_users.users[UserRole.OWNER])
+    item = await _create_item(auth_client, token, uuid4().hex[:6])
+
+    output_with_document = await auth_client.post(
+        f"{INVENTORY}/{item['id']}/movements",
+        headers=_auth(token),
+        json={
+            "kind": "OUT",
+            "quantity": "1.000",
+            "document_type": "RECEIPT",
+            "document_number": "999",
+        },
+    )
+    assert output_with_document.status_code == 422
+
+    invalid_access_key = await auth_client.post(
+        f"{INVENTORY}/{item['id']}/movements",
+        headers=_auth(token),
+        json={
+            "kind": "IN",
+            "quantity": "1.000",
+            "document_type": "NFE",
+            "access_key": "123",
+        },
+    )
+    assert invalid_access_key.status_code == 422
+
+    negative_total = await auth_client.post(
+        f"{INVENTORY}/{item['id']}/movements",
+        headers=_auth(token),
+        json={
+            "kind": "IN",
+            "quantity": "1.000",
+            "document_type": "RECEIPT",
+            "total_amount": "-1.00",
+        },
+    )
+    assert negative_total.status_code == 422
 
 
 async def test_inventory_rejects_negative_balance_and_duplicate_name(

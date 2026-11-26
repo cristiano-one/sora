@@ -4,7 +4,9 @@ import {
   birthDateToIso,
   formatBirthDate,
   formatPhone,
+  formatAccessKey,
   formatState,
+  formatTaxId,
   formatZip,
   isoToBirthDate,
   isValidBirthDate,
@@ -34,5 +36,18 @@ describe("masks", () => {
   it("normaliza UF", () => {
     expect(formatState("sp")).toBe("SP");
     expect(formatState("s1p")).toBe("SP");
+  });
+});
+
+describe("masks de documento de compra", () => {
+  it("formata CPF e CNPJ", () => {
+    expect(formatTaxId("12345678901")).toBe("123.456.789-01");
+    expect(formatTaxId("11222333000144")).toBe("11.222.333/0001-44");
+  });
+
+  it("agrupa a chave de acesso da NF-e em blocos de 4", () => {
+    expect(formatAccessKey("12345678901234567890123456789012345678901234")).toBe(
+      "1234 5678 9012 3456 7890 1234 5678 9012 3456 7890 1234",
+    );
   });
 });
