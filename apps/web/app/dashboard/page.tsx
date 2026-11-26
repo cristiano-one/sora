@@ -30,6 +30,7 @@ export default function DashboardPage() {
   }, []);
 
   const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
+  const isOwner = me?.role === "OWNER";
 
   return (
     <AppShell>
@@ -106,6 +107,15 @@ export default function DashboardPage() {
                 </p>
                 <div className="soon">Abrir assinaturas →</div>
               </Link>
+              {isOwner ? (
+                <Link href="/financeiro" className="panel panel-link">
+                  <h2>Financeiro</h2>
+                  <p>
+                    Caixa, DRE por competência, comissões, saldos e exportação.
+                  </p>
+                  <div className="soon">Abrir financeiro →</div>
+                </Link>
+              ) : null}
               <Link href="/configuracoes" className="panel panel-link">
                 <h2>Configurações</h2>
                 <p>

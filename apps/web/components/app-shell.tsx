@@ -35,6 +35,13 @@ const SECTIONS = [
       { href: "/catalogo", label: "Catálogo", icon: "◇", manager: true },
       { href: "/equipe", label: "Equipe", icon: "◈", manager: true },
       { href: "/assinaturas", label: "Assinaturas", icon: "☆", manager: true },
+      {
+        href: "/financeiro",
+        label: "Financeiro",
+        icon: "◭",
+        manager: true,
+        ownerOnly: true,
+      },
       { href: "/configuracoes", label: "Configurações", icon: "⚙", manager: true },
     ],
   },
@@ -98,6 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   const isManager = me.role === "OWNER" || me.role === "ADMIN";
+  const isOwner = me.role === "OWNER";
   const style = { "--primary": theme } as CSSProperties;
 
   return (
@@ -114,7 +122,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav className="sidebar-nav">
           {SECTIONS.map((section) => {
             const items = section.items.filter(
-              (item) => !item.manager || isManager,
+              (item) =>
+                (!item.manager || isManager) &&
+                (!("ownerOnly" in item) || !item.ownerOnly || isOwner),
             );
             if (items.length === 0) return null;
             return (

@@ -1231,6 +1231,34 @@ h1 {
   margin-top: 14px;
 }
 
+.finance-datebar {
+  align-items: center;
+}
+
+.finance-datebar input[type="date"] {
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f8fafc;
+  color: var(--text);
+}
+
+.finance-grid {
+  margin-bottom: 20px;
+}
+
+.finance-summary td {
+  padding: 9px 10px;
+}
+
+.price-cell.positive {
+  color: var(--success, #047857);
+}
+
+.price-cell.negative {
+  color: var(--danger);
+}
+
 .price-cell {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

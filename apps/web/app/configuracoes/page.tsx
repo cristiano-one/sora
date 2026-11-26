@@ -17,6 +17,9 @@ export default function SettingsPage() {
   const [depositAmount, setDepositAmount] = useState("");
   const [themeColor, setThemeColor] = useState("#4f46e5");
   const [agentName, setAgentName] = useState("Sora");
+  const [enableTithe, setEnableTithe] = useState(false);
+  const [tithePercentage, setTithePercentage] = useState("10.00");
+  const [offeringAmount, setOfferingAmount] = useState("0.00");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +41,9 @@ export default function SettingsPage() {
         setDepositAmount(data.deposit_amount_low_score ?? "");
         setThemeColor(data.theme_primary_color);
         setAgentName(data.agent_name);
+        setEnableTithe(data.enable_tithe_and_offering);
+        setTithePercentage(data.tithe_percentage);
+        setOfferingAmount(data.offering_amount);
       })
       .catch((err) => {
         if (active) {
@@ -69,6 +75,9 @@ export default function SettingsPage() {
           depositAmount.trim() === "" ? null : depositAmount.trim(),
         theme_primary_color: themeColor,
         agent_name: agentName.trim(),
+        enable_tithe_and_offering: enableTithe,
+        tithe_percentage: tithePercentage,
+        offering_amount: offeringAmount,
       });
       setThreshold(
         saved.deposit_score_threshold === null
@@ -78,6 +87,9 @@ export default function SettingsPage() {
       setDepositAmount(saved.deposit_amount_low_score ?? "");
       setThemeColor(saved.theme_primary_color);
       setAgentName(saved.agent_name);
+      setEnableTithe(saved.enable_tithe_and_offering);
+      setTithePercentage(saved.tithe_percentage);
+      setOfferingAmount(saved.offering_amount);
       setNotice("Configurações salvas.");
       window.dispatchEvent(
         new CustomEvent<string>("sora-theme", {
@@ -159,6 +171,45 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
+
+                <div className="panel-title theme-title">
+                  <h2>Dízimo e oferta</h2>
+                </div>
+                <div className="checkbox-field">
+                  <input
+                    id="enable-tithe"
+                    type="checkbox"
+                    checked={enableTithe}
+                    onChange={(event) => setEnableTithe(event.target.checked)}
+                  />
+                  <label htmlFor="enable-tithe">
+                    Ativar provisão de dízimo e oferta na DRE
+                  </label>
+                </div>
+                {enableTithe ? (
+                  <div className="form-grid">
+                    <div className="field">
+                      <label htmlFor="tithe-percentage">Dízimo (%)</label>
+                      <input
+                        id="tithe-percentage"
+                        value={tithePercentage}
+                        onChange={(event) =>
+                          setTithePercentage(event.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="offering-amount">Oferta (R$)</label>
+                      <input
+                        id="offering-amount"
+                        value={offeringAmount}
+                        onChange={(event) =>
+                          setOfferingAmount(event.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="panel-title theme-title">
                   <h2>Tema e identidade</h2>
