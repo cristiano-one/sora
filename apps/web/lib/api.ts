@@ -87,6 +87,12 @@ export type TenantSettings = {
   deposit_amount_low_score: string | null;
   theme_primary_color: string;
   agent_name: string;
+  agent_tone: string;
+  agent_welcome_message: string | null;
+  agent_knowledge: string | null;
+  agent_cancellation_policy: string | null;
+  agent_address_info: string | null;
+  agent_upsell: string | null;
   enable_tithe_and_offering: boolean;
   tithe_percentage: string;
   offering_amount: string;
@@ -287,6 +293,8 @@ export type AiConversation = {
   client_name: string | null;
   phone: string;
   status: "OPEN" | "HUMAN" | "CLOSED";
+  needs_approval: boolean;
+  approval_note: string | null;
   last_message: string | null;
   last_message_at: string;
   last_intent: string | null;
@@ -301,6 +309,7 @@ export type AiSummary = {
   agent_name: string;
   open_conversations: number;
   human_conversations: number;
+  approvals_pending: number;
   messages_today: number;
   appointments_today: number;
   birthdays: {
@@ -1210,6 +1219,15 @@ export async function takeoverAiConversation(
 ): Promise<AiConversationDetail> {
   return authenticatedRequest<AiConversationDetail>(
     `/api/v1/ai/conversations/${id}/takeover`,
+    { method: "POST" },
+  );
+}
+
+export async function approveAiConversation(
+  id: string,
+): Promise<AiConversationDetail> {
+  return authenticatedRequest<AiConversationDetail>(
+    `/api/v1/ai/conversations/${id}/approve`,
     { method: "POST" },
   );
 }

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { AppShell } from "@/components/app-shell";
 import {
   ApiError,
+  approveAiConversation,
   closeAiConversation,
   getAiConversation,
   getAiConversations,
@@ -39,10 +40,14 @@ const INTENT_LABEL: Record<string, string> = {
   greeting: "Saudação",
   guardrail: "Guardrail",
   fallback: "Dúvida",
+  approval: "Aprovação",
+  policy: "Política",
+  location: "Endereço",
 };
 
 const STATUS_FILTERS = [
   { value: "ALL", label: "Todas" },
+  { value: "APPROVAL", label: "Aprovações" },
   { value: "OPEN", label: "SORA IA" },
   { value: "HUMAN", label: "Humano" },
   { value: "CLOSED", label: "Encerradas" },
@@ -69,7 +74,11 @@ export default function SoraAiPage() {
   const visibleConversations =
     statusFilter === "ALL"
       ? conversations
-      : conversations.filter((item) => item.status === statusFilter);
+      : statusFilter === "APPROVAL"
+        ? conversations.filter(
+            (item) => item.needs_approval && item.status !== "CLOSED",
+          )
+        : conversations.filter((item) => item.status === statusFilter);
 
   const loadOverview = useCallback(async () => {
     const year = String(new Date().getFullYear());
@@ -156,8 +165,25 @@ export default function SoraAiPage() {
     }
   }
 
-  async function handleSend(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleApprove() {
+    if (!detail) return;
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await approveAiConversation(detail.id);
+      await reloadConversation(detail.id);
+      setNotice("Exceção aprovada e conversa devolvida à SORA IA.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao aprovar exceção.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSend(event: FormEvent<HTMLFormElement>) {    event.preventDefault();
     if (!detail || !reply.trim()) return;
     setSaving(true);
     setError(null);
@@ -266,6 +292,13 @@ export default function SoraAiPage() {
             <div className="stat-note">Aguardando a equipe</div>
           </article>
           <article className="stat">
+            <div className="stat-label">Aprovações</div>
+            <div className="stat-value">
+              {summary?.approvals_pending ?? "—"}
+            </div>
+            <div className="stat-note">Exceções aguardando decisão</div>
+          </article>
+          <article className="stat">
             <div className="stat-label">Mensagens hoje</div>
             <div className="stat-value">{summary?.messages_today ?? "—"}</div>
             <div className="stat-note">
@@ -328,6 +361,9 @@ export default function SoraAiPage() {
                       {STATUS_LABEL[conversation.status] ?? conversation.status}
                     </span>
                   </div>
+                  {conversation.needs_approval ? (
+                    <span className="ai-approval-tag">Aprovação pendente</span>
+                  ) : null}
                   {conversation.last_intent ? (
                     <span className="ai-intent-tag">
                       {INTENT_LABEL[conversation.last_intent] ??
@@ -421,6 +457,16 @@ export default function SoraAiPage() {
                     </p>
                   </div>
                   <div className="ai-chat-actions">
+                    {detail.needs_approval ? (
+                      <button
+                        className="button button-small"
+                        type="button"
+                        onClick={handleApprove}
+                        disabled={saving}
+                      >
+                        Aprovar exceção
+                      </button>
+                    ) : null}
                     {detail.status === "OPEN" ? (
                       <button
                         className="button button-ghost button-small"
@@ -443,6 +489,13 @@ export default function SoraAiPage() {
                     ) : null}
                   </div>
                 </div>
+
+                {detail.needs_approval ? (
+                  <div className="ai-approval-card">
+                    <strong>Precisa de aprovação</strong>
+                    <p>{detail.approval_note ?? "Exceção solicitada pelo cliente."}</p>
+                  </div>
+                ) : null}
 
                 <div className="ai-messages">
                   {detail.messages.map((message) => (

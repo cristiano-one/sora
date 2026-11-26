@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     Enum,
     ForeignKey,
@@ -75,6 +76,14 @@ class AiConversation(Base):
         server_default=text("'OPEN'"),
         index=True,
     )
+    needs_approval: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+        index=True,
+    )
+    approval_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_message_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

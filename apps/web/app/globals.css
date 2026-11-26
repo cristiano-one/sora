@@ -1533,6 +1533,36 @@ h1 {
   font-weight: 700;
 }
 
+.ai-approval-tag {
+  align-self: flex-start;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.ai-approval-card {
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid #fcd34d;
+  border-radius: 12px;
+  background: #fffbeb;
+}
+
+.ai-approval-card strong {
+  color: #92400e;
+  font-size: 12px;
+}
+
+.ai-approval-card p {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .ai-preview {
   overflow: hidden;
   color: var(--muted);

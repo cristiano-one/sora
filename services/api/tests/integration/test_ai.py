@@ -385,3 +385,126 @@ async def test_summary_and_upcoming_birthdays(
     birthdays = {item["client_id"]: item for item in body["birthdays"]}
     assert client["id"] in birthdays
     assert birthdays[client["id"]]["days_until"] == 2
+
+
+async def test_agent_persona_is_used_in_replies(
+    auth_client,
+    tenant_users,
+) -> None:
+    owner = tenant_users.users[UserRole.OWNER]
+    token = await _login(auth_client, owner)
+    update = await auth_client.patch(
+        SETTINGS,
+        headers=_auth(token),
+        json={
+            "agent_name": "Bia",
+            "agent_tone": "descontraido",
+            "agent_welcome_message": "Oi! Aqui é a Bia do Studio.",
+            "agent_upsell": "Aproveite o combo de hidratação.",
+            "agent_cancellation_policy": "Cancelamentos até 4h antes.",
+            "agent_address_info": "Rua das Flores, 100 — estacionamento ao lado.",
+        },
+    )
+    assert update.status_code == 200, update.text
+    assert update.json()["agent_tone"] == "descontraido"
+
+    greeting = await _webhook(
+        auth_client,
+        slug=tenant_users.tenant_slug,
+        phone=_phone(),
+        text="Oi",
+    )
+    assert greeting.status_code == 200
+    assert greeting.json()["reply"] == "Oi! Aqui é a Bia do Studio."
+
+    await _create_service(auth_client, token, "Combo Persona")
+    prices = await _webhook(
+        auth_client,
+        slug=tenant_users.tenant_slug,
+        phone=_phone(),
+        text="Qual o valor do combo?",
+    )
+    assert "Combo Persona" in prices.json()["reply"]
+    assert "hidratação" in prices.json()["reply"]
+
+    address = await _webhook(
+        auth_client,
+        slug=tenant_users.tenant_slug,
+        phone=_phone(),
+        text="Onde fica e tem estacionamento?",
+    )
+    assert address.json()["intent"] == "location"
+    assert "Rua das Flores" in address.json()["reply"]
+
+    policy = await _webhook(
+        auth_client,
+        slug=tenant_users.tenant_slug,
+        phone=_phone(),
+        text="Qual a política de cancelamento?",
+    )
+    assert policy.json()["intent"] == "policy"
+    assert "4h" in policy.json()["reply"]
+
+
+async def test_exception_requires_human_approval(
+    auth_client,
+    tenant_users,
+    auth_user,
+) -> None:
+    owner = tenant_users.users[UserRole.OWNER]
+    collaborator = tenant_users.users[UserRole.COLLABORATOR]
+    token = await _login(auth_client, owner)
+
+    webhook = await _webhook(
+        auth_client,
+        slug=tenant_users.tenant_slug,
+        phone=_phone(),
+        text="Estou doente, consigo remarcar sem cobrar a taxa?",
+    )
+    assert webhook.status_code == 200, webhook.text
+    assert webhook.json()["intent"] == "approval"
+    assert webhook.json()["status"] == "HUMAN"
+    conversation_id = webhook.json()["conversation_id"]
+
+    conversations = await auth_client.get(
+        CONVERSATIONS,
+        headers=_auth(token),
+    )
+    item = next(
+        row for row in conversations.json() if row["id"] == conversation_id
+    )
+    assert item["needs_approval"] is True
+    assert "doente" in item["approval_note"].lower()
+
+    summary = await auth_client.get(SUMMARY, headers=_auth(token))
+    assert summary.status_code == 200
+    assert summary.json()["approvals_pending"] >= 1
+
+    collaborator_token = await _login(auth_client, collaborator)
+    forbidden = await auth_client.post(
+        f"{CONVERSATIONS}/{conversation_id}/approve",
+        headers=_auth(collaborator_token),
+    )
+    assert forbidden.status_code == 403
+
+    other_token = await _login(auth_client, auth_user)
+    cross = await auth_client.post(
+        f"{CONVERSATIONS}/{conversation_id}/approve",
+        headers=_auth(other_token),
+    )
+    assert cross.status_code == 404
+
+    approved = await auth_client.post(
+        f"{CONVERSATIONS}/{conversation_id}/approve",
+        headers=_auth(token),
+    )
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["needs_approval"] is False
+    assert approved.json()["status"] == "OPEN"
+    assert approved.json()["messages"][-1]["intent"] == "approval"
+
+    again = await auth_client.post(
+        f"{CONVERSATIONS}/{conversation_id}/approve",
+        headers=_auth(token),
+    )
+    assert again.status_code == 409
