@@ -1,24 +1,39 @@
-"""Endpoints de autenticação (login, refresh, logout e perfil)."""
+"""Endpoints de autenticação (login, refresh, logout, perfil e senha)."""
+
+import secrets
+from collections.abc import Callable
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from redis.asyncio import Redis
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth.dependencies import Principal, get_current_principal
 from app.core.auth.schemas import (
+    ForgotPasswordRequest,
     LoginRequest,
     LogoutRequest,
     MeResponse,
     RefreshRequest,
+    ResetPasswordRequest,
     TokenPair,
+)
+from app.core.auth.security import (
+    hash_password,
+    invite_key,
+    password_reset_key,
 )
 from app.core.auth.service import (
     AuthService,
     InvalidCredentialsError,
     InvalidRefreshTokenError,
     revoke_access_token,
+    revoke_all_sessions,
     revoke_refresh_token,
 )
+from app.core.config import settings
+from app.core.email import send_email
 from app.core.redis import get_redis
 from app.db.rls import set_tenant_context
 from app.db.session import get_session
@@ -117,3 +132,134 @@ async def me(
         full_name=user.full_name,
         role=user.role,
     )
+
+
+async def _find_tenant(session: AsyncSession, slug: str) -> UUID | None:
+    value = await session.scalar(
+        text("SELECT public.resolve_tenant_id_by_slug(:slug)"),
+        {"slug": slug.strip().lower()},
+    )
+    if value is None:
+        return None
+    return UUID(str(value))
+
+
+@router.post(
+    "/forgot-password",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Envia link de recuperação de senha",
+)
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> dict[str, str]:
+    tenant_id = await _find_tenant(session, body.tenant_slug)
+    if tenant_id is not None:
+        await set_tenant_context(session, tenant_id)
+        user = await session.scalar(
+            select(User).where(
+                User.email == str(body.email).strip().lower(),
+                User.is_active.is_(True),
+            )
+        )
+        if user is not None:
+            token = secrets.token_urlsafe(32)
+            await redis.set(
+                password_reset_key(tenant_id, token),
+                str(user.id),
+                ex=30 * 60,
+            )
+            link = (
+                f"{settings.web_base_url}/redefinir-senha"
+                f"?tenant={body.tenant_slug.strip().lower()}&token={token}"
+            )
+            send_email(
+                to=user.email,
+                subject="Recuperação de senha — Sora Studio",
+                body=(
+                    f"Olá, {user.full_name}.\n\n"
+                    f"Para definir uma nova senha, acesse:\n{link}\n\n"
+                    "O link expira em 30 minutos."
+                ),
+            )
+    return {
+        "message": (
+            "Se o e-mail existir, enviaremos um link de recuperação."
+        )
+    }
+
+
+async def _reset_password(
+    session: AsyncSession,
+    redis: Redis,
+    *,
+    body: ResetPasswordRequest,
+    key_factory: Callable[[UUID, str], str],
+) -> None:
+    tenant_id = await _find_tenant(session, body.tenant_slug)
+    if tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token inválido ou expirado",
+        )
+    key = key_factory(tenant_id, body.token)
+    user_id = await redis.get(key)
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token inválido ou expirado",
+        )
+    await set_tenant_context(session, tenant_id)
+    user = await session.get(User, UUID(user_id))
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token inválido ou expirado",
+        )
+    user.hashed_password = hash_password(body.new_password)
+    await session.commit()
+    await redis.delete(key)
+    await revoke_all_sessions(
+        redis,
+        tenant_id=tenant_id,
+        user_id=user.id,
+    )
+
+
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Define nova senha com token de recuperação",
+)
+async def reset_password(
+    body: ResetPasswordRequest,
+    session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> Response:
+    await _reset_password(
+        session,
+        redis,
+        body=body,
+        key_factory=password_reset_key,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/accept-invite",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Aceita convite e define a senha inicial",
+)
+async def accept_invite(
+    body: ResetPasswordRequest,
+    session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
+) -> Response:
+    await _reset_password(
+        session,
+        redis,
+        body=body,
+        key_factory=invite_key,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

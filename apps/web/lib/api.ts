@@ -593,6 +593,52 @@ export async function login(input: LoginInput): Promise<void> {
   saveTokens(pair);
 }
 
+export async function createTenant(input: {
+  name: string;
+  slug: string;
+  tax_regime: "MEI" | "COMPLETE";
+  owner_full_name: string;
+  owner_email: string;
+  owner_password: string;
+}): Promise<{ id: string; name: string; slug: string }> {
+  return request<{ id: string; name: string; slug: string }>(
+    "/api/v1/tenants",
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export async function forgotPassword(input: {
+  tenant_slug: string;
+  email: string;
+}): Promise<{ message: string }> {
+  return request<{ message: string }>("/api/v1/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function resetPassword(input: {
+  tenant_slug: string;
+  token: string;
+  new_password: string;
+}): Promise<void> {
+  await request<void>("/api/v1/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function acceptInvite(input: {
+  tenant_slug: string;
+  token: string;
+  new_password: string;
+}): Promise<void> {
+  await request<void>("/api/v1/auth/accept-invite", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 export async function logout(): Promise<void> {
   const refreshToken = getRefreshToken();
 
@@ -826,6 +872,17 @@ type CreateUserInput = {
 
 export async function createUser(input: CreateUserInput): Promise<UserSummary> {
   return authenticatedRequest<UserSummary>("/api/v1/users", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export type InviteUserInput = Omit<CreateUserInput, "password">;
+
+export async function inviteUser(
+  input: InviteUserInput,
+): Promise<UserSummary> {
+  return authenticatedRequest<UserSummary>("/api/v1/users/invite", {
     method: "POST",
     body: JSON.stringify(input),
   });

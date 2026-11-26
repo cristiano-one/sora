@@ -1,5 +1,6 @@
 """Endpoints de colaboradores/usuários e comissões."""
 
+import secrets
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas.users import (
     CommissionResponse,
     UserCreateRequest,
+    UserInviteRequest,
     UserResponse,
     UserUpdateRequest,
 )
@@ -19,9 +21,12 @@ from app.core.auth.dependencies import (
     get_tenant_session,
     require_roles,
 )
+from app.core.auth.security import invite_key
 from app.core.auth.service import revoke_all_sessions
+from app.core.config import settings
+from app.core.email import send_email
 from app.core.redis import get_redis
-from app.models import User, UserRole
+from app.models import Tenant, User, UserRole
 from app.modules.users.service import (
     CannotDeleteUserError,
     EmailAlreadyExistsError,
@@ -87,6 +92,65 @@ async def create_user_endpoint(
             status_code=status.HTTP_409_CONFLICT,
             detail="E-mail já cadastrado",
         ) from exc
+
+
+@router.post(
+    "/invite",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Convida colaborador/admin por e-mail",
+)
+async def invite_user_endpoint(
+    body: UserInviteRequest,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+    redis: Redis = Depends(get_redis),
+) -> User:
+    try:
+        user = await create_user(
+            session,
+            actor=principal,
+            full_name=body.full_name,
+            email=str(body.email),
+            password=secrets.token_urlsafe(32),
+            role=body.role,
+            commission_percentage=body.commission_percentage,
+            commission_fixed=body.commission_fixed,
+            commission_base=body.commission_base,
+        )
+    except InvalidRoleChangeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Alteração de papel não permitida",
+        ) from exc
+    except EmailAlreadyExistsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="E-mail já cadastrado",
+        ) from exc
+
+    token = secrets.token_urlsafe(32)
+    await redis.set(
+        invite_key(principal.tenant_id, token),
+        str(user.id),
+        ex=7 * 24 * 60 * 60,
+    )
+    tenant = await session.get(Tenant, principal.tenant_id)
+    tenant_slug = tenant.slug if tenant is not None else str(principal.tenant_id)
+    link = (
+        f"{settings.web_base_url}/aceitar-convite"
+        f"?tenant={tenant_slug}&token={token}"
+    )
+    send_email(
+        to=user.email,
+        subject="Convite para a Sora Studio",
+        body=(
+            f"Olá, {user.full_name}.\n\n"
+            f"Você foi convidado para a equipe. Defina sua senha em:\n"
+            f"{link}\n\nO convite expira em 7 dias."
+        ),
+    )
+    return user
 
 
 @router.patch(

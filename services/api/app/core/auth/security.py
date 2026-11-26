@@ -178,3 +178,13 @@ def denylist_key(tenant_id: uuid.UUID, jti: str) -> str:
 def revoked_at_key(tenant_id: uuid.UUID, user_id: uuid.UUID) -> str:
     """Chave Redis do instante de revogação em massa do usuário."""
     return tenant_key(tenant_id, "auth", "revoked_at", str(user_id))
+
+
+def password_reset_key(tenant_id: uuid.UUID, token: str) -> str:
+    """Chave Redis do token de recuperação de senha."""
+    return tenant_key(tenant_id, "auth", "password_reset", token)
+
+
+def invite_key(tenant_id: uuid.UUID, token: str) -> str:
+    """Chave Redis do convite de colaborador."""
+    return tenant_key(tenant_id, "auth", "invite", token)

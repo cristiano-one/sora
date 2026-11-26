@@ -31,6 +31,28 @@ class UserCreateRequest(BaseModel):
     commission_base: CommissionBase = CommissionBase.GROSS
 
 
+class UserInviteRequest(BaseModel):
+    """Convite de colaborador/admin por e-mail."""
+
+    full_name: str = Field(min_length=2, max_length=255)
+    email: EmailStr
+    role: UserRole
+    commission_percentage: Decimal | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        max_digits=5,
+        decimal_places=2,
+    )
+    commission_fixed: Decimal | None = Field(
+        default=None,
+        ge=0,
+        max_digits=12,
+        decimal_places=2,
+    )
+    commission_base: CommissionBase = CommissionBase.GROSS
+
+
 class UserUpdateRequest(BaseModel):
     """Atualização parcial de colaborador/admin."""
 
