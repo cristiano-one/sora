@@ -11,6 +11,7 @@ from app.api.schemas.payments import PublicPaymentResponse
 from app.models import (
     Appointment,
     AppointmentStatus,
+    Client,
     ClientSubscription,
     ClientSubscriptionStatus,
     PaymentIntent,
@@ -82,6 +83,25 @@ async def get_payment(
     payment_id: UUID,
 ) -> PaymentIntent | None:
     return await session.get(PaymentIntent, payment_id)
+
+
+async def list_payment_intents(
+    session: AsyncSession,
+    *,
+    status: PaymentStatus | None = None,
+    limit: int = 100,
+) -> list[tuple[PaymentIntent, str]]:
+    """Lista cobranças com o nome do cliente (RLS aplicada na sessão)."""
+    query = (
+        select(PaymentIntent, Client.full_name)
+        .join(Client, Client.id == PaymentIntent.client_id)
+        .order_by(PaymentIntent.created_at.desc())
+        .limit(limit)
+    )
+    if status is not None:
+        query = query.where(PaymentIntent.status == status)
+    rows = (await session.execute(query)).all()
+    return [(payment, name) for payment, name in rows]
 
 
 async def get_payment_for_appointment(
