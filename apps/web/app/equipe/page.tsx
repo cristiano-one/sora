@@ -58,6 +58,7 @@ export default function TeamPage() {
   const [employmentType, setEmploymentType] = useState<
     "EMPLOYEE" | "PARTNER" | "MEI"
   >("EMPLOYEE");
+  const [canManageAiInbox, setCanManageAiInbox] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +110,8 @@ export default function TeamPage() {
             commissionFixed.trim() === "" ? null : commissionFixed,
           commission_base: commissionBase,
           employment_type: employmentType,
+          can_manage_ai_inbox:
+            role === "COLLABORATOR" ? canManageAiInbox : false,
         });
       } else {
         const payload = {
@@ -121,6 +124,8 @@ export default function TeamPage() {
             commissionFixed.trim() === "" ? null : commissionFixed,
           commission_base: commissionBase,
           employment_type: employmentType,
+          can_manage_ai_inbox:
+            role === "COLLABORATOR" ? canManageAiInbox : false,
         };
         if (sendInvite) {
           await inviteUser(payload);
@@ -149,6 +154,7 @@ export default function TeamPage() {
     setCommissionFixed(user.commission_fixed ?? "");
     setCommissionBase(user.commission_base === "NET" ? "NET" : "GROSS");
     setEmploymentType(user.employment_type ?? "EMPLOYEE");
+    setCanManageAiInbox(user.can_manage_ai_inbox);
     setError(null);
   }
 
@@ -163,6 +169,7 @@ export default function TeamPage() {
     setCommissionFixed("0.00");
     setCommissionBase("GROSS");
     setEmploymentType("EMPLOYEE");
+    setCanManageAiInbox(false);
   }
 
   async function handleDelete(user: UserSummary) {
@@ -239,6 +246,14 @@ export default function TeamPage() {
                           <span className="pill pill-manager">
                             {ROLE_LABEL[user.role] ?? user.role}
                           </span>
+                          {user.role === "COLLABORATOR" &&
+                          user.can_manage_ai_inbox ? (
+                            <div style={{ marginTop: 4 }}>
+                              <span className="pill pill-active">
+                                Atendimento
+                              </span>
+                            </div>
+                          ) : null}
                         </td>
                         <td className="muted-small">
                           {commissionLabel(user)}
@@ -367,9 +382,15 @@ export default function TeamPage() {
                   <select
                     id="user-role"
                     value={role}
-                    onChange={(event) =>
-                      setRole(event.target.value as "ADMIN" | "COLLABORATOR")
-                    }
+                    onChange={(event) => {
+                      const nextRole = event.target.value as
+                        | "ADMIN"
+                        | "COLLABORATOR";
+                      setRole(nextRole);
+                      if (nextRole !== "COLLABORATOR") {
+                        setCanManageAiInbox(false);
+                      }
+                    }}
                   >
                     {isOwner ? <option value="ADMIN">Administrador</option> : null}
                     <option value="COLLABORATOR">Colaborador</option>
@@ -426,6 +447,21 @@ export default function TeamPage() {
                     <option value="MEI">MEI</option>
                   </select>
                 </div>
+                {role === "COLLABORATOR" ? (
+                  <div className="checkbox-field">
+                    <input
+                      id="user-ai-inbox"
+                      type="checkbox"
+                      checked={canManageAiInbox}
+                      onChange={(event) =>
+                        setCanManageAiInbox(event.target.checked)
+                      }
+                    />
+                    <label htmlFor="user-ai-inbox">
+                      Acesso ao atendimento WhatsApp (inbox)
+                    </label>
+                  </div>
+                ) : null}
                 <button className="button" type="submit" disabled={saving}>
                   {saving
                     ? "Salvando…"

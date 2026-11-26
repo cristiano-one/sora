@@ -38,7 +38,7 @@ from app.core.redis import get_redis
 from app.db.rls import set_tenant_context
 from app.db.session import get_session
 from app.models import BusinessProfile, Tenant
-from app.models.user import User
+from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -137,6 +137,10 @@ async def me(
             tenant.business_profile
             if tenant is not None
             else BusinessProfile.GENERAL
+        ),
+        can_manage_ai_inbox=(
+            user.role in (UserRole.OWNER, UserRole.ADMIN)
+            or user.can_manage_ai_inbox
         ),
     )
 

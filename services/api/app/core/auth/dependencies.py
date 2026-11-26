@@ -20,7 +20,7 @@ from app.core.auth.security import (
 from app.core.redis import get_redis
 from app.db.rls import set_tenant_context
 from app.db.session import get_session
-from app.models.user import UserRole
+from app.models.user import User, UserRole
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -98,3 +98,28 @@ async def get_tenant_session(
     """Fornece a sessão com app.current_tenant_id já definido (RLS)."""
     await set_tenant_context(session, principal.tenant_id)
     yield session
+
+
+async def require_ai_inbox(
+    principal: Principal = Depends(get_current_principal),
+    session: AsyncSession = Depends(get_session),
+) -> Principal:
+    """Permite OWNER/ADMIN ou colaborador com permissão explícita.
+
+    A permissão é lida do banco em cada requisição para que a revogação tenha
+    efeito imediato, sem esperar o token expirar.
+    """
+    if principal.role in (UserRole.OWNER, UserRole.ADMIN):
+        return principal
+    await set_tenant_context(session, principal.tenant_id)
+    user = await session.get(User, principal.user_id)
+    if (
+        user is None
+        or not user.is_active
+        or not user.can_manage_ai_inbox
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado",
+        )
+    return principal

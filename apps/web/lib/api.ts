@@ -14,6 +14,7 @@ export type Me = {
   full_name: string;
   role: "OWNER" | "ADMIN" | "COLLABORATOR";
   business_profile: BusinessProfile;
+  can_manage_ai_inbox: boolean;
 };
 
 export type Service = {
@@ -83,6 +84,7 @@ export type UserSummary = {
   commission_fixed: string | null;
   commission_base: string;
   employment_type: "EMPLOYEE" | "PARTNER" | "MEI";
+  can_manage_ai_inbox: boolean;
 };
 
 export type TenantSettings = {
@@ -1264,6 +1266,7 @@ type CreateUserInput = {
   commission_fixed?: string | null;
   commission_base?: "GROSS" | "NET";
   employment_type?: "EMPLOYEE" | "PARTNER" | "MEI";
+  can_manage_ai_inbox?: boolean;
 };
 
 export async function createUser(input: CreateUserInput): Promise<UserSummary> {
@@ -1292,6 +1295,7 @@ type UpdateUserInput = {
   commission_fixed?: string | null;
   commission_base?: "GROSS" | "NET";
   employment_type?: "EMPLOYEE" | "PARTNER" | "MEI";
+  can_manage_ai_inbox?: boolean;
 };
 
 export async function updateUser(

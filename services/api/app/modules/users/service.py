@@ -18,6 +18,7 @@ _ALLOWED_UPDATE_FIELDS = frozenset(
         "commission_fixed",
         "commission_base",
         "employment_type",
+        "can_manage_ai_inbox",
     }
 )
 
@@ -76,6 +77,7 @@ async def create_user(
     commission_fixed: Decimal | None,
     commission_base: CommissionBase,
     employment_type: EmploymentType,
+    can_manage_ai_inbox: bool = False,
 ) -> User:
     """Cria um colaborador/admin no tenant do ator (RLS já aplicada)."""
     _validate_create_role(actor, role)
@@ -91,6 +93,9 @@ async def create_user(
         commission_fixed=commission_fixed,
         commission_base=commission_base,
         employment_type=employment_type,
+        can_manage_ai_inbox=(
+            can_manage_ai_inbox and role == UserRole.COLLABORATOR
+        ),
     )
     session.add(user)
     try:
@@ -113,6 +118,8 @@ async def update_user(
     for field in _ALLOWED_UPDATE_FIELDS:
         if field in changes:
             setattr(target, field, changes[field])
+    if target.role != UserRole.COLLABORATOR:
+        target.can_manage_ai_inbox = False
     await session.commit()
     return target
 
