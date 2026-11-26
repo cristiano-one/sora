@@ -40,8 +40,9 @@ uv run uvicorn app.main:app --reload --port 8010
 - `/redefinir-senha` — define nova senha e revoga sessões antigas.
 - `/aceitar-convite` — colaborador convidado define a senha inicial.
 - `/dashboard` — agenda, clientes, comissão, SORA IA, caixa e saldo reais.
-- `/agenda` — board do dia, disponibilidade, criação, confirmação, conclusão,
-  falta, reagendamento e cancelamento (anti-conflito no backend).
+- `/agenda` — calendário mensal com lista de atendimentos do dia, filtro por
+  profissional, criação, confirmação, conclusão, falta, reagendamento e
+  cancelamento (anti-conflito no backend).
 - `/clientes` — cadastro, edição, exclusão, score confidencial e bloqueio
   (telefone mascarado para colaboradores).
 - `/sistema` — console master do provedor (fora do login do tenant), protegido

@@ -43,6 +43,8 @@
   - créditos de aniversário aplicáveis no prontuário.
   - cadastro público, recuperação de senha e convite por e-mail.
   - agenda com confirmação, conclusão, falta e reagendamento.
+  - agenda web redesenhada como calendário mensal com lista lateral de
+    atendimentos, eventos por status e modal de criação/reagendamento.
   - pacotes e estoque de insumos no catálogo/gestão.
   - perfis de negócio (clínica, estética, podologia, salão, barbearia,
     multisserviços) definidos no console master `/sistema` com senha
