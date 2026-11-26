@@ -459,11 +459,15 @@ async def close_conversation(
 async def _birthdays(
     session: AsyncSession,
     *,
+    tenant_id: UUID,
     today: date,
 ) -> list[BirthdayItemResponse]:
     clients = (
         await session.scalars(
-            select(Client).where(Client.birth_date.is_not(None))
+            select(Client).where(
+                Client.tenant_id == tenant_id,
+                Client.birth_date.is_not(None),
+            )
         )
     ).all()
     items: list[BirthdayItemResponse] = []
@@ -546,7 +550,7 @@ async def ai_summary(
         human_conversations=int(human_count or 0),
         messages_today=int(messages_today or 0),
         appointments_today=int(appointments_today or 0),
-        birthdays=await _birthdays(session, today=today),
+        birthdays=await _birthdays(session, tenant_id=tenant_id, today=today),
     )
 
 
@@ -588,7 +592,7 @@ async def create_birthday_credits(
             credits=[],
         )
 
-    items = await _birthdays(session, today=current)
+    items = await _birthdays(session, tenant_id=tenant_id, today=current)
     created: list[ClientCredit] = []
     notifications: list[tuple[str, str]] = []
     for item in items:
