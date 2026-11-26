@@ -94,7 +94,7 @@ export default function LoginPage() {
         <p className="muted-small login-links">
           <Link href="/esqueci-senha">Esqueci minha senha</Link>
           <span>·</span>
-          <Link href="/cadastro">Criar minha clínica</Link>
+          <Link href="/cadastro">Criar minha conta</Link>
         </p>
 
         <p className="hint">

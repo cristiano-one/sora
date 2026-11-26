@@ -31,6 +31,8 @@ uv run uvicorn app.main:app --reload --port 8010
 
 ## Telas
 
+- `/` — visitante novo é levado ao cadastro/onboarding; usuário autenticado
+  vai ao dashboard. A landing de apresentação será adicionada depois.
 - `/login` — login real (JWT + Redis), recuperação de senha e link de cadastro.
 - `/cadastro` — criação de clínica + OWNER, escolha do tipo de negócio e login
   automático.
