@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,6 +41,7 @@ from app.modules.clients.service import (
     create_attachment,
     create_client,
     create_medical_record,
+    delete_attachment,
     delete_client,
     update_client,
 )
@@ -469,3 +470,57 @@ async def presign_attachment_url_endpoint(
         details={"client_id": str(client.id), "record_id": str(record.id)},
     )
     return AttachmentUrlResponse(url=url, expires_in=ttl)
+
+
+@router.delete(
+    "/{client_id}/records/{record_id}/attachments/{attachment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Exclui um anexo do prontuário",
+)
+async def delete_attachment_endpoint(
+    client_id: UUID,
+    record_id: UUID,
+    attachment_id: UUID,
+    request: Request,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+    storage: StoragePort = Depends(get_storage),
+) -> Response:
+    client = await _get_client(session, client_id)
+    record = await _get_record(
+        session,
+        client_id=client.id,
+        record_id=record_id,
+    )
+    attachment = await session.get(MedicalRecordAttachment, attachment_id)
+    if attachment is None or attachment.record_id != record.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Anexo não encontrado",
+        )
+
+    try:
+        storage.delete(attachment.storage_key)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Falha ao excluir anexo",
+        ) from exc
+
+    filename = attachment.filename
+    await delete_attachment(session, attachment=attachment)
+    await record_audit(
+        session,
+        tenant_id=principal.tenant_id,
+        actor=principal,
+        action="attachment.delete",
+        resource_type="attachment",
+        resource_id=attachment_id,
+        ip_address=client_ip(request),
+        details={
+            "client_id": str(client.id),
+            "record_id": str(record.id),
+            "filename": filename,
+        },
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

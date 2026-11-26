@@ -15,6 +15,12 @@ const fallbackUrl =
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? fallbackUrl;
 
+/** Converte URLs assinadas relativas da API em URLs absolutas. */
+export function resolveApiUrl(url: string): string {
+  if (url.startsWith("/")) return `${API_URL}${url}`;
+  return url;
+}
+
 export type Me = {
   id: string;
   tenant_id: string;
@@ -257,13 +263,18 @@ export async function presignAttachment(
   recordId: string,
   input: { filename: string; content_type: string; size_bytes: number },
 ): Promise<{ attachment_id: string; upload_url: string; expires_in: number }> {
-  return authenticatedRequest(
+  const data = await authenticatedRequest<{
+    attachment_id: string;
+    upload_url: string;
+    expires_in: number;
+  }>(
     `/api/v1/clients/${clientId}/records/${recordId}/attachments/presign`,
     {
       method: "POST",
       body: JSON.stringify(input),
     },
   );
+  return { ...data, upload_url: resolveApiUrl(data.upload_url) };
 }
 
 export async function getAttachmentUrl(
@@ -271,8 +282,20 @@ export async function getAttachmentUrl(
   recordId: string,
   attachmentId: string,
 ): Promise<{ url: string; expires_in: number }> {
-  return authenticatedRequest(
+  const data = await authenticatedRequest<{ url: string; expires_in: number }>(
     `/api/v1/clients/${clientId}/records/${recordId}/attachments/${attachmentId}/url`,
+  );
+  return { ...data, url: resolveApiUrl(data.url) };
+}
+
+export async function deleteAttachment(
+  clientId: string,
+  recordId: string,
+  attachmentId: string,
+): Promise<void> {
+  await authenticatedRequest<void>(
+    `/api/v1/clients/${clientId}/records/${recordId}/attachments/${attachmentId}`,
+    { method: "DELETE" },
   );
 }
 

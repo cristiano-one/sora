@@ -60,6 +60,21 @@ clínica, usuários, clientes, catálogo, assinaturas, agenda, financeiro,
 prontuários (notas decifradas), consentimentos e créditos. A exportação é
 auditada e não inclui hash de senha nem URLs permanentes de anexos.
 
+## Storage privado de anexos
+
+- `STORAGE_PROVIDER=local` (padrão em dev) grava em `STORAGE_LOCAL_PATH`
+  (`var/storage-private`) e assina URLs na própria API — não exige MinIO.
+- `STORAGE_PROVIDER=s3` usa MinIO/S3/R2 com credenciais do `.env`.
+- `PUT /api/v1/storage/upload/{token}` recebe o arquivo; o token é HMAC-SHA256,
+  expira em `STORAGE_PRESIGNED_URL_TTL_SECONDS` (60s) e fixa chave, ação,
+  `Content-Type` e tamanho máximo (10 MB).
+- `GET /api/v1/storage/download/{token}` entrega o anexo com
+  `Cache-Control: private, no-store`.
+- Chaves fora da raiz do storage são rejeitadas (path traversal) e arquivos
+  locais são gravados com permissão `0600`.
+- `DELETE /api/v1/clients/{client_id}/records/{record_id}/attachments/{id}`
+  (OWNER/ADMIN) remove o objeto e o metadado, com auditoria.
+
 ## Usuários / Colaboradores
 
 - `GET /api/v1/users` — lista usuários do tenant (`OWNER`/`ADMIN`).

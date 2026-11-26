@@ -3,6 +3,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Linking,
   Pressable,
   ScrollView,
@@ -15,11 +16,14 @@ import {
   addLgpdConsent,
   ApiError,
   createMedicalRecord,
+  deleteAttachment,
   getAttachmentUrl,
   getMedicalRecords,
+  getMe,
   presignAttachment,
   type Client,
   type MedicalRecord,
+  type Me,
 } from "../api";
 import { formatIsoDate } from "../format";
 import { colors } from "../theme";
@@ -44,6 +48,7 @@ export function ClientRecordScreen({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [attachmentBusy, setAttachmentBusy] = useState<string | null>(null);
+  const [role, setRole] = useState<Me["role"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -53,9 +58,11 @@ export function ClientRecordScreen({
 
   useEffect(() => {
     let active = true;
-    getMedicalRecords(client.id)
-      .then((data) => {
-        if (active) setRecords(data);
+    Promise.all([getMedicalRecords(client.id), getMe()])
+      .then(([data, me]) => {
+        if (!active) return;
+        setRecords(data);
+        setRole(me.role);
       })
       .catch((err) => {
         if (active) {
@@ -192,6 +199,45 @@ export function ClientRecordScreen({
     }
   }
 
+  async function deleteRecordAttachment(
+    record: MedicalRecord,
+    attachmentId: string,
+  ) {
+    setError(null);
+    setNotice(null);
+    setAttachmentBusy(record.id);
+    try {
+      await deleteAttachment(client.id, record.id, attachmentId);
+      await load();
+      setNotice("Anexo excluído.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao excluir anexo.",
+      );
+    } finally {
+      setAttachmentBusy(null);
+    }
+  }
+
+  function confirmDeleteAttachment(
+    record: MedicalRecord,
+    attachmentId: string,
+    filename: string,
+  ) {
+    Alert.alert("Excluir anexo", `Excluir "${filename}"?`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Excluir",
+        style: "destructive",
+        onPress: () => {
+          void deleteRecordAttachment(record, attachmentId);
+        },
+      },
+    ]);
+  }
+
+  const isManager = role === "OWNER" || role === "ADMIN";
+
   return (
     <ScrollView style={ui.screen} contentContainerStyle={ui.scroll}>
       <View style={ui.header}>
@@ -245,15 +291,42 @@ export function ClientRecordScreen({
             </Text>
 
             {record.attachments.map((attachment) => (
-              <Pressable
+              <View
                 key={attachment.id}
-                onPress={() => openAttachment(record, attachment.id)}
-                style={{ marginTop: 8 }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  marginTop: 8,
+                }}
               >
-                <Text style={{ color: colors.primary, fontSize: 12 }}>
-                  {attachment.filename} · {fileSize(attachment.size_bytes)} · abrir
-                </Text>
-              </Pressable>
+                <Pressable
+                  style={{ flex: 1 }}
+                  onPress={() => openAttachment(record, attachment.id)}
+                >
+                  <Text style={{ color: colors.primary, fontSize: 12 }}>
+                    {attachment.filename} · {fileSize(attachment.size_bytes)} ·
+                    abrir
+                  </Text>
+                </Pressable>
+                {isManager ? (
+                  <Pressable
+                    disabled={attachmentBusy === record.id}
+                    onPress={() =>
+                      confirmDeleteAttachment(
+                        record,
+                        attachment.id,
+                        attachment.filename,
+                      )
+                    }
+                  >
+                    <Text style={{ color: colors.danger, fontSize: 12 }}>
+                      Excluir
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
             ))}
 
             <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
