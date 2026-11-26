@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Sora Studio",
+    "slug": "sora-studio",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "sora",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.sora.studio"
+    },
+    "android": {
+      "package": "app.sora.studio"
+    },
+    "plugins": ["expo-secure-store"]
+  }
+}

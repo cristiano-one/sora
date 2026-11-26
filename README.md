@@ -24,7 +24,7 @@ sora/
 │   ├── web/                 # Next.js (App Router) + React + TypeScript + Tailwind + shadcn/ui
 │   │   ├── (public)/        # Link leve para WhatsApp (SSR rápido, SEO, Agendamento + Pix QR Code)
 │   │   └── (dashboard)/     # Painel Web com RBAC: Dono/Gestor, Admin e Barbeiro/Colaborador
-│   └── mobile/              # React Native (Expo Router) + TypeScript — iPhone (iOS) e Android
+│   └── mobile/              # React Native (Expo) + TypeScript — iPhone (iOS) e Android
 ├── services/
 │   └── api/                 # Python 3.12 + FastAPI + SQLAlchemy 2.0 (Async) + Pydantic v2
 │       ├── app/             # core/ (Auth, RBAC, RLS, Redis), modules/, workers/
@@ -119,7 +119,7 @@ pnpm dev
 # 6. Mobile (Expo — iOS Simulator / Android Emulator)
 cd apps/mobile
 pnpm install
-pnpm expo start
+pnpm start
 ```
 
 Domínios locais esperados (via Traefik): `http://api.sora.localhost:8000`, `http://app.sora.localhost:8000` e `http://{clinica}.sora.localhost:8000`.
