@@ -60,6 +60,21 @@ def settings_response(
             settings.agent_address_info if settings is not None else None
         ),
         agent_upsell=settings.agent_upsell if settings is not None else None,
+        fiscal_enabled=(
+            settings.fiscal_enabled if settings is not None else False
+        ),
+        fiscal_provider=(
+            settings.fiscal_provider if settings is not None else "mock"
+        ),
+        fiscal_municipality=(
+            settings.fiscal_municipality if settings is not None else None
+        ),
+        fiscal_service_code=(
+            settings.fiscal_service_code if settings is not None else None
+        ),
+        fiscal_email=(
+            settings.fiscal_email if settings is not None else None
+        ),
         enable_tithe_and_offering=(
             settings.enable_tithe_and_offering
             if settings is not None
@@ -132,6 +147,10 @@ async def update_tenant_settings(
         "agent_cancellation_policy",
         "agent_address_info",
         "agent_upsell",
+        "fiscal_provider",
+        "fiscal_municipality",
+        "fiscal_service_code",
+        "fiscal_email",
     ):
         if field in changes:
             value = changes[field]
@@ -140,6 +159,8 @@ async def update_tenant_settings(
                 field,
                 str(value).strip() if value is not None else None,
             )
+    if changes.get("fiscal_enabled") is not None:
+        settings.fiscal_enabled = bool(changes["fiscal_enabled"])
     if changes.get("enable_tithe_and_offering") is not None:
         settings.enable_tithe_and_offering = bool(
             changes["enable_tithe_and_offering"]

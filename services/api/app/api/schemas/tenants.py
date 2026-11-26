@@ -67,6 +67,11 @@ class TenantSettingsResponse(BaseModel):
     agent_cancellation_policy: str | None
     agent_address_info: str | None
     agent_upsell: str | None
+    fiscal_enabled: bool
+    fiscal_provider: str
+    fiscal_municipality: str | None
+    fiscal_service_code: str | None
+    fiscal_email: str | None
     enable_tithe_and_offering: bool
     tithe_percentage: Decimal
     offering_amount: Decimal
@@ -94,6 +99,11 @@ class TenantSettingsUpdateRequest(BaseModel):
     agent_cancellation_policy: str | None = Field(default=None, max_length=3000)
     agent_address_info: str | None = Field(default=None, max_length=3000)
     agent_upsell: str | None = Field(default=None, max_length=1000)
+    fiscal_enabled: bool | None = None
+    fiscal_provider: str | None = Field(default=None, max_length=30)
+    fiscal_municipality: str | None = Field(default=None, max_length=120)
+    fiscal_service_code: str | None = Field(default=None, max_length=60)
+    fiscal_email: str | None = Field(default=None, max_length=255)
     enable_tithe_and_offering: bool | None = None
     tithe_percentage: Decimal | None = Field(
         default=None,

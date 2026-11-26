@@ -22,6 +22,12 @@ const ROLE_LABEL: Record<string, string> = {
   COLLABORATOR: "Colaborador",
 };
 
+const EMPLOYMENT_LABEL: Record<string, string> = {
+  EMPLOYEE: "CLT/Funcionário",
+  PARTNER: "Parceiro",
+  MEI: "MEI",
+};
+
 function commissionLabel(user: UserSummary): string {
   const parts: string[] = [];
   if (user.commission_percentage) {
@@ -31,7 +37,9 @@ function commissionLabel(user: UserSummary): string {
     parts.push(`fixo ${formatPrice(user.commission_fixed)}`);
   }
   if (parts.length === 0) return "—";
-  return `${parts.join(" + ")} · ${user.commission_base}`;
+  return `${parts.join(" + ")} · ${user.commission_base} · ${
+    EMPLOYMENT_LABEL[user.employment_type] ?? user.employment_type
+  }`;
 }
 
 export default function TeamPage() {
@@ -47,6 +55,9 @@ export default function TeamPage() {
   const [commissionBase, setCommissionBase] = useState<"GROSS" | "NET">(
     "GROSS",
   );
+  const [employmentType, setEmploymentType] = useState<
+    "EMPLOYEE" | "PARTNER" | "MEI"
+  >("EMPLOYEE");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,6 +108,7 @@ export default function TeamPage() {
           commission_fixed:
             commissionFixed.trim() === "" ? null : commissionFixed,
           commission_base: commissionBase,
+          employment_type: employmentType,
         });
       } else {
         const payload = {
@@ -108,6 +120,7 @@ export default function TeamPage() {
           commission_fixed:
             commissionFixed.trim() === "" ? null : commissionFixed,
           commission_base: commissionBase,
+          employment_type: employmentType,
         };
         if (sendInvite) {
           await inviteUser(payload);
@@ -135,6 +148,7 @@ export default function TeamPage() {
     setCommissionPercentage(user.commission_percentage ?? "");
     setCommissionFixed(user.commission_fixed ?? "");
     setCommissionBase(user.commission_base === "NET" ? "NET" : "GROSS");
+    setEmploymentType(user.employment_type ?? "EMPLOYEE");
     setError(null);
   }
 
@@ -148,6 +162,7 @@ export default function TeamPage() {
     setCommissionPercentage("40.00");
     setCommissionFixed("0.00");
     setCommissionBase("GROSS");
+    setEmploymentType("EMPLOYEE");
   }
 
   async function handleDelete(user: UserSummary) {
@@ -393,6 +408,22 @@ export default function TeamPage() {
                   >
                     <option value="GROSS">Bruto</option>
                     <option value="NET">Líquido</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="employment-type">Vínculo</label>
+                  <select
+                    id="employment-type"
+                    value={employmentType}
+                    onChange={(event) =>
+                      setEmploymentType(
+                        event.target.value as "EMPLOYEE" | "PARTNER" | "MEI",
+                      )
+                    }
+                  >
+                    <option value="EMPLOYEE">CLT/Funcionário</option>
+                    <option value="PARTNER">Parceiro (salão-parceiro)</option>
+                    <option value="MEI">MEI</option>
                   </select>
                 </div>
                 <button className="button" type="submit" disabled={saving}>

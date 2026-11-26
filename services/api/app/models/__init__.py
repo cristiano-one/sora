@@ -8,6 +8,12 @@ from app.models.ai import (
 )
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.audit import AuditLog
+from app.models.automation import (
+    AutomationRule,
+    AutomationRun,
+    AutomationRunStatus,
+    AutomationTrigger,
+)
 from app.models.client import Client, ClientScoreEvent, ClientScoreRating, LgpdConsent
 from app.models.client_credit import ClientCredit, ClientCreditUsage
 from app.models.finance import (
@@ -18,11 +24,19 @@ from app.models.finance import (
     FinancialEntryStatus,
     FinancialEntryType,
 )
+from app.models.fiscal import FiscalInvoice, FiscalInvoiceStatus
 from app.models.inventory import InventoryItem, StockMovement, StockMovementType
 from app.models.medical_record import MedicalRecord, MedicalRecordAttachment
 from app.models.package import Package, PackageItem
 from app.models.payment import PaymentIntent, PaymentStatus
 from app.models.payroll import PayrollEntry, PayrollKind
+from app.models.sale import (
+    Sale,
+    SaleItem,
+    SaleItemCategory,
+    SalePaymentMethod,
+    SaleStatus,
+)
 from app.models.service import Service
 from app.models.subscription import (
     ClientSubscription,
@@ -42,7 +56,7 @@ from app.models.tenant import (
     supports_medical_records,
 )
 from app.models.tithe import TitheDelivery
-from app.models.user import CommissionBase, User, UserRole
+from app.models.user import CommissionBase, EmploymentType, User, UserRole
 
 __all__ = [
     "AccountType",
@@ -51,6 +65,10 @@ __all__ = [
     "Appointment",
     "AppointmentStatus",
     "AuditLog",
+    "AutomationRule",
+    "AutomationRun",
+    "AutomationRunStatus",
+    "AutomationTrigger",
     "BillingCycle",
     "BusinessProfile",
     "Client",
@@ -62,11 +80,14 @@ __all__ = [
     "ClientSubscriptionStatus",
     "CommissionBase",
     "ConversationStatus",
+    "EmploymentType",
     "FinancialAccount",
     "FinancialCategory",
     "FinancialEntry",
     "FinancialEntryStatus",
     "FinancialEntryType",
+    "FiscalInvoice",
+    "FiscalInvoiceStatus",
     "InventoryItem",
     "LgpdConsent",
     "MedicalRecord",
@@ -78,6 +99,11 @@ __all__ = [
     "PaymentStatus",
     "PayrollEntry",
     "PayrollKind",
+    "Sale",
+    "SaleItem",
+    "SaleItemCategory",
+    "SalePaymentMethod",
+    "SaleStatus",
     "Service",
     "StockMovement",
     "StockMovementType",

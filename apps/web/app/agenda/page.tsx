@@ -11,18 +11,32 @@ import {
 
 import { AppShell } from "@/components/app-shell";
 import {
+  addSaleItem,
   ApiError,
+  applySaleCredit,
+  cancelSale,
+  closeSale,
   createAppointment,
+  createSaleFromAppointment,
   getAppointmentsRange,
   getAvailability,
+  getCheckinLink,
+  getClientCredits,
   getClients,
   getMe,
+  getSaleAccounts,
   getServices,
   getUsers,
+  removeSaleItem,
   updateAppointment,
+  updateSale,
   type Appointment,
   type Client,
+  type ClientCredit,
   type Me,
+  type Sale,
+  type SaleAccount,
+  type SalePaymentMethod,
   type Service,
   type UserSummary,
 } from "@/lib/api";
@@ -92,6 +106,7 @@ export default function AgendaPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [checkinBusy, setCheckinBusy] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [formClient, setFormClient] = useState("");
@@ -107,6 +122,21 @@ export default function AgendaPage() {
     date: string;
     time: string;
   } | null>(null);
+
+  const [sale, setSale] = useState<Sale | null>(null);
+  const [saleBusy, setSaleBusy] = useState(false);
+  const [saleAccounts, setSaleAccounts] = useState<SaleAccount[]>([]);
+  const [saleCredits, setSaleCredits] = useState<ClientCredit[]>([]);
+  const [saleAccountId, setSaleAccountId] = useState("");
+  const [salePaymentMethod, setSalePaymentMethod] =
+    useState<SalePaymentMethod>("PIX");
+  const [saleDiscount, setSaleDiscount] = useState("0.00");
+  const [saleServiceId, setSaleServiceId] = useState("");
+  const [saleItemDescription, setSaleItemDescription] = useState("");
+  const [saleItemPrice, setSaleItemPrice] = useState("0.00");
+  const [saleCreditId, setSaleCreditId] = useState("");
+  const [saleCreditAmount, setSaleCreditAmount] = useState("0.00");
+  const [saleNotes, setSaleNotes] = useState("");
 
   const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
   const cells = useMemo(() => buildMonthCells(month), [month]);
@@ -299,6 +329,25 @@ export default function AgendaPage() {
     setError(null);
   }
 
+  async function handleCheckinLink(appointment: Appointment) {
+    setCheckinBusy(appointment.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const link = await getCheckinLink(appointment.id);
+      await navigator.clipboard.writeText(link.url);
+      setNotice("Link de check-in copiado. Envie ao cliente pelo WhatsApp.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Falha ao gerar o link de check-in.",
+      );
+    } finally {
+      setCheckinBusy(null);
+    }
+  }
+
   async function handleReschedule(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!reschedule) return;
@@ -327,6 +376,186 @@ export default function AgendaPage() {
       }
     } finally {
       setActionId(null);
+    }
+  }
+
+  async function openComanda(appointment: Appointment) {
+    setError(null);
+    setNotice(null);
+    setActionId(appointment.id);
+    try {
+      const [data, accounts, credits] = await Promise.all([
+        createSaleFromAppointment(appointment.id),
+        getSaleAccounts(),
+        getClientCredits(appointment.client_id),
+      ]);
+      setSale(data);
+      setSaleAccounts(accounts);
+      setSaleCredits(credits.filter((item) => item.is_available));
+      setSaleAccountId(accounts[0]?.id ?? "");
+      setSalePaymentMethod("PIX");
+      setSaleDiscount(data.discount);
+      setSaleNotes(data.notes ?? "");
+      setSaleServiceId(services[0]?.id ?? "");
+      setSaleItemDescription("");
+      setSaleItemPrice("0.00");
+      const available = credits.find((item) => item.is_available);
+      setSaleCreditId(available?.id ?? "");
+      setSaleCreditAmount(available?.remaining_amount ?? "0.00");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Não foi possível abrir a comanda.",
+      );
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  async function handleAddSaleService() {
+    if (!sale || !saleServiceId) return;
+    setSaleBusy(true);
+    setError(null);
+    try {
+      setSale(
+        await addSaleItem(sale.id, {
+          service_id: saleServiceId,
+          category: "SERVICE",
+          quantity: 1,
+        }),
+      );
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao adicionar serviço.",
+      );
+    } finally {
+      setSaleBusy(false);
+    }
+  }
+
+  async function handleAddManualItem() {
+    if (!sale || !saleItemDescription.trim()) return;
+    setSaleBusy(true);
+    setError(null);
+    try {
+      const updated = await addSaleItem(sale.id, {
+        category: "PRODUCT",
+        description: saleItemDescription.trim(),
+        quantity: 1,
+        unit_price: saleItemPrice,
+        cost: "0.00",
+      });
+      setSale(updated);
+      setSaleItemDescription("");
+      setSaleItemPrice("0.00");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao adicionar item.",
+      );
+    } finally {
+      setSaleBusy(false);
+    }
+  }
+
+  async function handleRemoveSaleItem(itemId: string) {
+    if (!sale) return;
+    setSaleBusy(true);
+    setError(null);
+    try {
+      setSale(await removeSaleItem(sale.id, itemId));
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao remover item.",
+      );
+    } finally {
+      setSaleBusy(false);
+    }
+  }
+
+  async function handleSaleDiscount() {
+    if (!sale) return;
+    setSaleBusy(true);
+    setError(null);
+    try {
+      setSale(
+        await updateSale(sale.id, {
+          discount: saleDiscount,
+          notes: saleNotes.trim() || null,
+        }),
+      );
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao aplicar desconto.",
+      );
+    } finally {
+      setSaleBusy(false);
+    }
+  }
+
+  async function handleSaleCredit() {
+    if (!sale || !saleCreditId) return;
+    setSaleBusy(true);
+    setError(null);
+    try {
+      const updated = await applySaleCredit(sale.id, {
+        credit_id: saleCreditId,
+        amount: saleCreditAmount,
+      });
+      setSale(updated);
+      const credits = await getClientCredits(sale.client_id);
+      setSaleCredits(credits.filter((item) => item.is_available));
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao aplicar crédito.",
+      );
+    } finally {
+      setSaleBusy(false);
+    }
+  }
+
+  async function handleCloseSale() {
+    if (!sale) return;
+    if (!saleAccountId) {
+      setError("Selecione a conta que receberá o pagamento.");
+      return;
+    }
+    setSaleBusy(true);
+    setError(null);
+    try {
+      const closed = await closeSale(sale.id, {
+        payment_method: salePaymentMethod,
+        account_id: saleAccountId,
+        notes: saleNotes.trim() || null,
+      });
+      setSale(null);
+      await refreshAgenda();
+      setNotice(`Comanda fechada: ${formatPrice(closed.total)}.`);
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao fechar comanda.",
+      );
+    } finally {
+      setSaleBusy(false);
+    }
+  }
+
+  async function handleCancelSale() {
+    if (!sale) return;
+    if (!window.confirm("Cancelar esta comanda e devolver créditos?")) return;
+    setSaleBusy(true);
+    setError(null);
+    try {
+      await cancelSale(sale.id);
+      setSale(null);
+      await refreshAgenda();
+      setNotice("Comanda cancelada.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao cancelar comanda.",
+      );
+    } finally {
+      setSaleBusy(false);
     }
   }
 
@@ -439,6 +668,11 @@ export default function AgendaPage() {
                             appointment.collaborator_id,
                           ) ?? "Profissional"}
                         </span>
+                        {appointment.checked_in_at ? (
+                          <span className="agenda-checkin">
+                            ✓ Chegou {formatTime(appointment.checked_in_at)}
+                          </span>
+                        ) : null}
                       </div>
                       {appointment.deposit_amount ? (
                         <span className="agenda-deposit">
@@ -446,6 +680,19 @@ export default function AgendaPage() {
                         </span>
                       ) : null}
                       <div className="agenda-card-actions">
+                        {isManager &&
+                        !["CANCELLED", "EXPIRED"].includes(
+                          appointment.status,
+                        ) ? (
+                          <button
+                            className="agenda-text-action agenda-text-strong"
+                            type="button"
+                            disabled={busy}
+                            onClick={() => openComanda(appointment)}
+                          >
+                            Comanda
+                          </button>
+                        ) : null}
                         {appointment.status === "PENDING_DEPOSIT" ? (
                           <button
                             className="agenda-text-action"
@@ -497,6 +744,18 @@ export default function AgendaPage() {
                         ) : null}
                         {!closed ? (
                           <>
+                            {!appointment.checked_in_at ? (
+                              <button
+                                className="agenda-text-action"
+                                type="button"
+                                disabled={checkinBusy === appointment.id}
+                                onClick={() => handleCheckinLink(appointment)}
+                              >
+                                {checkinBusy === appointment.id
+                                  ? "Gerando…"
+                                  : "Link check-in"}
+                              </button>
+                            ) : null}
                             <button
                               className="agenda-text-action"
                               type="button"
@@ -786,6 +1045,267 @@ export default function AgendaPage() {
                   </button>
                 </div>
               </form>
+            </section>
+          </div>
+        ) : null}
+
+        {sale ? (
+          <div
+            className="agenda-modal-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setSale(null);
+            }}
+          >
+            <section className="agenda-modal agenda-sale-modal">
+              <div className="agenda-modal-head">
+                <div>
+                  <span className="agenda-eyebrow">Comanda digital</span>
+                  <h2>{sale.client_name}</h2>
+                  <span className="muted-small">
+                    {sale.collaborator_name ?? "Profissional"} ·{" "}
+                    {sale.appointment_id
+                      ? "vinculada ao agendamento"
+                      : "venda avulsa"}
+                  </span>
+                </div>
+                <button
+                  className="agenda-nav-button"
+                  type="button"
+                  aria-label="Fechar"
+                  onClick={() => setSale(null)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="sale-items">
+                {sale.items.map((item) => (
+                  <div className="sale-item-row" key={item.id}>
+                    <div>
+                      <strong>{item.description}</strong>
+                      <span>
+                        {item.quantity} × {formatPrice(item.unit_price)}
+                      </span>
+                    </div>
+                    <strong>{formatPrice(item.total)}</strong>
+                    <button
+                      className="agenda-text-action agenda-text-danger"
+                      type="button"
+                      disabled={saleBusy}
+                      onClick={() => handleRemoveSaleItem(item.id)}
+                    >
+                      remover
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="sale-add-row sale-add-service">
+                <select
+                  aria-label="Adicionar serviço"
+                  value={saleServiceId}
+                  onChange={(event) => setSaleServiceId(event.target.value)}
+                >
+                  <option value="">Adicionar serviço…</option>
+                  {services.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name} · {formatPrice(service.price)}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="button button-ghost button-small"
+                  type="button"
+                  disabled={saleBusy || !saleServiceId}
+                  onClick={handleAddSaleService}
+                >
+                  + Serviço
+                </button>
+              </div>
+
+              <div className="sale-add-row sale-add-manual">
+                <input
+                  aria-label="Descrição do item avulso"
+                  value={saleItemDescription}
+                  onChange={(event) =>
+                    setSaleItemDescription(event.target.value)
+                  }
+                  placeholder="Produto ou item avulso"
+                />
+                <input
+                  aria-label="Valor do item avulso"
+                  inputMode="decimal"
+                  value={saleItemPrice}
+                  onChange={(event) => setSaleItemPrice(event.target.value)}
+                />
+                <button
+                  className="button button-ghost button-small"
+                  type="button"
+                  disabled={saleBusy || !saleItemDescription.trim()}
+                  onClick={handleAddManualItem}
+                >
+                  + Item
+                </button>
+              </div>
+
+              <div className="sale-summary">
+                <div>
+                  <span>Subtotal</span>
+                  <strong>{formatPrice(sale.subtotal)}</strong>
+                </div>
+                <div>
+                  <span>Desconto</span>
+                  <strong>− {formatPrice(sale.discount)}</strong>
+                </div>
+                <div>
+                  <span>Crédito</span>
+                  <strong>− {formatPrice(sale.credit_amount)}</strong>
+                </div>
+                <div className="sale-total">
+                  <span>Total</span>
+                  <strong>{formatPrice(sale.total)}</strong>
+                </div>
+              </div>
+
+              <div className="sale-controls">
+                <div className="field">
+                  <label htmlFor="sale-discount">Desconto (R$)</label>
+                  <div className="sale-inline">
+                    <input
+                      id="sale-discount"
+                      inputMode="decimal"
+                      value={saleDiscount}
+                      onChange={(event) =>
+                        setSaleDiscount(event.target.value)
+                      }
+                    />
+                    <button
+                      className="button button-ghost button-small"
+                      type="button"
+                      disabled={saleBusy}
+                      onClick={handleSaleDiscount}
+                    >
+                      Aplicar
+                    </button>
+                  </div>
+                </div>
+
+                {saleCredits.length > 0 ? (
+                  <div className="field">
+                    <label htmlFor="sale-credit">Crédito do cliente</label>
+                    <div className="sale-inline">
+                      <select
+                        id="sale-credit"
+                        value={saleCreditId}
+                        onChange={(event) => {
+                          setSaleCreditId(event.target.value);
+                          const credit = saleCredits.find(
+                            (item) => item.id === event.target.value,
+                          );
+                          setSaleCreditAmount(
+                            credit?.remaining_amount ?? "0.00",
+                          );
+                        }}
+                      >
+                        <option value="">Selecione…</option>
+                        {saleCredits.map((credit) => (
+                          <option key={credit.id} value={credit.id}>
+                            Saldo {formatPrice(credit.remaining_amount)}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        aria-label="Valor do crédito"
+                        inputMode="decimal"
+                        value={saleCreditAmount}
+                        onChange={(event) =>
+                          setSaleCreditAmount(event.target.value)
+                        }
+                      />
+                      <button
+                        className="button button-ghost button-small"
+                        type="button"
+                        disabled={saleBusy || !saleCreditId}
+                        onClick={handleSaleCredit}
+                      >
+                        Aplicar
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="field">
+                  <label htmlFor="sale-notes">Observação</label>
+                  <input
+                    id="sale-notes"
+                    value={saleNotes}
+                    onChange={(event) => setSaleNotes(event.target.value)}
+                    maxLength={2000}
+                  />
+                </div>
+
+                <div className="sale-close-grid">
+                  <div className="field">
+                    <label htmlFor="sale-payment">Pagamento</label>
+                    <select
+                      id="sale-payment"
+                      value={salePaymentMethod}
+                      onChange={(event) =>
+                        setSalePaymentMethod(
+                          event.target.value as SalePaymentMethod,
+                        )
+                      }
+                    >
+                      <option value="PIX">Pix</option>
+                      <option value="CASH">Dinheiro</option>
+                      <option value="CARD">Cartão</option>
+                      <option value="BOLETO">Boleto</option>
+                      <option value="TRANSFER">Transferência</option>
+                      <option value="OTHER">Outro</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="sale-account">Conta</label>
+                    <select
+                      id="sale-account"
+                      value={saleAccountId}
+                      onChange={(event) =>
+                        setSaleAccountId(event.target.value)
+                      }
+                    >
+                      <option value="">Selecione…</option>
+                      {saleAccounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.name} · {account.type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="agenda-modal-actions sale-actions">
+                <button
+                  className="agenda-text-action agenda-text-danger"
+                  type="button"
+                  disabled={saleBusy}
+                  onClick={handleCancelSale}
+                >
+                  Cancelar comanda
+                </button>
+                <button
+                  className="button"
+                  type="button"
+                  disabled={saleBusy || !saleAccountId}
+                  onClick={handleCloseSale}
+                >
+                  {saleBusy
+                    ? "Fechando…"
+                    : `Fechar comanda · ${formatPrice(sale.total)}`}
+                </button>
+              </div>
+              {error ? <p className="error">{error}</p> : null}
             </section>
           </div>
         ) : null}

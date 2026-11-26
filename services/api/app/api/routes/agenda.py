@@ -13,6 +13,7 @@ from app.api.schemas.agenda import (
     AppointmentResponse,
     AppointmentUpdateRequest,
     AvailabilityResponse,
+    CheckinLinkResponse,
 )
 from app.core.audit import client_ip, record_audit
 from app.core.auth.dependencies import (
@@ -22,7 +23,7 @@ from app.core.auth.dependencies import (
 )
 from app.core.config import settings
 from app.core.redis import get_redis
-from app.models import Appointment
+from app.models import Appointment, Tenant
 from app.modules.agenda.service import (
     AgendaBusyError,
     ForbiddenAgendaError,
@@ -75,6 +76,7 @@ def _appointment_response(appointment: Appointment) -> AppointmentResponse:
         status=appointment.status,
         deposit_amount=appointment.deposit_amount,
         subscription_id=appointment.subscription_id,
+        checked_in_at=appointment.checked_in_at,
     )
 
 
@@ -192,6 +194,39 @@ async def get_appointment_endpoint(
             detail="Agendamento não encontrado",
         )
     return _appointment_response(appointment)
+
+
+@router.post(
+    "/appointments/{appointment_id}/checkin-link",
+    response_model=CheckinLinkResponse,
+    summary="Gera o link público de check-in",
+)
+async def checkin_link_endpoint(
+    appointment_id: UUID,
+    principal: Principal = Depends(get_current_principal),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> CheckinLinkResponse:
+    appointment = await get_appointment(
+        session,
+        principal=principal,
+        appointment_id=appointment_id,
+    )
+    if appointment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Agendamento não encontrado",
+        )
+    tenant = await session.get(Tenant, principal.tenant_id)
+    if tenant is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Clínica não encontrada",
+        )
+    url = (
+        f"{settings.public_booking_base_url}/checkin/{tenant.slug}/"
+        f"{appointment.checkin_token}"
+    )
+    return CheckinLinkResponse(url=url, token=appointment.checkin_token)
 
 
 @router.patch(

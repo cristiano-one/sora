@@ -53,6 +53,14 @@
     ajustar depois.
   - Configurações separadas em Aparência, Agenda & score, Agente SORA IA,
     Financeiro, Automações e Dados & LGPD.
+  - comanda digital com itens, desconto, crédito, pagamento, caixa/DRE,
+    comissão e NFS-e mock.
+  - check-in digital por link público e status na agenda.
+  - automações/CRM com confirmação, lembretes, pós-atendimento, recuperação
+    e aniversário, além de worker e logs de execução.
+  - vínculo CLT/parceiro/MEI no cadastro da equipe.
+  - landing de vendas em `/` com CTA para cadastro.
+  - mobile iniciado com aba Início, resumo diário e atalhos.
 
 ## Regras de aceite
 

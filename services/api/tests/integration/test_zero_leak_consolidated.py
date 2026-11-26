@@ -34,6 +34,11 @@ RLS_TABLES = {
     "payroll_entries",
     "tithe_deliveries",
     "client_credit_usages",
+    "sales",
+    "sale_items",
+    "automation_rules",
+    "automation_runs",
+    "fiscal_invoices",
 }
 
 

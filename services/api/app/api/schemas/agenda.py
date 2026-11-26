@@ -43,6 +43,14 @@ class AppointmentResponse(BaseModel):
     status: AppointmentStatus
     deposit_amount: Decimal | None
     subscription_id: UUID | None
+    checked_in_at: datetime | None
+
+
+class CheckinLinkResponse(BaseModel):
+    """Link público de check-in do agendamento."""
+
+    url: str
+    token: str
 
 
 class AvailabilityResponse(BaseModel):

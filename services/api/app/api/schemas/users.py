@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.models import CommissionBase, UserRole
+from app.models import CommissionBase, EmploymentType, UserRole
 
 
 class UserCreateRequest(BaseModel):
@@ -29,6 +29,7 @@ class UserCreateRequest(BaseModel):
         decimal_places=2,
     )
     commission_base: CommissionBase = CommissionBase.GROSS
+    employment_type: EmploymentType = EmploymentType.EMPLOYEE
 
 
 class UserInviteRequest(BaseModel):
@@ -51,6 +52,7 @@ class UserInviteRequest(BaseModel):
         decimal_places=2,
     )
     commission_base: CommissionBase = CommissionBase.GROSS
+    employment_type: EmploymentType = EmploymentType.EMPLOYEE
 
 
 class UserUpdateRequest(BaseModel):
@@ -73,6 +75,7 @@ class UserUpdateRequest(BaseModel):
         decimal_places=2,
     )
     commission_base: CommissionBase | None = None
+    employment_type: EmploymentType | None = None
 
 
 class UserResponse(BaseModel):
@@ -89,6 +92,7 @@ class UserResponse(BaseModel):
     commission_percentage: Decimal | None
     commission_fixed: Decimal | None
     commission_base: CommissionBase
+    employment_type: EmploymentType
 
 
 class CommissionResponse(BaseModel):

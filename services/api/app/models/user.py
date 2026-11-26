@@ -37,6 +37,14 @@ class CommissionBase(enum.StrEnum):
     NET = "NET"
 
 
+class EmploymentType(enum.StrEnum):
+    """Vínculo trabalhista/fiscal do profissional."""
+
+    EMPLOYEE = "EMPLOYEE"
+    PARTNER = "PARTNER"
+    MEI = "MEI"
+
+
 class User(Base):
     """Usuário interno vinculado a um tenant."""
 
@@ -77,6 +85,12 @@ class User(Base):
         nullable=False,
         default=CommissionBase.GROSS,
         server_default=text("'GROSS'"),
+    )
+    employment_type: Mapped[EmploymentType] = mapped_column(
+        Enum(EmploymentType, name="employment_type", native_enum=True),
+        nullable=False,
+        default=EmploymentType.EMPLOYEE,
+        server_default=text("'EMPLOYEE'"),
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,

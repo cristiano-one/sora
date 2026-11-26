@@ -1,6 +1,7 @@
 """Modelo de agendamentos com trava anti-conflito."""
 
 import enum
+import secrets
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -12,6 +13,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Numeric,
+    String,
     Text,
     func,
     text,
@@ -110,6 +112,18 @@ class Appointment(Base):
         nullable=True,
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    checkin_token: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: secrets.token_urlsafe(24),
+        server_default=text("replace(gen_random_uuid()::text, '-', '')"),
+    )
+    checked_in_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     created_by: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
