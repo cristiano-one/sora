@@ -137,10 +137,23 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
   const [entryStatus, setEntryStatus] = useState<"PENDING" | "PAID">("PAID");
   const [entryCashDate, setEntryCashDate] = useState(today);
 
+  const [commissionCollaborator, setCommissionCollaborator] = useState("");
+  const [commissionDescription, setCommissionDescription] = useState("");
+  const [commissionAmount, setCommissionAmount] = useState("0.00");
+  const [commissionCompetence, setCommissionCompetence] = useState(today);
+  const [commissionStatus, setCommissionStatus] = useState<"PENDING" | "PAID">(
+    "PAID",
+  );
+  const [commissionCashDate, setCommissionCashDate] = useState(today);
+
   const isOwner = me?.role === "OWNER";
   const categories = useMemo(
     () => (entryType === "INCOME" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES),
     [entryType],
+  );
+  const commissionEntries = useMemo(
+    () => entries.filter((entry) => entry.category === "COMMISSION"),
+    [entries],
   );
 
   const load = useCallback(async () => {
@@ -243,6 +256,48 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Falha ao criar lançamento.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCreateCommission(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setNotice(null);
+    if (!entryAccount) {
+      setError("Cadastre uma conta antes de lançar a comissão.");
+      return;
+    }
+    const collaborator = commissions?.items.find(
+      (item) => item.collaborator_id === commissionCollaborator,
+    );
+    const description =
+      commissionDescription.trim() ||
+      (collaborator
+        ? `Comissão — ${collaborator.collaborator_name}`
+        : "Comissão");
+    setSaving(true);
+    try {
+      await createFinancialEntry({
+        account_id: entryAccount,
+        type: "EXPENSE",
+        category: "COMMISSION",
+        description,
+        amount: commissionAmount,
+        competence_date: commissionCompetence,
+        cash_date:
+          commissionStatus === "PAID" ? commissionCashDate : null,
+        status: commissionStatus,
+      });
+      setCommissionDescription("");
+      setCommissionAmount("0.00");
+      await load();
+      setNotice("Comissão lançada no financeiro.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao lançar comissão.",
       );
     } finally {
       setSaving(false);
@@ -742,48 +797,241 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
         ) : null}
 
         {section === "commissions" ? (
-          <div className="finance-grid">
-            <section className="panel">
-              <div className="panel-title">
-                <h2>Comissões apuradas</h2>
-                <span className="muted-small">
-                  Total {formatPrice(commissions?.total ?? null)}
-                </span>
-              </div>
-              {!commissions || commissions.items.length === 0 ? (
-                <p className="table-empty">
-                  Nenhum atendimento concluído no período.
+          <>
+            <div className="admin-grid finance-grid">
+              <section className="panel">
+                <div className="panel-title">
+                  <h2>Comissões apuradas</h2>
+                  <span className="muted-small">
+                    Total {formatPrice(commissions?.total ?? null)}
+                  </span>
+                </div>
+                <p className="muted-small commission-hint">
+                  Cálculo automático sobre atendimentos concluídos. As regras
+                  por profissional ficam em{" "}
+                  <a href="/equipe">Equipe &amp; Comissões</a>.
                 </p>
-              ) : (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Profissional</th>
-                      <th>Atendimentos</th>
-                      <th>Receita</th>
-                      <th>Comissão</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {commissions.items.map((item) => (
-                      <tr key={item.collaborator_id}>
-                        <td>
-                          <strong>{item.collaborator_name}</strong>
-                        </td>
-                        <td>{item.completed_appointments}</td>
-                        <td className="price-cell">
-                          {formatPrice(item.gross_revenue)}
-                        </td>
-                        <td className="price-cell">
-                          {formatPrice(item.commission_amount)}
-                        </td>
+                {!commissions || commissions.items.length === 0 ? (
+                  <p className="table-empty">
+                    Nenhum atendimento concluído no período.
+                  </p>
+                ) : (
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Profissional</th>
+                        <th>Atendimentos</th>
+                        <th>Receita</th>
+                        <th>Comissão</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </section>
-          </div>
+                    </thead>
+                    <tbody>
+                      {commissions.items.map((item) => (
+                        <tr key={item.collaborator_id}>
+                          <td>
+                            <strong>{item.collaborator_name}</strong>
+                          </td>
+                          <td>{item.completed_appointments}</td>
+                          <td className="price-cell">
+                            {formatPrice(item.gross_revenue)}
+                          </td>
+                          <td className="price-cell">
+                            {formatPrice(item.commission_amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </section>
+
+              <section className="panel">
+                <div className="panel-title">
+                  <h2>Registrar comissão</h2>
+                </div>
+                <form onSubmit={handleCreateCommission}>
+                  <div className="field">
+                    <label htmlFor="commission-account">Conta/caixa</label>
+                    <select
+                      id="commission-account"
+                      value={entryAccount}
+                      onChange={(event) => setEntryAccount(event.target.value)}
+                      required
+                    >
+                      <option value="">Selecione…</option>
+                      {accounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="commission-collaborator">
+                      Profissional (opcional)
+                    </label>
+                    <select
+                      id="commission-collaborator"
+                      value={commissionCollaborator}
+                      onChange={(event) =>
+                        setCommissionCollaborator(event.target.value)
+                      }
+                    >
+                      <option value="">Sem vínculo / outro</option>
+                      {(commissions?.items ?? []).map((item) => (
+                        <option
+                          key={item.collaborator_id}
+                          value={item.collaborator_id}
+                        >
+                          {item.collaborator_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="commission-description">
+                      Descrição (opcional)
+                    </label>
+                    <input
+                      id="commission-description"
+                      value={commissionDescription}
+                      onChange={(event) =>
+                        setCommissionDescription(event.target.value)
+                      }
+                      placeholder="Ex.: comissão do atendimento de hoje"
+                    />
+                  </div>
+                  <div className="form-grid">
+                    <div className="field">
+                      <label htmlFor="commission-amount">Valor (R$)</label>
+                      <input
+                        id="commission-amount"
+                        value={commissionAmount}
+                        onChange={(event) =>
+                          setCommissionAmount(event.target.value)
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="commission-competence">
+                        Competência
+                      </label>
+                      <input
+                        id="commission-competence"
+                        type="date"
+                        value={commissionCompetence}
+                        onChange={(event) =>
+                          setCommissionCompetence(event.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="commission-status">Status</label>
+                      <select
+                        id="commission-status"
+                        value={commissionStatus}
+                        onChange={(event) =>
+                          setCommissionStatus(
+                            event.target.value as "PENDING" | "PAID",
+                          )
+                        }
+                      >
+                        <option value="PAID">Pago</option>
+                        <option value="PENDING">Pendente</option>
+                      </select>
+                    </div>
+                    {commissionStatus === "PAID" ? (
+                      <div className="field">
+                        <label htmlFor="commission-cash">Data de caixa</label>
+                        <input
+                          id="commission-cash"
+                          type="date"
+                          value={commissionCashDate}
+                          onChange={(event) =>
+                            setCommissionCashDate(event.target.value)
+                          }
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                  <button className="button" type="submit" disabled={saving}>
+                    {saving ? "Lançando…" : "Lançar comissão"}
+                  </button>
+                </form>
+              </section>
+            </div>
+
+            <div className="finance-grid">
+              <section className="panel">
+                <div className="panel-title">
+                  <h2>Comissões lançadas no período</h2>
+                  <span className="muted-small">
+                    {commissionEntries.length} lançamento(s)
+                  </span>
+                </div>
+                {commissionEntries.length === 0 ? (
+                  <p className="table-empty">
+                    Nenhuma comissão lançada no período.
+                  </p>
+                ) : (
+                  <div className="table-wrap">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Competência</th>
+                          <th>Descrição</th>
+                          <th>Valor</th>
+                          <th>Status</th>
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {commissionEntries.map((entry) => (
+                          <tr key={entry.id}>
+                            <td>{formatDateLabel(entry.competence_date)}</td>
+                            <td>
+                              <strong>{entry.description}</strong>
+                              {entry.cash_date ? (
+                                <div className="muted-small">
+                                  caixa {formatDateLabel(entry.cash_date)}
+                                </div>
+                              ) : null}
+                            </td>
+                            <td className="price-cell negative">
+                              − {formatPrice(entry.amount)}
+                            </td>
+                            <td>
+                              <span
+                                className={`pill ${
+                                  entry.status === "PAID" ? "pill-active" : ""
+                                }`}
+                              >
+                                {entry.status === "PAID"
+                                  ? "Pago"
+                                  : "Pendente"}
+                              </span>
+                            </td>
+                            <td>
+                              {entry.status === "PENDING" ? (
+                                <button
+                                  className="button button-ghost button-small"
+                                  type="button"
+                                  onClick={() => markPaid(entry)}
+                                >
+                                  Baixar
+                                </button>
+                              ) : null}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            </div>
+          </>
         ) : null}
 
         {section === "sales" ? (
