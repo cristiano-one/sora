@@ -58,6 +58,12 @@ class TenantSettingsResponse(BaseModel):
     deposit_amount_low_score: Decimal | None
     theme_primary_color: str
     agent_name: str
+    agent_tone: str
+    agent_welcome_message: str | None
+    agent_knowledge: str | None
+    agent_cancellation_policy: str | None
+    agent_address_info: str | None
+    agent_upsell: str | None
     enable_tithe_and_offering: bool
     tithe_percentage: Decimal
     offering_amount: Decimal
@@ -79,6 +85,12 @@ class TenantSettingsUpdateRequest(BaseModel):
         pattern=r"^#[0-9A-Fa-f]{6}$",
     )
     agent_name: str | None = Field(default=None, min_length=1, max_length=100)
+    agent_tone: str | None = Field(default=None, min_length=1, max_length=30)
+    agent_welcome_message: str | None = Field(default=None, max_length=3000)
+    agent_knowledge: str | None = Field(default=None, max_length=5000)
+    agent_cancellation_policy: str | None = Field(default=None, max_length=3000)
+    agent_address_info: str | None = Field(default=None, max_length=3000)
+    agent_upsell: str | None = Field(default=None, max_length=1000)
     enable_tithe_and_offering: bool | None = None
     tithe_percentage: Decimal | None = Field(
         default=None,

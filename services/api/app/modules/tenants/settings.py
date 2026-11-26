@@ -42,6 +42,24 @@ def settings_response(
         agent_name=(
             settings.agent_name if settings is not None else DEFAULT_AGENT_NAME
         ),
+        agent_tone=(
+            settings.agent_tone if settings is not None else "acolhedor"
+        ),
+        agent_welcome_message=(
+            settings.agent_welcome_message if settings is not None else None
+        ),
+        agent_knowledge=(
+            settings.agent_knowledge if settings is not None else None
+        ),
+        agent_cancellation_policy=(
+            settings.agent_cancellation_policy
+            if settings is not None
+            else None
+        ),
+        agent_address_info=(
+            settings.agent_address_info if settings is not None else None
+        ),
+        agent_upsell=settings.agent_upsell if settings is not None else None,
         enable_tithe_and_offering=(
             settings.enable_tithe_and_offering
             if settings is not None
@@ -107,6 +125,21 @@ async def update_tenant_settings(
         settings.theme_primary_color = str(changes["theme_primary_color"])
     if "agent_name" in changes:
         settings.agent_name = str(changes["agent_name"])
+    for field in (
+        "agent_tone",
+        "agent_welcome_message",
+        "agent_knowledge",
+        "agent_cancellation_policy",
+        "agent_address_info",
+        "agent_upsell",
+    ):
+        if field in changes:
+            value = changes[field]
+            setattr(
+                settings,
+                field,
+                str(value).strip() if value is not None else None,
+            )
     if changes.get("enable_tithe_and_offering") is not None:
         settings.enable_tithe_and_offering = bool(
             changes["enable_tithe_and_offering"]

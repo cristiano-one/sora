@@ -44,6 +44,8 @@ class AiConversationResponse(BaseModel):
     client_name: str | None
     phone: str
     status: ConversationStatus
+    needs_approval: bool
+    approval_note: str | None
     last_message: str | None
     last_message_at: datetime
     last_intent: str | None = None
@@ -77,6 +79,7 @@ class AiSummaryResponse(BaseModel):
     agent_name: str
     open_conversations: int
     human_conversations: int
+    approvals_pending: int
     messages_today: int
     appointments_today: int
     birthdays: list[BirthdayItemResponse]

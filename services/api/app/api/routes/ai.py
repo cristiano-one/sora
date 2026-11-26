@@ -30,9 +30,11 @@ from app.db.session import get_session
 from app.models import UserRole
 from app.modules.agenda.public_service import PublicBookingError
 from app.modules.ai.service import (
+    AiApprovalError,
     AiConversationNotFoundError,
     AiTenantNotFoundError,
     ai_summary,
+    approve_conversation,
     close_conversation,
     conversation_detail,
     create_birthday_credits,
@@ -194,6 +196,45 @@ async def takeover_endpoint(
         tenant_id=principal.tenant_id,
         actor=principal,
         action="ai.conversation.takeover",
+        resource_type="ai_conversation",
+        resource_id=conversation_id,
+        ip_address=client_ip(request),
+    )
+    return result
+
+
+@router.post(
+    "/conversations/{conversation_id}/approve",
+    response_model=AiConversationDetailResponse,
+    summary="Aprova uma exceção solicitada pelo cliente",
+)
+async def approve_endpoint(
+    conversation_id: UUID,
+    request: Request,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> AiConversationDetailResponse:
+    try:
+        result = await approve_conversation(
+            session,
+            tenant_id=principal.tenant_id,
+            conversation_id=conversation_id,
+        )
+    except AiConversationNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversa não encontrada",
+        ) from exc
+    except AiApprovalError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Conversa não está aguardando aprovação",
+        ) from exc
+    await record_audit(
+        session,
+        tenant_id=principal.tenant_id,
+        actor=principal,
+        action="ai.conversation.approve",
         resource_type="ai_conversation",
         resource_id=conversation_id,
         ip_address=client_ip(request),

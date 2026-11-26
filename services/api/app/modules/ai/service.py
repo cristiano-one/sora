@@ -65,6 +65,29 @@ MY_APPOINTMENT_MARKERS = (
     "meus horarios",
 )
 HUMAN_MARKERS = ("atendente", "humano", "falar com", "recepcao")
+APPROVAL_MARKERS = (
+    "excecao",
+    "abrir mao",
+    "sem cobrar",
+    "doente",
+    "encaixe",
+    "desconto",
+    "remarcar sem",
+)
+CANCELLATION_MARKERS = (
+    "cancelamento",
+    "cancelar",
+    "atraso",
+    "politica de",
+    "regra de",
+)
+LOCATION_MARKERS = (
+    "endereco",
+    "onde fica",
+    "estacionamento",
+    "localizacao",
+    "como chegar",
+)
 GREETING_MARKERS = ("oi", "ola", "bom dia", "boa tarde", "boa noite")
 ZERO = Decimal("0.00")
 
@@ -75,6 +98,10 @@ class AiTenantNotFoundError(Exception):
 
 class AiConversationNotFoundError(Exception):
     """Conversa inexistente no tenant."""
+
+
+class AiApprovalError(Exception):
+    """Conversa não está aguardando aprovação."""
 
 
 def _normalize_text(value: str) -> str:
@@ -262,6 +289,15 @@ async def handle_whatsapp_message(
     elif any(marker in normalized for marker in MY_APPOINTMENT_MARKERS):
         intent = "my_appointments"
         reply = await _appointment_reply(session, client=client)
+    elif any(marker in normalized for marker in APPROVAL_MARKERS):
+        intent = "approval"
+        conversation.status = ConversationStatus.HUMAN
+        conversation.needs_approval = True
+        conversation.approval_note = text.strip()[:500]
+        reply = (
+            "Entendi. Vou pedir uma aprovação da equipe da clínica e "
+            "retorno em seguida."
+        )
     elif any(marker in normalized for marker in BOOKING_MARKERS):
         intent = "booking"
         if client is not None and client.is_blocked:
@@ -283,16 +319,38 @@ async def handle_whatsapp_message(
     elif any(marker in normalized for marker in PRICE_MARKERS):
         intent = "prices"
         reply = await _price_reply(session)
+        if (
+            tenant_settings is not None
+            and tenant_settings.agent_upsell
+        ):
+            reply = f"{reply} {tenant_settings.agent_upsell.strip()}"
+    elif any(marker in normalized for marker in CANCELLATION_MARKERS) and (
+        tenant_settings is not None
+        and tenant_settings.agent_cancellation_policy
+    ):
+        intent = "policy"
+        reply = tenant_settings.agent_cancellation_policy.strip()
+    elif any(marker in normalized for marker in LOCATION_MARKERS) and (
+        tenant_settings is not None and tenant_settings.agent_address_info
+    ):
+        intent = "location"
+        reply = tenant_settings.agent_address_info.strip()
     elif any(marker in normalized for marker in HUMAN_MARKERS):
         intent = "human"
         conversation.status = ConversationStatus.HUMAN
         reply = "Vou chamar a equipe da clínica para continuar seu atendimento."
     elif normalized in GREETING_MARKERS:
         intent = "greeting"
-        reply = (
-            f"Olá! Sou a {agent_name}, atendente virtual da {tenant.name}. "
-            "Posso ajudar com agendamento, horários ou valores."
-        )
+        if (
+            tenant_settings is not None
+            and tenant_settings.agent_welcome_message
+        ):
+            reply = tenant_settings.agent_welcome_message.strip()
+        else:
+            reply = (
+                f"Olá! Sou a {agent_name}, atendente virtual da {tenant.name}. "
+                "Posso ajudar com agendamento, horários ou valores."
+            )
     else:
         reply = (
             f"Sou a {agent_name}. Posso ajudar com agendamento, horários e "
@@ -358,6 +416,8 @@ async def list_conversations(
             ),
             phone=conversation.phone,
             status=conversation.status,
+            needs_approval=conversation.needs_approval,
+            approval_note=conversation.approval_note,
             last_message=previews.get(conversation.id),
             last_message_at=conversation.last_message_at,
             last_intent=intents.get(conversation.id),
@@ -399,6 +459,8 @@ async def conversation_detail(
         ),
         phone=conversation.phone,
         status=conversation.status,
+        needs_approval=conversation.needs_approval,
+        approval_note=conversation.approval_note,
         last_message=last,
         last_message_at=conversation.last_message_at,
         messages=[_message_response(message) for message in messages],
@@ -422,6 +484,39 @@ async def takeover_conversation(
         intent="takeover",
     )
     await session.commit()
+    await set_tenant_context(session, tenant_id)
+    return await conversation_detail(session, conversation_id)
+
+
+async def approve_conversation(
+    session: AsyncSession,
+    *,
+    tenant_id: UUID,
+    conversation_id: UUID,
+) -> AiConversationDetailResponse:
+    """Aprova a exceção solicitada e devolve a conversa para a SORA IA."""
+    conversation = await _get_conversation(session, conversation_id)
+    if not conversation.needs_approval or (
+        conversation.status == ConversationStatus.CLOSED
+    ):
+        raise AiApprovalError
+    conversation.needs_approval = False
+    conversation.approval_note = None
+    conversation.status = ConversationStatus.OPEN
+    content = (
+        "A equipe da clínica aprovou a sua solicitação. "
+        "Como posso ajudar agora?"
+    )
+    _add_message(
+        session,
+        tenant_id=tenant_id,
+        conversation=conversation,
+        direction=MessageDirection.OUTBOUND,
+        content=content,
+        intent="approval",
+    )
+    await session.commit()
+    await send_whatsapp_message(phone=conversation.phone, text=content)
     await set_tenant_context(session, tenant_id)
     return await conversation_detail(session, conversation_id)
 
@@ -459,6 +554,8 @@ async def close_conversation(
 ) -> AiConversationDetailResponse:
     conversation = await _get_conversation(session, conversation_id)
     conversation.status = ConversationStatus.CLOSED
+    conversation.needs_approval = False
+    conversation.approval_note = None
     await session.commit()
     await set_tenant_context(session, tenant_id)
     return await conversation_detail(session, conversation_id)
@@ -531,6 +628,12 @@ async def ai_summary(
             AiConversation.status == ConversationStatus.HUMAN
         )
     )
+    approval_count = await session.scalar(
+        select(func.count(AiConversation.id)).where(
+            AiConversation.needs_approval.is_(True),
+            AiConversation.status != ConversationStatus.CLOSED,
+        )
+    )
     messages_today = await session.scalar(
         select(func.count(AiMessage.id)).where(
             AiMessage.created_at >= start,
@@ -556,6 +659,7 @@ async def ai_summary(
         ),
         open_conversations=int(open_count or 0),
         human_conversations=int(human_count or 0),
+        approvals_pending=int(approval_count or 0),
         messages_today=int(messages_today or 0),
         appointments_today=int(appointments_today or 0),
         birthdays=await _birthdays(session, tenant_id=tenant_id, today=today),

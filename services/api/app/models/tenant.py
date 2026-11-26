@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    Text,
     func,
     text,
 )
@@ -125,6 +126,20 @@ class TenantSettings(Base):
         default="Sora",
         server_default=text("'Sora'"),
     )
+    agent_tone: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="acolhedor",
+        server_default=text("'acolhedor'"),
+    )
+    agent_welcome_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    agent_knowledge: Mapped[str | None] = mapped_column(Text, nullable=True)
+    agent_cancellation_policy: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    agent_address_info: Mapped[str | None] = mapped_column(Text, nullable=True)
+    agent_upsell: Mapped[str | None] = mapped_column(Text, nullable=True)
     enable_tithe_and_offering: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
