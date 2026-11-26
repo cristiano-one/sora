@@ -26,6 +26,8 @@ RLS_TABLES = {
     "payment_intents",
     "financial_accounts",
     "financial_entries",
+    "ai_conversations",
+    "ai_messages",
 }
 
 

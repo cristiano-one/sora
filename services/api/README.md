@@ -179,6 +179,24 @@ Dízimo/oferta são configurados em `/tenants/settings` (`enable_tithe_and_offer
 `tithe_percentage`, `offering_amount`) e aparecem na DRE. O CSV não substitui o
 gateway real; ele usa os lançamentos manuais para validar o fluxo.
 
+## SORA IA (Fase 5)
+
+- `POST /api/v1/ai/whatsapp/webhook` — **interno** (`X-Internal-Token`), recebe
+  `{tenant_slug, phone, text}` do roteador de WhatsApp.
+- Intents determinísticas: saudação, agendamento (gera link mágico), preços,
+  meus agendamentos, humano e fallback.
+- Guardrail: a mensagem nunca altera tenant/escopo; score, bloqueio e dados de
+  terceiros não aparecem na resposta.
+- `GET /api/v1/ai/conversations` e `GET /conversations/{id}` — central
+  (`OWNER`/`ADMIN`).
+- `POST /conversations/{id}/takeover`, `/messages` e `/close` — assume,
+  responde e encerra o atendimento humano.
+- `GET /api/v1/ai/summary?date=` — resumo diário e aniversariantes (7 dias).
+
+O webhook é mock: o envio real pelo WhatsApp e o LLM (PydanticAI) entram na
+integração final. O motor atual é determinístico para validar o fluxo com custo
+zero de tokens.
+
 ## Testes de integração
 
 Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**

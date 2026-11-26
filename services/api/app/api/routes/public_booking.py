@@ -1,10 +1,9 @@
 """Endpoints públicos de link mágico e agendamento (sem login)."""
 
-import hmac
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +20,7 @@ from app.api.schemas.subscriptions import (
     PublicSubscriptionCreateRequest,
     PublicSubscriptionResponse,
 )
-from app.core.config import settings
+from app.core.internal_auth import verify_internal_token
 from app.core.redis import get_redis
 from app.db.session import get_session
 from app.modules.agenda.public_service import (
@@ -46,14 +45,6 @@ from app.modules.agenda.service import (
 )
 
 router = APIRouter(prefix="/public", tags=["public-booking"])
-
-
-def _verify_internal(x_internal_token: str = Header(default="")) -> None:
-    if not hmac.compare_digest(x_internal_token, settings.internal_api_token):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Não autorizado",
-        )
 
 
 def _map_public_error(exc: Exception) -> HTTPException:
@@ -101,7 +92,7 @@ def _map_public_error(exc: Exception) -> HTTPException:
 @router.post(
     "/{slug}/magic-link",
     response_model=MagicLinkResponse,
-    dependencies=[Depends(_verify_internal)],
+    dependencies=[Depends(verify_internal_token)],
     summary="Gera link mágico para o WhatsApp (interno)",
 )
 async def create_magic_link_endpoint(
