@@ -32,6 +32,7 @@ import {
   type SalesSummary,
 } from "@/lib/api";
 import { formatDateLabel, formatTime, todayInTenant } from "@/lib/agenda";
+import { buildDreRows } from "@/lib/finance";
 import { formatPrice } from "@/lib/public";
 
 const CATEGORY_LABEL: Record<FinancialCategory, string> = {
@@ -442,19 +443,7 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
     );
   }
 
-  const dreRows = dre
-    ? [
-        ["Receita bruta", dre.gross_revenue, false],
-        ["(-) Deduções e taxas", dre.deductions, true],
-        ["(-) Custos e insumos", dre.costs, true],
-        ["(-) Despesas operacionais", dre.operating_expenses, true],
-        ["(=) Lucro líquido", dre.net_profit, false],
-        ["Comissões apuradas", dre.commissions_accrued, false],
-        ["Dízimo", dre.tithe_amount, true],
-        ["Oferta", dre.offering_amount, true],
-        ["Após dízimo/oferta", dre.after_tithe_and_offering, false],
-      ]
-    : [];
+  const dreRows = dre ? buildDreRows(dre) : [];
 
   return (
     <AppShell>
@@ -589,20 +578,20 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
               ) : (
                 <table className="data-table finance-summary">
                   <tbody>
-                    {dreRows.map(([label, value, negative]) => (
-                      <tr key={String(label)}>
-                        <td>{label}</td>
+                    {dreRows.map((row) => (
+                      <tr key={row.label}>
+                        <td>{row.label}</td>
                         <td
                           className={`price-cell ${
-                            negative
+                            row.negative
                               ? "negative"
-                              : value === dre.net_profit
+                              : row.highlight
                                 ? "positive"
                                 : ""
                           }`}
                         >
-                          {negative ? "− " : ""}
-                          {formatPrice(String(value))}
+                          {row.negative ? "− " : ""}
+                          {formatPrice(row.value)}
                         </td>
                       </tr>
                     ))}
