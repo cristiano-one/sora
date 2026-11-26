@@ -86,6 +86,7 @@ const SECTIONS = [
           { href: "/configuracoes/aparencia", label: "Aparência" },
           { href: "/configuracoes/agenda", label: "Agenda & score" },
           { href: "/configuracoes/agente", label: "Agente SORA IA" },
+          { href: "/configuracoes/whatsapp", label: "WhatsApp" },
           { href: "/configuracoes/financeiro", label: "Financeiro" },
           { href: "/configuracoes/automacoes", label: "Automações" },
           { href: "/configuracoes/dados", label: "Dados & LGPD" },

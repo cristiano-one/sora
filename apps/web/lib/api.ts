@@ -107,6 +107,25 @@ export type TenantSettings = {
   birthday_credit_amount: string;
 };
 
+export type WhatsAppConnection = {
+  status: "CONNECTED" | "DISCONNECTED" | "ERROR";
+  display_phone_number: string | null;
+  verified_name: string | null;
+  quality_rating: string | null;
+  waba_id: string | null;
+  phone_number_id: string | null;
+  registration_status: "PENDING" | "REGISTERED" | "FAILED" | "SKIPPED";
+  registration_error: string | null;
+  connected_at: string | null;
+  last_error: string | null;
+  embedded_signup: {
+    enabled: boolean;
+    app_id: string | null;
+    config_id: string | null;
+    graph_version: string;
+  };
+};
+
 export type SubscriptionPlanItem = {
   id: string;
   service_id: string;
@@ -1064,6 +1083,31 @@ export async function getUsers(): Promise<UserSummary[]> {
 
 export async function getTenantSettings(): Promise<TenantSettings> {
   return authenticatedRequest<TenantSettings>("/api/v1/tenants/settings");
+}
+
+export async function getWhatsAppConnection(): Promise<WhatsAppConnection> {
+  return authenticatedRequest<WhatsAppConnection>(
+    "/api/v1/whatsapp/connection",
+  );
+}
+
+export async function connectWhatsApp(input: {
+  code: string;
+  waba_id: string;
+  phone_number_id: string;
+  pin: string;
+}): Promise<WhatsAppConnection> {
+  return authenticatedRequest<WhatsAppConnection>(
+    "/api/v1/whatsapp/connection",
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export async function disconnectWhatsApp(): Promise<WhatsAppConnection> {
+  return authenticatedRequest<WhatsAppConnection>(
+    "/api/v1/whatsapp/connection",
+    { method: "DELETE" },
+  );
 }
 
 export async function updateTenantSettings(

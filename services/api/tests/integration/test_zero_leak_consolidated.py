@@ -39,6 +39,7 @@ RLS_TABLES = {
     "automation_rules",
     "automation_runs",
     "fiscal_invoices",
+    "tenant_whatsapp_accounts",
 }
 
 

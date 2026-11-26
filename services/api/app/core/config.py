@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     whatsapp_provider: str = "mock"
     whatsapp_meta_token: str = ""
     whatsapp_meta_phone_number_id: str = ""
+    whatsapp_app_id: str = ""
+    whatsapp_app_secret: str = ""
+    whatsapp_config_id: str = ""
+    whatsapp_verify_token: str = ""
+    whatsapp_graph_version: str = "v27.0"
 
     # Infraestrutura (portas do HOST do compose de dev; ver .env.example)
     database_url: str = "postgresql+asyncpg://sora_app:sora_app_dev_only@127.0.0.1:5433/sora"
