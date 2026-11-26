@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
-from app.models import TaxRegime, UserRole
+from app.models import BusinessProfile, TaxRegime, UserRole
 
 
 class CurrentTenantResponse(BaseModel):
@@ -15,6 +15,7 @@ class CurrentTenantResponse(BaseModel):
     name: str
     slug: str
     tax_regime: TaxRegime
+    business_profile: BusinessProfile
 
 
 class TenantCreateRequest(BaseModel):
@@ -27,6 +28,7 @@ class TenantCreateRequest(BaseModel):
         pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
     )
     tax_regime: TaxRegime
+    business_profile: BusinessProfile = BusinessProfile.GENERAL
     owner_full_name: str = Field(min_length=2, max_length=255)
     owner_email: EmailStr
     owner_password: str = Field(min_length=8, max_length=128)
@@ -48,6 +50,7 @@ class TenantCreatedResponse(BaseModel):
     name: str
     slug: str
     tax_regime: TaxRegime
+    business_profile: BusinessProfile
     owner: OwnerCreatedResponse
 
 

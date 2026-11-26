@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth.security import hash_password
 from app.db.rls import set_tenant_context
-from app.models import TaxRegime, Tenant, User, UserRole
+from app.models import BusinessProfile, TaxRegime, Tenant, User, UserRole
 
 
 class SlugAlreadyExistsError(Exception):
@@ -29,6 +29,7 @@ async def create_tenant_with_owner(
     name: str,
     slug: str,
     tax_regime: TaxRegime,
+    business_profile: BusinessProfile,
     owner_full_name: str,
     owner_email: str,
     owner_password: str,
@@ -45,6 +46,7 @@ async def create_tenant_with_owner(
         name=name.strip(),
         slug=slug.strip().lower(),
         tax_regime=tax_regime,
+        business_profile=business_profile,
     )
     owner = User(
         tenant_id=tenant_id,
