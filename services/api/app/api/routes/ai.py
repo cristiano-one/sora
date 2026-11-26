@@ -15,6 +15,7 @@ from app.api.schemas.ai import (
     AiSummaryResponse,
     BirthdayCreditResponse,
     BirthdayCreditRunResponse,
+    WhatsAppSimulationRequest,
     WhatsAppWebhookRequest,
     WhatsAppWebhookResponse,
 )
@@ -27,7 +28,7 @@ from app.core.auth.dependencies import (
 from app.core.internal_auth import verify_internal_token
 from app.core.redis import get_redis
 from app.db.session import get_session
-from app.models import UserRole
+from app.models import Tenant, UserRole
 from app.modules.agenda.public_service import PublicBookingError
 from app.modules.ai.service import (
     AiApprovalError,
@@ -79,6 +80,51 @@ async def whatsapp_webhook_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
+
+
+@router.post(
+    "/whatsapp/simulate",
+    response_model=WhatsAppWebhookResponse,
+    summary="Simula uma mensagem de WhatsApp na central (sem enviar)",
+)
+async def simulate_whatsapp_endpoint(
+    body: WhatsAppSimulationRequest,
+    request: Request,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+    redis: Redis = Depends(get_redis),
+) -> WhatsAppWebhookResponse:
+    tenant = await session.get(Tenant, principal.tenant_id)
+    if tenant is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Clínica não encontrada",
+        )
+    try:
+        result = await handle_whatsapp_message(
+            session,
+            redis,
+            tenant_slug=tenant.slug,
+            phone=body.phone,
+            text=body.text,
+            deliver=False,
+        )
+    except (AiTenantNotFoundError, PublicBookingError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    await record_audit(
+        session,
+        tenant_id=principal.tenant_id,
+        actor=principal,
+        action="ai.whatsapp.simulate",
+        resource_type="ai_conversation",
+        resource_id=result.conversation_id,
+        ip_address=client_ip(request),
+        details={"intent": result.intent},
+    )
+    return result
 
 
 @router.get(

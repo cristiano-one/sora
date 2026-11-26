@@ -15,6 +15,7 @@ import {
   getMe,
   runBirthdayCredits,
   sendAiConversationMessage,
+  simulateWhatsApp,
   takeoverAiConversation,
   type AiConversation,
   type AiConversationDetail,
@@ -69,6 +70,13 @@ export default function SoraAiPage() {
   const [creditBusy, setCreditBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [simPhone, setSimPhone] = useState("11999999999");
+  const [simText, setSimText] = useState("Oi, quero agendar um horário");
+  const [simReply, setSimReply] = useState<{
+    reply: string;
+    intent: string;
+  } | null>(null);
+  const [simBusy, setSimBusy] = useState(false);
 
   const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
   const visibleConversations =
@@ -180,6 +188,32 @@ export default function SoraAiPage() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSimulate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!simPhone.trim() || !simText.trim()) return;
+    setSimBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await simulateWhatsApp({
+        phone: simPhone.trim(),
+        text: simText.trim(),
+      });
+      setSimReply({ reply: result.reply, intent: result.intent });
+      setSelectedId(result.conversation_id);
+      await loadOverview();
+      setNotice("Mensagem simulada e conversa atualizada.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Falha ao simular mensagem.",
+      );
+    } finally {
+      setSimBusy(false);
     }
   }
 
@@ -305,6 +339,54 @@ export default function SoraAiPage() {
               {summary?.appointments_today ?? 0} agendamento(s) hoje
             </div>
           </article>
+        </section>
+
+        <section className="panel ai-simulator">
+          <div className="panel-title">
+            <div>
+              <h2>Simulador WhatsApp</h2>
+              <span className="muted-small">
+                Teste o fluxo agora, sem cadastro na Meta e sem enviar mensagem
+                real.
+              </span>
+            </div>
+            <span className="pill pill-active">mock</span>
+          </div>
+          <form className="ai-simulator-form" onSubmit={handleSimulate}>
+            <div className="field">
+              <label htmlFor="sim-phone">Telefone</label>
+              <input
+                id="sim-phone"
+                value={simPhone}
+                onChange={(event) => setSimPhone(event.target.value)}
+                placeholder="11999999999"
+                inputMode="tel"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="sim-text">Mensagem</label>
+              <input
+                id="sim-text"
+                value={simText}
+                onChange={(event) => setSimText(event.target.value)}
+                placeholder="Oi, quero agendar um horário"
+              />
+            </div>
+            <button className="button" type="submit" disabled={simBusy}>
+              {simBusy ? "Simulando…" : "Enviar simulação"}
+            </button>
+          </form>
+          {simReply ? (
+            <div className="ai-simulator-reply">
+              <strong>SORA IA · {INTENT_LABEL[simReply.intent] ?? simReply.intent}</strong>
+              <p>{simReply.reply}</p>
+            </div>
+          ) : (
+            <p className="muted-small">
+              Use um telefone existente para testar “meus agendamentos” ou um
+              novo para testar saudação, preços e link mágico.
+            </p>
+          )}
         </section>
 
         <div className="ai-layout">

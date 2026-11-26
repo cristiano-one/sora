@@ -246,6 +246,7 @@ async def handle_whatsapp_message(
     tenant_slug: str,
     phone: str,
     text: str,
+    deliver: bool = True,
 ) -> WhatsAppWebhookResponse:
     """Atende uma mensagem do roteador interno e grava o histórico."""
     tenant_id = await _tenant_id_by_slug(session, tenant_slug)
@@ -366,7 +367,8 @@ async def handle_whatsapp_message(
         intent=intent,
     )
     await session.commit()
-    await send_whatsapp_message(phone=digits, text=reply)
+    if deliver:
+        await send_whatsapp_message(phone=digits, text=reply)
     return WhatsAppWebhookResponse(
         conversation_id=conversation.id,
         reply=reply,
