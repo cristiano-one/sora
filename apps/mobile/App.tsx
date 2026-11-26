@@ -13,17 +13,18 @@ import { getMe, getTenantSettings, type Me } from "./src/api";
 import { hydrateTokens } from "./src/auth";
 import { AgendaScreen } from "./src/screens/AgendaScreen";
 import { ClientsScreen } from "./src/screens/ClientsScreen";
+import { HomeScreen } from "./src/screens/HomeScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { TeamScreen } from "./src/screens/TeamScreen";
 import { colors } from "./src/theme";
 
-type Tab = "agenda" | "clients" | "team" | "profile";
+type Tab = "home" | "agenda" | "clients" | "team" | "profile";
 
 export default function App() {
   const [booting, setBooting] = useState(true);
   const [me, setMe] = useState<Me | null>(null);
-  const [tab, setTab] = useState<Tab>("agenda");
+  const [tab, setTab] = useState<Tab>("home");
   const [primary, setPrimary] = useState(colors.primary);
 
   const loadTheme = useCallback(async (user: Me) => {
@@ -61,13 +62,13 @@ export default function App() {
 
   function handleLoggedIn(user: Me) {
     setMe(user);
-    setTab("agenda");
+    setTab("home");
     void loadTheme(user);
   }
 
   function handleLoggedOut() {
     setMe(null);
-    setTab("agenda");
+    setTab("home");
     setPrimary(colors.primary);
   }
 
@@ -92,6 +93,7 @@ export default function App() {
 
   const isManager = me.role === "OWNER" || me.role === "ADMIN";
   const tabs: { key: Tab; label: string; icon: string }[] = [
+    { key: "home", label: "Início", icon: "⌂" },
     { key: "agenda", label: "Agenda", icon: "▤" },
     { key: "clients", label: "Clientes", icon: "◎" },
     ...(isManager ? [{ key: "team" as Tab, label: "Equipe", icon: "◈" }] : []),
@@ -102,6 +104,14 @@ export default function App() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style="dark" />
       <View style={{ flex: 1 }}>
+        {tab === "home" ? (
+          <HomeScreen
+            me={me}
+            onOpenAgenda={() => setTab("agenda")}
+            onOpenClients={() => setTab("clients")}
+            onOpenProfile={() => setTab("profile")}
+          />
+        ) : null}
         {tab === "agenda" ? <AgendaScreen me={me} /> : null}
         {tab === "clients" ? <ClientsScreen /> : null}
         {tab === "team" ? <TeamScreen /> : null}

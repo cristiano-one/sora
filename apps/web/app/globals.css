@@ -3433,3 +3433,270 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
+
+/* Comanda digital */
+.agenda-text-strong {
+  color: var(--primary);
+  font-weight: 900;
+}
+
+.agenda-sale-modal {
+  width: min(720px, 100%);
+}
+
+.sale-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 210px;
+  margin-top: 14px;
+  overflow-y: auto;
+}
+
+.sale-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  background: #fbfbff;
+}
+
+.sale-item-row div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sale-item-row strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sale-item-row span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.sale-add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sale-add-manual {
+  grid-template-columns: minmax(0, 1fr) 100px auto;
+}
+
+.sale-add-row select,
+.sale-add-row input,
+.sale-inline select,
+.sale-inline input,
+.sale-close-grid select,
+.sale-controls input {
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #f8fafc;
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+}
+
+.sale-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.sale-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: #fbfbff;
+}
+
+.sale-summary span {
+  color: var(--muted);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.sale-summary strong {
+  font-size: 13px;
+}
+
+.sale-total {
+  background: var(--primary-soft) !important;
+}
+
+.sale-total strong {
+  color: var(--primary);
+}
+
+.sale-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sale-inline {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.sale-inline input {
+  width: 100px;
+}
+
+.sale-inline select {
+  flex: 1;
+}
+
+.sale-close-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.sale-actions {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sale-actions .agenda-text-action {
+  font-size: 11px;
+}
+
+@media (max-width: 620px) {
+  .sale-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sale-add-row,
+  .sale-add-manual,
+  .sale-close-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sale-item-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .sale-item-row .agenda-text-action {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+
+/* Check-in público */
+.checkin-card {
+  text-align: center;
+}
+
+.checkin-mark {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: 24px auto 14px;
+  border-radius: 20px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 28px;
+}
+
+.checkin-mark-done {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.checkin-summary {
+  margin: 22px 0;
+  text-align: left;
+}
+
+.checkin-card .button {
+  width: 100%;
+}
+
+.public-success-muted {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.agenda-checkin {
+  color: #047857;
+  font-weight: 700;
+}
+
+/* Automações */
+.automation-rules {
+  display: grid;
+  gap: 12px;
+}
+
+.automation-rule {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fbfbff;
+}
+
+.automation-rule-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.automation-rule h3 {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+.automation-rule textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.automation-rule-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.automation-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.automation-switch input {
+  accent-color: var(--primary);
+}

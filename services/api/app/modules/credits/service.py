@@ -63,6 +63,7 @@ async def use_credit(
     actor_id: UUID,
     body: ClientCreditUsageCreateRequest,
     today: date,
+    sale_id: UUID | None = None,
 ) -> ClientCreditUsage:
     if credit.expires_at < today:
         raise ClientCreditValidationError("Crédito expirado")
@@ -85,6 +86,7 @@ async def use_credit(
         credit_id=credit.id,
         client_id=credit.client_id,
         appointment_id=body.appointment_id,
+        sale_id=sale_id,
         amount=body.amount,
         note=body.note.strip() if body.note else None,
         created_by=actor_id,

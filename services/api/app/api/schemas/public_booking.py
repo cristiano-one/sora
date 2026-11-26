@@ -77,3 +77,17 @@ class PublicAppointmentResponse(BaseModel):
     deposit_amount: Decimal | None
     used_subscription: bool
     payment: PublicPaymentResponse | None
+
+
+class PublicCheckinResponse(BaseModel):
+    """Dados mínimos da página pública de check-in."""
+
+    tenant_name: str
+    client_name: str
+    service_name: str
+    collaborator_name: str
+    starts_at: datetime
+    ends_at: datetime
+    status: AppointmentStatus
+    checked_in_at: datetime | None
+    can_checkin: bool

@@ -324,3 +324,47 @@ uv run uvicorn app.main:app --reload --port 8000
 
 > As variáveis de ambiente são lidas de `.env` (raiz do monorepo) ou do ambiente.
 > Veja o modelo em `.env.example` na raiz.
+
+## Comanda digital
+
+- `GET /api/v1/sales/accounts` — contas ativas para fechamento.
+- `POST /api/v1/sales/from-appointment/{id}` — abre/recupera comanda do
+  agendamento com o serviço já incluído.
+- `POST /api/v1/sales/{id}/items` e `DELETE .../items/{item_id}` — serviços,
+  produtos e itens avulsos.
+- `PATCH /api/v1/sales/{id}` — desconto e observações.
+- `POST /api/v1/sales/{id}/credits` — aplica crédito do cliente.
+- `POST /api/v1/sales/{id}/close` — pagamento, baixa no caixa/DRE e conclusão
+  do agendamento para comissão.
+- `POST /api/v1/sales/{id}/cancel` — cancela comanda aberta e devolve créditos.
+- `GET /api/v1/sales?from_date=&to_date=&status=` — histórico.
+- Tudo restrito a `OWNER`/`ADMIN`, com RLS, auditoria e `Decimal`.
+
+## Check-in digital
+
+- `POST /api/v1/appointments/{id}/checkin-link` — gera link público
+  `/checkin/{slug}/{token}`.
+- `GET/POST /api/v1/public/checkin/{slug}/{token}` — consulta e confirma a
+  chegada sem login, sem expor telefone/score.
+- `checked_in_at` aparece na agenda; marcação é idempotente.
+
+## Automações/CRM
+
+- `GET/PATCH /api/v1/automations/rules` — réguas padrão de confirmação,
+  lembrete 24h/2h, pós-atendimento, recuperação 60 dias e aniversário.
+- `GET /api/v1/automations/runs` — log de execuções.
+- `POST /api/v1/automations/run` — agenda recuperação e processa mensagens
+  vencidas agora.
+- Worker: `uv run python -m app.workers.automations`.
+- Templates usam `{first_name}`, `{client_name}`, `{service}`, `{date}`,
+  `{time}` e `{collaborator}`; WhatsApp mock/Meta pelo provider existente.
+
+## Fiscal (NFS-e) e vínculo parceiro/MEI
+
+- `users.employment_type`: `EMPLOYEE`, `PARTNER` ou `MEI`.
+- Configuração em `/tenants/settings`: `fiscal_enabled`, `fiscal_provider`,
+  `fiscal_municipality`, `fiscal_service_code` e `fiscal_email`.
+- `GET/POST /api/v1/sales/{id}/invoice` — consulta/emite NFS-e.
+- `POST /api/v1/sales/{id}/invoice/cancel` — cancela a nota.
+- O adapter atual é **mock** (`MOCK-*`), pronto para provedor real (Focus NFe,
+  eNotas ou municipal) sem alterar a comanda.

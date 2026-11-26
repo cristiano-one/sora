@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth.dependencies import Principal
 from app.core.auth.security import hash_password
-from app.models import CommissionBase, User, UserRole
+from app.models import CommissionBase, EmploymentType, User, UserRole
 
 _ALLOWED_UPDATE_FIELDS = frozenset(
     {
@@ -17,6 +17,7 @@ _ALLOWED_UPDATE_FIELDS = frozenset(
         "commission_percentage",
         "commission_fixed",
         "commission_base",
+        "employment_type",
     }
 )
 
@@ -74,6 +75,7 @@ async def create_user(
     commission_percentage: Decimal | None,
     commission_fixed: Decimal | None,
     commission_base: CommissionBase,
+    employment_type: EmploymentType,
 ) -> User:
     """Cria um colaborador/admin no tenant do ator (RLS já aplicada)."""
     _validate_create_role(actor, role)
@@ -88,6 +90,7 @@ async def create_user(
         commission_percentage=commission_percentage,
         commission_fixed=commission_fixed,
         commission_base=commission_base,
+        employment_type=employment_type,
     )
     session.add(user)
     try:

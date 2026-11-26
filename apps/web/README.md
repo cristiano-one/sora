@@ -47,6 +47,8 @@ uv run uvicorn app.main:app --reload --port 8010
   (telefone mascarado para colaboradores).
 - `/sistema` — console master do provedor (fora do login do tenant), protegido
   por `SYSTEM_ADMIN_PASSWORD`; lista empresas e define o perfil de negócio.
+- `/comandas` — histórico de comandas, itens, pagamentos e emissão/cancelamento
+  de NFS-e (`OWNER`/`ADMIN`).
 - `/clientes/[id]` — prontuário (quando o perfil permite), consentimento LGPD,
   anexos privados (abrir, baixar e excluir) e aplicação de créditos.
 - `/minha-comissao` — comissão do próprio usuário em qualquer papel.
@@ -55,8 +57,8 @@ uv run uvicorn app.main:app --reload --port 8010
   preço, custo, sinal e composição.
 - `/estoque` — insumos, saldo, mínimo, custo, entradas/saídas/ajustes
   (`OWNER`/`ADMIN`).
-- `/equipe` — usuários, edição, exclusão, papéis, comissões e convite por
-  e-mail (`OWNER`/`ADMIN`).
+- `/equipe` — usuários, edição, exclusão, papéis, comissões, vínculo
+  CLT/parceiro/MEI e convite por e-mail (`OWNER`/`ADMIN`).
 - `/assinaturas/assinantes` — assinantes, cotas, cancelamento e exclusão
   (`OWNER`/`ADMIN`).
 - `/assinaturas/planos` — planos, edição, ativação e exclusão.
@@ -79,8 +81,12 @@ uv run uvicorn app.main:app --reload --port 8010
   - `/configuracoes/agenda` — score mínimo e sinal.
   - `/configuracoes/agente` — persona completa da SORA IA.
   - `/configuracoes/financeiro` — dízimo/oferta (`OWNER`).
-  - `/configuracoes/automacoes` — crédito de aniversário.
+  - `/configuracoes/automacoes` — réguas de WhatsApp, crédito de aniversário,
+    execução manual e log de envios.
+  - `/configuracoes/financeiro` — dízimo/oferta e configuração de NFS-e
+    (`OWNER`).
   - `/configuracoes/dados` — perfil do negócio e exportação LGPD.
+- `/checkin/[slug]/[token]` — check-in público do cliente, sem login.
 - `/public/[slug]?t=<token>` — página pública do link mágico (sem login):
   serviços, profissionais, horários livres, planos de assinatura, cotas e
   pagamento Pix (mock).

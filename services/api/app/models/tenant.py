@@ -171,6 +171,27 @@ class TenantSettings(Base):
     )
     agent_address_info: Mapped[str | None] = mapped_column(Text, nullable=True)
     agent_upsell: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fiscal_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+    )
+    fiscal_provider: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="mock",
+        server_default=text("'mock'"),
+    )
+    fiscal_municipality: Mapped[str | None] = mapped_column(
+        String(120),
+        nullable=True,
+    )
+    fiscal_service_code: Mapped[str | None] = mapped_column(
+        String(60),
+        nullable=True,
+    )
+    fiscal_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     enable_tithe_and_offering: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

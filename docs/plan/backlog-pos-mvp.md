@@ -3,6 +3,11 @@
 > Complementa [`plano-implementacao-mvp-sora.md`](plano-implementacao-mvp-sora.md).
 > Critério: manter apenas o que melhora a operação diária, retenção ou
 > competitividade no Brasil, sem copiar o modelo americano de SMS e preço.
+>
+> **Status:** comanda digital, check-in, motor de automações com templates,
+> fiscal mock, vínculo parceiro/MEI e primeira tela Início do mobile já
+> implementados. Gateway real, NFS-e real, voz e editor visual seguem pendentes
+> de provedor/credenciais.
 
 ## 1. O que já temos ou já está no MVP
 

@@ -1,0 +1,1 @@
+"""Módulo fiscal (NFS-e)."""

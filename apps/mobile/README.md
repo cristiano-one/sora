@@ -7,6 +7,9 @@ App nativo iOS/Android para colaboradores, administradores e donos da clínica.
 - login com JWT + refresh token salvo no **SecureStore**;
 - **Agenda** do dia com navegação de data, confirmação, conclusão e
   cancelamento;
+- **Início** com resumo do dia, check-ins, comissão, próximos atendimentos e
+  atalhos para agenda, clientes e perfil;
+- **Agenda** com confirmação, conclusão, cancelamento e status de check-in;
 - **Clientes** com busca, telefone mascarado para colaborador, avaliação
   pós-atendimento (+5/−10 no score) e **prontuário**;
 - **Prontuário**: evoluções clínicas, consentimento LGPD, fotos pela câmera ou

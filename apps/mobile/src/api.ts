@@ -49,6 +49,7 @@ export type Appointment = {
   status: string;
   deposit_amount: string | null;
   subscription_id: string | null;
+  checked_in_at: string | null;
 };
 
 export type Client = {
@@ -217,6 +218,32 @@ export async function getAppointments(date: string): Promise<Appointment[]> {
   const params = new URLSearchParams({ from_date: date, to_date: date });
   return authenticatedRequest<Appointment[]>(
     `/api/v1/appointments?${params.toString()}`,
+  );
+}
+
+export type CommissionSummary = {
+  from_date: string;
+  to_date: string;
+  items: {
+    collaborator_id: string;
+    collaborator_name: string;
+    completed_appointments: number;
+    gross_revenue: string;
+    commission_amount: string;
+  }[];
+  total: string;
+};
+
+export async function getMyCommission(
+  fromDate: string,
+  toDate: string,
+): Promise<CommissionSummary> {
+  const params = new URLSearchParams({
+    from_date: fromDate,
+    to_date: toDate,
+  });
+  return authenticatedRequest<CommissionSummary>(
+    `/api/v1/finance/my-commission?${params.toString()}`,
   );
 }
 

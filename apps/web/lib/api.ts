@@ -82,6 +82,7 @@ export type UserSummary = {
   commission_percentage: string | null;
   commission_fixed: string | null;
   commission_base: string;
+  employment_type: "EMPLOYEE" | "PARTNER" | "MEI";
 };
 
 export type TenantSettings = {
@@ -95,6 +96,11 @@ export type TenantSettings = {
   agent_cancellation_policy: string | null;
   agent_address_info: string | null;
   agent_upsell: string | null;
+  fiscal_enabled: boolean;
+  fiscal_provider: string;
+  fiscal_municipality: string | null;
+  fiscal_service_code: string | null;
+  fiscal_email: string | null;
   enable_tithe_and_offering: boolean;
   tithe_percentage: string;
   offering_amount: string;
@@ -318,6 +324,102 @@ export type ClientCreditUsage = {
   created_at: string;
 };
 
+export type SaleItemCategory = "SERVICE" | "PACKAGE" | "PRODUCT" | "OTHER";
+export type SaleStatus = "OPEN" | "PAID" | "CANCELLED";
+export type SalePaymentMethod =
+  | "PIX"
+  | "CASH"
+  | "CARD"
+  | "BOLETO"
+  | "TRANSFER"
+  | "OTHER";
+
+export type SaleOrderItem = {
+  id: string;
+  service_id: string | null;
+  inventory_item_id: string | null;
+  category: SaleItemCategory;
+  description: string;
+  quantity: number;
+  unit_price: string;
+  cost: string;
+  total: string;
+};
+
+export type Sale = {
+  id: string;
+  client_id: string;
+  client_name: string;
+  appointment_id: string | null;
+  collaborator_id: string | null;
+  collaborator_name: string | null;
+  status: SaleStatus;
+  subtotal: string;
+  discount: string;
+  credit_amount: string;
+  total: string;
+  payment_method: SalePaymentMethod | null;
+  account_id: string | null;
+  financial_entry_id: string | null;
+  notes: string | null;
+  created_at: string;
+  closed_at: string | null;
+  items: SaleOrderItem[];
+};
+
+export type SaleAccount = {
+  id: string;
+  name: string;
+  type: "CASH" | "BANK";
+};
+
+export type AutomationTrigger =
+  | "BOOKING_CONFIRMATION"
+  | "REMINDER_24H"
+  | "REMINDER_2H"
+  | "POST_SERVICE"
+  | "WINBACK_60D"
+  | "BIRTHDAY";
+
+export type AutomationRule = {
+  id: string;
+  trigger: AutomationTrigger;
+  name: string;
+  template: string;
+  delay_minutes: number;
+  is_active: boolean;
+};
+
+export type AutomationRun = {
+  id: string;
+  rule_id: string;
+  client_id: string;
+  appointment_id: string | null;
+  status: "PENDING" | "SENT" | "SKIPPED" | "FAILED";
+  scheduled_for: string;
+  sent_at: string | null;
+  error: string | null;
+  created_at: string;
+};
+
+export type AutomationRunSummary = {
+  processed: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+};
+
+export type FiscalInvoice = {
+  id: string;
+  sale_id: string;
+  status: "ISSUED" | "CANCELLED" | "ERROR";
+  number: string;
+  provider: string;
+  amount: string;
+  issued_at: string;
+  cancelled_at: string | null;
+};
+
 export type SaleItem = {
   appointment_id: string;
   starts_at: string;
@@ -410,6 +512,7 @@ export type Appointment = {
   status: string;
   deposit_amount: string | null;
   subscription_id: string | null;
+  checked_in_at: string | null;
 };
 
 export type Availability = {
@@ -793,6 +896,154 @@ export async function applyClientCredit(
   );
 }
 
+export async function getSaleAccounts(): Promise<SaleAccount[]> {
+  return authenticatedRequest<SaleAccount[]>("/api/v1/sales/accounts");
+}
+
+export async function createSaleFromAppointment(
+  appointmentId: string,
+): Promise<Sale> {
+  return authenticatedRequest<Sale>(
+    `/api/v1/sales/from-appointment/${appointmentId}`,
+    { method: "POST" },
+  );
+}
+
+export async function getSale(saleId: string): Promise<Sale> {
+  return authenticatedRequest<Sale>(`/api/v1/sales/${saleId}`);
+}
+
+export async function listSales(
+  fromDate: string,
+  toDate: string,
+  status?: SaleStatus,
+): Promise<Sale[]> {
+  const params = new URLSearchParams({
+    from_date: fromDate,
+    to_date: toDate,
+  });
+  if (status) params.set("status", status);
+  return authenticatedRequest<Sale[]>(`/api/v1/sales?${params.toString()}`);
+}
+
+export async function addSaleItem(
+  saleId: string,
+  input: {
+    service_id?: string | null;
+    inventory_item_id?: string | null;
+    category?: SaleItemCategory;
+    description?: string | null;
+    quantity?: number;
+    unit_price?: string | null;
+    cost?: string | null;
+  },
+): Promise<Sale> {
+  return authenticatedRequest<Sale>(`/api/v1/sales/${saleId}/items`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function removeSaleItem(
+  saleId: string,
+  itemId: string,
+): Promise<Sale> {
+  return authenticatedRequest<Sale>(
+    `/api/v1/sales/${saleId}/items/${itemId}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function updateSale(
+  saleId: string,
+  changes: { discount?: string; notes?: string | null },
+): Promise<Sale> {
+  return authenticatedRequest<Sale>(`/api/v1/sales/${saleId}`, {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
+}
+
+export async function applySaleCredit(
+  saleId: string,
+  input: { credit_id: string; amount: string },
+): Promise<Sale> {
+  return authenticatedRequest<Sale>(`/api/v1/sales/${saleId}/credits`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function closeSale(
+  saleId: string,
+  input: {
+    payment_method: SalePaymentMethod;
+    account_id: string;
+    notes?: string | null;
+  },
+): Promise<Sale> {
+  return authenticatedRequest<Sale>(`/api/v1/sales/${saleId}/close`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function cancelSale(saleId: string): Promise<Sale> {
+  return authenticatedRequest<Sale>(`/api/v1/sales/${saleId}/cancel`, {
+    method: "POST",
+  });
+}
+
+export async function getAutomationRules(): Promise<AutomationRule[]> {
+  return authenticatedRequest<AutomationRule[]>("/api/v1/automations/rules");
+}
+
+export async function updateAutomationRule(
+  ruleId: string,
+  changes: { name?: string; template?: string; is_active?: boolean },
+): Promise<AutomationRule> {
+  return authenticatedRequest<AutomationRule>(
+    `/api/v1/automations/rules/${ruleId}`,
+    { method: "PATCH", body: JSON.stringify(changes) },
+  );
+}
+
+export async function getAutomationRuns(): Promise<AutomationRun[]> {
+  return authenticatedRequest<AutomationRun[]>("/api/v1/automations/runs");
+}
+
+export async function runAutomations(): Promise<AutomationRunSummary> {
+  return authenticatedRequest<AutomationRunSummary>("/api/v1/automations/run", {
+    method: "POST",
+  });
+}
+
+export async function getSaleInvoice(
+  saleId: string,
+): Promise<FiscalInvoice> {
+  return authenticatedRequest<FiscalInvoice>(
+    `/api/v1/sales/${saleId}/invoice`,
+  );
+}
+
+export async function issueSaleInvoice(
+  saleId: string,
+): Promise<FiscalInvoice> {
+  return authenticatedRequest<FiscalInvoice>(
+    `/api/v1/sales/${saleId}/invoice`,
+    { method: "POST" },
+  );
+}
+
+export async function cancelSaleInvoice(
+  saleId: string,
+): Promise<FiscalInvoice> {
+  return authenticatedRequest<FiscalInvoice>(
+    `/api/v1/sales/${saleId}/invoice/cancel`,
+    { method: "POST" },
+  );
+}
+
 export async function getUsers(): Promise<UserSummary[]> {
   return authenticatedRequest<UserSummary[]>("/api/v1/users");
 }
@@ -931,6 +1182,7 @@ type CreateUserInput = {
   commission_percentage?: string | null;
   commission_fixed?: string | null;
   commission_base?: "GROSS" | "NET";
+  employment_type?: "EMPLOYEE" | "PARTNER" | "MEI";
 };
 
 export async function createUser(input: CreateUserInput): Promise<UserSummary> {
@@ -958,6 +1210,7 @@ type UpdateUserInput = {
   commission_percentage?: string | null;
   commission_fixed?: string | null;
   commission_base?: "GROSS" | "NET";
+  employment_type?: "EMPLOYEE" | "PARTNER" | "MEI";
 };
 
 export async function updateUser(
@@ -1540,6 +1793,46 @@ export async function getAppointmentsRange(
   if (collaboratorId) params.set("collaborator_id", collaboratorId);
   return authenticatedRequest<Appointment[]>(
     `/api/v1/appointments?${params.toString()}`,
+  );
+}
+
+export async function getCheckinLink(
+  appointmentId: string,
+): Promise<{ url: string; token: string }> {
+  return authenticatedRequest(
+    `/api/v1/appointments/${appointmentId}/checkin-link`,
+    { method: "POST" },
+  );
+}
+
+export type PublicCheckin = {
+  tenant_name: string;
+  client_name: string;
+  service_name: string;
+  collaborator_name: string;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+  checked_in_at: string | null;
+  can_checkin: boolean;
+};
+
+export async function getPublicCheckin(
+  slug: string,
+  token: string,
+): Promise<PublicCheckin> {
+  return request<PublicCheckin>(
+    `/api/v1/public/checkin/${encodeURIComponent(slug)}/${encodeURIComponent(token)}`,
+  );
+}
+
+export async function confirmPublicCheckin(
+  slug: string,
+  token: string,
+): Promise<PublicCheckin> {
+  return request<PublicCheckin>(
+    `/api/v1/public/checkin/${encodeURIComponent(slug)}/${encodeURIComponent(token)}`,
+    { method: "POST" },
   );
 }
 

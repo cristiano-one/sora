@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from app.api.routes.agenda import router as agenda_router
 from app.api.routes.ai import router as ai_router
 from app.api.routes.auth import router as auth_router
+from app.api.routes.automations import router as automations_router
 from app.api.routes.catalog import router as catalog_router
 from app.api.routes.clients import router as clients_router
 from app.api.routes.finance import router as finance_router
@@ -16,6 +17,7 @@ from app.api.routes.inventory import router as inventory_router
 from app.api.routes.payments import router as payments_router
 from app.api.routes.payroll import router as payroll_router
 from app.api.routes.public_booking import router as public_booking_router
+from app.api.routes.sales import router as sales_router
 from app.api.routes.storage import router as storage_router
 from app.api.routes.subscriptions import router as subscriptions_router
 from app.api.routes.system import router as system_router
@@ -61,9 +63,14 @@ def create_app() -> FastAPI:
     application.include_router(payments_router, prefix=settings.api_v1_prefix)
     application.include_router(storage_router, prefix=settings.api_v1_prefix)
     application.include_router(finance_router, prefix=settings.api_v1_prefix)
+    application.include_router(sales_router, prefix=settings.api_v1_prefix)
     application.include_router(payroll_router, prefix=settings.api_v1_prefix)
     application.include_router(inventory_router, prefix=settings.api_v1_prefix)
     application.include_router(ai_router, prefix=settings.api_v1_prefix)
+    application.include_router(
+        automations_router,
+        prefix=settings.api_v1_prefix,
+    )
     application.include_router(agenda_router, prefix=settings.api_v1_prefix)
     application.include_router(
         subscriptions_router,

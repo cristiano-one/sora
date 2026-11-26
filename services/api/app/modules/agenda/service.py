@@ -22,6 +22,11 @@ from app.models import (
     User,
     UserRole,
 )
+from app.modules.automations.service import (
+    schedule_appointment_automations,
+    schedule_post_service,
+    skip_pending_for_appointment,
+)
 from app.modules.payments.service import (
     cancel_pending_payments,
     create_payment_intent,
@@ -290,6 +295,10 @@ async def _insert_appointment(
                 )
             await session.commit()
             await set_tenant_context(session, tenant_id)
+            await schedule_appointment_automations(
+                session,
+                appointment=appointment,
+            )
         except IntegrityError as exc:
             await session.rollback()
             if _is_overlap_conflict(exc):
@@ -500,6 +509,21 @@ async def update_appointment(
             if "notes" in changes:
                 appointment.notes = cast(str | None, changes["notes"])
             await session.commit()
+            await set_tenant_context(session, appointment.tenant_id)
+            if appointment.status in (
+                AppointmentStatus.CANCELLED,
+                AppointmentStatus.EXPIRED,
+            ):
+                await skip_pending_for_appointment(
+                    session,
+                    tenant_id=appointment.tenant_id,
+                    appointment_id=appointment.id,
+                )
+            elif appointment.status == AppointmentStatus.COMPLETED:
+                await schedule_post_service(
+                    session,
+                    appointment=appointment,
+                )
         except IntegrityError as exc:
             await session.rollback()
             if _is_overlap_conflict(exc):
@@ -529,6 +553,18 @@ async def update_appointment(
     if "notes" in changes:
         appointment.notes = cast(str | None, changes["notes"])
     await session.commit()
+    await set_tenant_context(session, appointment.tenant_id)
+    if appointment.status in (
+        AppointmentStatus.CANCELLED,
+        AppointmentStatus.EXPIRED,
+    ):
+        await skip_pending_for_appointment(
+            session,
+            tenant_id=appointment.tenant_id,
+            appointment_id=appointment.id,
+        )
+    elif appointment.status == AppointmentStatus.COMPLETED:
+        await schedule_post_service(session, appointment=appointment)
     return appointment
 
 

@@ -33,6 +33,7 @@ const SECTIONS = [
         icon: "％",
         manager: false,
       },
+      { href: "/comandas", label: "Comandas", icon: "▣", manager: true },
       { href: "/pagamentos", label: "Sinais Pix", icon: "◈", manager: true },
     ],
   },

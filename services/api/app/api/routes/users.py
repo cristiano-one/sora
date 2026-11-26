@@ -81,6 +81,7 @@ async def create_user_endpoint(
             commission_percentage=body.commission_percentage,
             commission_fixed=body.commission_fixed,
             commission_base=body.commission_base,
+            employment_type=body.employment_type,
         )
     except InvalidRoleChangeError as exc:
         raise HTTPException(
@@ -117,6 +118,7 @@ async def invite_user_endpoint(
             commission_percentage=body.commission_percentage,
             commission_fixed=body.commission_fixed,
             commission_base=body.commission_base,
+            employment_type=body.employment_type,
         )
     except InvalidRoleChangeError as exc:
         raise HTTPException(

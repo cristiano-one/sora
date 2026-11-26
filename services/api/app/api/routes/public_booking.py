@@ -1,10 +1,11 @@
 """Endpoints públicos de link mágico e agendamento (sem login)."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from redis.asyncio import Redis
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.agenda import AvailabilityResponse
@@ -14,6 +15,7 @@ from app.api.schemas.public_booking import (
     MagicLinkResponse,
     PublicAppointmentCreateRequest,
     PublicAppointmentResponse,
+    PublicCheckinResponse,
     PublicContextResponse,
 )
 from app.api.schemas.subscriptions import (
@@ -22,7 +24,9 @@ from app.api.schemas.subscriptions import (
 )
 from app.core.internal_auth import verify_internal_token
 from app.core.redis import get_redis
+from app.db.rls import set_tenant_context
 from app.db.session import get_session
+from app.models import Appointment, AppointmentStatus, Tenant
 from app.modules.agenda.public_service import (
     InvalidMagicLinkError,
     PaymentNotFoundError,
@@ -86,6 +90,94 @@ def _map_public_error(exc: Exception) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail="Não foi possível concluir o agendamento",
+    )
+
+
+_CHECKIN_BLOCKED_STATUSES = (
+    AppointmentStatus.CANCELLED,
+    AppointmentStatus.EXPIRED,
+    AppointmentStatus.COMPLETED,
+    AppointmentStatus.NO_SHOW,
+)
+
+
+async def _checkin_response(
+    session: AsyncSession,
+    *,
+    slug: str,
+    token: str,
+    mark: bool,
+) -> PublicCheckinResponse:
+    tenant_id = await session.scalar(
+        text("SELECT public.resolve_tenant_id_by_slug(:slug)"),
+        {"slug": slug.strip().lower()},
+    )
+    if tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Check-in não encontrado",
+        )
+    await set_tenant_context(session, UUID(str(tenant_id)))
+    tenant = await session.get(Tenant, UUID(str(tenant_id)))
+    appointment = await session.scalar(
+        select(Appointment).where(Appointment.checkin_token == token)
+    )
+    if appointment is None or tenant is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Check-in não encontrado",
+        )
+    blocked = appointment.status in _CHECKIN_BLOCKED_STATUSES
+    if mark and not blocked and appointment.checked_in_at is None:
+        appointment.checked_in_at = datetime.now(UTC)
+        await session.commit()
+        await set_tenant_context(session, UUID(str(tenant_id)))
+    return PublicCheckinResponse(
+        tenant_name=tenant.name,
+        client_name=appointment.client.full_name.split(" ")[0],
+        service_name=appointment.service.name,
+        collaborator_name=appointment.collaborator.full_name,
+        starts_at=appointment.starts_at,
+        ends_at=appointment.ends_at,
+        status=appointment.status,
+        checked_in_at=appointment.checked_in_at,
+        can_checkin=not blocked and appointment.checked_in_at is None,
+    )
+
+
+@router.get(
+    "/checkin/{slug}/{token}",
+    response_model=PublicCheckinResponse,
+    summary="Consulta pública de check-in",
+)
+async def public_checkin_get(
+    slug: str,
+    token: str,
+    session: AsyncSession = Depends(get_session),
+) -> PublicCheckinResponse:
+    return await _checkin_response(
+        session,
+        slug=slug,
+        token=token,
+        mark=False,
+    )
+
+
+@router.post(
+    "/checkin/{slug}/{token}",
+    response_model=PublicCheckinResponse,
+    summary="Confirma a chegada do cliente",
+)
+async def public_checkin_post(
+    slug: str,
+    token: str,
+    session: AsyncSession = Depends(get_session),
+) -> PublicCheckinResponse:
+    return await _checkin_response(
+        session,
+        slug=slug,
+        token=token,
+        mark=True,
     )
 
 
