@@ -124,6 +124,13 @@ export default function DashboardPage() {
                 </p>
                 <div className="soon">Abrir configurações →</div>
               </Link>
+              <Link href="/sora-ia" className="panel panel-link">
+                <h2>SORA IA</h2>
+                <p>
+                  Resumo diário, conversas do WhatsApp e atendimento humano.
+                </p>
+                <div className="soon">Abrir central →</div>
+              </Link>
             </>
           ) : null}
           <article className="panel">

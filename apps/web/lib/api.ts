@@ -195,6 +195,43 @@ export type SalesSummary = {
   net_total: string;
 };
 
+export type AiMessage = {
+  id: string;
+  direction: "INBOUND" | "OUTBOUND";
+  content: string;
+  intent: string | null;
+  created_at: string;
+};
+
+export type AiConversation = {
+  id: string;
+  client_id: string | null;
+  client_name: string | null;
+  phone: string;
+  status: "OPEN" | "HUMAN" | "CLOSED";
+  last_message: string | null;
+  last_message_at: string;
+};
+
+export type AiConversationDetail = AiConversation & {
+  messages: AiMessage[];
+};
+
+export type AiSummary = {
+  date: string;
+  agent_name: string;
+  open_conversations: number;
+  human_conversations: number;
+  messages_today: number;
+  appointments_today: number;
+  birthdays: {
+    client_id: string;
+    full_name: string;
+    birth_date: string;
+    days_until: number;
+  }[];
+};
+
 export type Appointment = {
   id: string;
   tenant_id: string;
@@ -778,6 +815,53 @@ export async function getFinanceCsv(
     to_date: toDate,
   });
   return authenticatedText(`/api/v1/finance/export?${params.toString()}`);
+}
+
+export async function getAiSummary(date?: string): Promise<AiSummary> {
+  const params = new URLSearchParams();
+  if (date) params.set("date", date);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return authenticatedRequest<AiSummary>(`/api/v1/ai/summary${suffix}`);
+}
+
+export async function getAiConversations(): Promise<AiConversation[]> {
+  return authenticatedRequest<AiConversation[]>("/api/v1/ai/conversations");
+}
+
+export async function getAiConversation(
+  id: string,
+): Promise<AiConversationDetail> {
+  return authenticatedRequest<AiConversationDetail>(
+    `/api/v1/ai/conversations/${id}`,
+  );
+}
+
+export async function takeoverAiConversation(
+  id: string,
+): Promise<AiConversationDetail> {
+  return authenticatedRequest<AiConversationDetail>(
+    `/api/v1/ai/conversations/${id}/takeover`,
+    { method: "POST" },
+  );
+}
+
+export async function sendAiConversationMessage(
+  id: string,
+  content: string,
+): Promise<AiMessage> {
+  return authenticatedRequest<AiMessage>(
+    `/api/v1/ai/conversations/${id}/messages`,
+    { method: "POST", body: JSON.stringify({ content }) },
+  );
+}
+
+export async function closeAiConversation(
+  id: string,
+): Promise<AiConversationDetail> {
+  return authenticatedRequest<AiConversationDetail>(
+    `/api/v1/ai/conversations/${id}/close`,
+    { method: "POST" },
+  );
 }
 
 export async function getAppointments(

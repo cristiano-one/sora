@@ -41,6 +41,8 @@ uv run uvicorn app.main:app --reload --port 8010
 - `/equipe` — usuários, papéis e comissões (`OWNER`/`ADMIN`).
 - `/assinaturas` — planos, cotas, contratação e cancelamento (`OWNER`/`ADMIN`).
 - `/financeiro` — caixa, DRE, comissões, saldos e exportação CSV (`OWNER`).
+- `/sora-ia` — resumo diário, conversas do WhatsApp, takeover humano,
+  respostas e aniversariantes (`OWNER`/`ADMIN`).
 - `/configuracoes` — score mínimo, sinal, dízimo/oferta, tema e nome do agente
   (`OWNER`/`ADMIN`).
 - `/public/[slug]?t=<token>` — página pública do link mágico (sem login):
