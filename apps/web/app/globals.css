@@ -1301,6 +1301,16 @@ h1 {
   color: var(--danger);
 }
 
+.commission-hint {
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.commission-hint a {
+  color: var(--primary);
+  font-weight: 600;
+}
+
 .ai-layout {
   display: grid;
   grid-template-columns: 340px minmax(0, 1fr);
