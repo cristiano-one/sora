@@ -66,6 +66,7 @@ const SECTIONS = [
           { href: "/financeiro/lancamentos", label: "Lançamentos" },
           { href: "/financeiro/contas", label: "Contas e caixa" },
           { href: "/financeiro/comissoes", label: "Comissões" },
+          { href: "/financeiro/folha", label: "Folha & pró-labore" },
           { href: "/financeiro/vendas", label: "Vendas" },
         ],
       },

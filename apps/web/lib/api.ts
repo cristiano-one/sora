@@ -237,8 +237,7 @@ export type AdminPayment = {
   created_at: string;
 };
 
-export type InventoryItem = {
-  id: string;
+export type InventoryItem = {  id: string;
   name: string;
   unit: string;
   quantity: string;
@@ -256,6 +255,26 @@ export type StockMovement = {
   kind: "IN" | "OUT" | "ADJUSTMENT";
   quantity: string;
   reason: string | null;
+  created_at: string;
+};
+
+export type PayrollKind =
+  | "SALARY"
+  | "ADVANCE"
+  | "PRO_LABORE"
+  | "COMMISSION_PAYOUT";
+
+export type PayrollEntry = {
+  id: string;
+  user_id: string;
+  user_name: string;
+  kind: PayrollKind;
+  description: string;
+  amount: string;
+  competence_date: string;
+  status: "PENDING" | "PAID";
+  cash_date: string | null;
+  financial_entry_id: string | null;
   created_at: string;
 };
 
@@ -1169,6 +1188,65 @@ export async function getStockMovements(
   return authenticatedRequest<StockMovement[]>(
     `/api/v1/inventory/${itemId}/movements`,
   );
+}
+
+export type CreatePayrollInput = {
+  user_id: string;
+  kind: PayrollKind;
+  description: string;
+  amount: string;
+  competence_date: string;
+  status?: "PENDING" | "PAID";
+  cash_date?: string | null;
+  account_id?: string | null;
+};
+
+type UpdatePayrollInput = {
+  kind?: PayrollKind;
+  description?: string;
+  amount?: string;
+  competence_date?: string;
+  status?: "PENDING" | "PAID";
+  cash_date?: string | null;
+  account_id?: string | null;
+};
+
+export async function getPayroll(
+  fromDate: string,
+  toDate: string,
+): Promise<PayrollEntry[]> {
+  const params = new URLSearchParams({
+    from_date: fromDate,
+    to_date: toDate,
+  });
+  return authenticatedRequest<PayrollEntry[]>(
+    `/api/v1/payroll?${params.toString()}`,
+  );
+}
+
+export async function createPayroll(
+  input: CreatePayrollInput,
+): Promise<PayrollEntry> {
+  return authenticatedRequest<PayrollEntry>("/api/v1/payroll", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updatePayroll(
+  id: string,
+  changes: UpdatePayrollInput,
+): Promise<PayrollEntry> {
+  return authenticatedRequest<PayrollEntry>(`/api/v1/payroll/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
+}
+
+export async function deletePayroll(id: string): Promise<void> {
+  await authenticatedRequest<void>(`/api/v1/payroll/${id}`, {
+    method: "DELETE",
+  });
 }
 
 export async function getSales(

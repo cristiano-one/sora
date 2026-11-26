@@ -22,6 +22,7 @@ from app.models.inventory import InventoryItem, StockMovement, StockMovementType
 from app.models.medical_record import MedicalRecord, MedicalRecordAttachment
 from app.models.package import Package, PackageItem
 from app.models.payment import PaymentIntent, PaymentStatus
+from app.models.payroll import PayrollEntry, PayrollKind
 from app.models.service import Service
 from app.models.subscription import (
     ClientSubscription,
@@ -66,6 +67,8 @@ __all__ = [
     "PackageItem",
     "PaymentIntent",
     "PaymentStatus",
+    "PayrollEntry",
+    "PayrollKind",
     "Service",
     "StockMovement",
     "StockMovementType",
