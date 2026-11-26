@@ -58,6 +58,9 @@ class TenantSettingsResponse(BaseModel):
     deposit_amount_low_score: Decimal | None
     theme_primary_color: str
     agent_name: str
+    enable_tithe_and_offering: bool
+    tithe_percentage: Decimal
+    offering_amount: Decimal
 
 
 class TenantSettingsUpdateRequest(BaseModel):
@@ -75,3 +78,17 @@ class TenantSettingsUpdateRequest(BaseModel):
         pattern=r"^#[0-9A-Fa-f]{6}$",
     )
     agent_name: str | None = Field(default=None, min_length=1, max_length=100)
+    enable_tithe_and_offering: bool | None = None
+    tithe_percentage: Decimal | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        max_digits=5,
+        decimal_places=2,
+    )
+    offering_amount: Decimal | None = Field(
+        default=None,
+        ge=0,
+        max_digits=12,
+        decimal_places=2,
+    )

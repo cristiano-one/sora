@@ -153,6 +153,9 @@ async def test_owner_reads_and_updates_settings(
         "deposit_amount_low_score": None,
         "theme_primary_color": "#4f46e5",
         "agent_name": "Sora",
+        "enable_tithe_and_offering": False,
+        "tithe_percentage": "10.00",
+        "offering_amount": "0.00",
     }
 
     updated = await _patch_settings(

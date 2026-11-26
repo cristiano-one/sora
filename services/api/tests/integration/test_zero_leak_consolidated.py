@@ -24,6 +24,8 @@ RLS_TABLES = {
     "audit_logs",
     "appointments",
     "payment_intents",
+    "financial_accounts",
+    "financial_entries",
 }
 
 
