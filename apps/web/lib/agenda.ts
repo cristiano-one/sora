@@ -42,6 +42,24 @@ export function formatIsoDate(iso: string): string {
   }).format(new Date(iso));
 }
 
+export function isoToTenantDate(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TENANT_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
+export function isoToTenantTime(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: TENANT_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(iso));
+}
+
 export function formatDateOnly(value: string): string {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",

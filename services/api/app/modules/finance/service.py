@@ -442,18 +442,18 @@ async def commission_items(
     *,
     from_date: date,
     to_date: date,
+    collaborator_id: UUID | None = None,
 ) -> list[CommissionItemResponse]:
     start, end = _period_bounds(from_date, to_date)
+    query = select(Appointment).where(
+        Appointment.status == AppointmentStatus.COMPLETED,
+        Appointment.starts_at >= start,
+        Appointment.starts_at < end,
+    )
+    if collaborator_id is not None:
+        query = query.where(Appointment.collaborator_id == collaborator_id)
     appointments = (
-        await session.scalars(
-            select(Appointment)
-            .where(
-                Appointment.status == AppointmentStatus.COMPLETED,
-                Appointment.starts_at >= start,
-                Appointment.starts_at < end,
-            )
-            .order_by(Appointment.starts_at)
-        )
+        await session.scalars(query.order_by(Appointment.starts_at))
     ).all()
 
     grouped: dict[UUID, _CommissionAccumulator] = {}
@@ -493,11 +493,13 @@ async def commission_summary(
     *,
     from_date: date,
     to_date: date,
+    collaborator_id: UUID | None = None,
 ) -> CommissionSummaryResponse:
     items = await commission_items(
         session,
         from_date=from_date,
         to_date=to_date,
+        collaborator_id=collaborator_id,
     )
     total = sum((item.commission_amount for item in items), ZERO)
     return CommissionSummaryResponse(

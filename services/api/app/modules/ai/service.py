@@ -332,14 +332,21 @@ async def list_conversations(
     ids = [conversation.id for conversation in conversations]
     rows = (
         await session.execute(
-            select(AiMessage.conversation_id, AiMessage.content)
+            select(
+                AiMessage.conversation_id,
+                AiMessage.content,
+                AiMessage.intent,
+            )
             .where(AiMessage.conversation_id.in_(ids))
             .order_by(AiMessage.created_at.desc())
         )
     ).all()
     previews: dict[UUID, str] = {}
-    for conversation_id, content in rows:
+    intents: dict[UUID, str] = {}
+    for conversation_id, content, intent in rows:
         previews.setdefault(conversation_id, content)
+        if intent is not None:
+            intents.setdefault(conversation_id, intent)
     return [
         AiConversationResponse(
             id=conversation.id,
@@ -353,6 +360,7 @@ async def list_conversations(
             status=conversation.status,
             last_message=previews.get(conversation.id),
             last_message_at=conversation.last_message_at,
+            last_intent=intents.get(conversation.id),
         )
         for conversation in conversations
     ]

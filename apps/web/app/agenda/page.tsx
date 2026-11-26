@@ -12,7 +12,6 @@ import {
 import { AppShell } from "@/components/app-shell";
 import {
   ApiError,
-  cancelAppointment,
   createAppointment,
   getAppointments,
   getAvailability,
@@ -20,6 +19,7 @@ import {
   getMe,
   getServices,
   getUsers,
+  updateAppointment,
   type Appointment,
   type Client,
   type Me,
@@ -29,6 +29,8 @@ import {
 import {
   formatDateLabel,
   formatTime,
+  isoToTenantDate,
+  isoToTenantTime,
   shiftDate,
   toTenantIso,
   todayInTenant,
@@ -67,6 +69,12 @@ export default function AgendaPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [reschedule, setReschedule] = useState<{
+    id: string;
+    date: string;
+    time: string;
+  } | null>(null);
 
   const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
 
@@ -177,23 +185,90 @@ export default function AgendaPage() {
     }
   }
 
-  async function handleCancel(id: string) {
-    if (!window.confirm("Cancelar este agendamento?")) return;
-    setError(null);
-    try {
-      await cancelAppointment(id);
-      await refreshAgenda();
-      if (formService) {
-        const available = await getAvailability(
-          formService,
-          date,
-          formCollaborator,
-        );
-        setSlots(available.available_slots);
-      }
-    } catch {
-      setError("Não foi possível cancelar o agendamento.");
+  async function refreshSlots() {
+    if (!formService) return;
+    const available = await getAvailability(
+      formService,
+      date,
+      formCollaborator,
+    );
+    setSlots(available.available_slots);
+  }
+
+  async function handleStatus(
+    appointment: Appointment,
+    status: "CONFIRMED" | "COMPLETED" | "NO_SHOW" | "CANCELLED",
+    label: string,
+  ) {
+    if (
+      status === "CANCELLED" &&
+      !window.confirm(`Cancelar o agendamento de ${appointment.client_name}?`)
+    ) {
+      return;
     }
+    if (
+      status === "NO_SHOW" &&
+      !window.confirm(`Marcar ${appointment.client_name} como falta?`)
+    ) {
+      return;
+    }
+    setError(null);
+    setActionId(appointment.id);
+    try {
+      await updateAppointment(appointment.id, { status });
+      await refreshAgenda();
+      if (formService) await refreshSlots();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : `Não foi possível ${label.toLowerCase()} o agendamento.`,
+      );
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  function startReschedule(appointment: Appointment) {
+    setReschedule({
+      id: appointment.id,
+      date: isoToTenantDate(appointment.starts_at),
+      time: isoToTenantTime(appointment.starts_at),
+    });
+    setError(null);
+  }
+
+  async function handleReschedule(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!reschedule) return;
+    setError(null);
+    setActionId(reschedule.id);
+    try {
+      await updateAppointment(reschedule.id, {
+        starts_at: toTenantIso(reschedule.date, reschedule.time),
+      });
+      setReschedule(null);
+      await refreshAgenda();
+      if (formService) await refreshSlots();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setError("Horário indisponível — escolha outra brecha.");
+      } else {
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : "Não foi possível reagendar o atendimento.",
+        );
+      }
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  async function handleCancel(id: string) {
+    const appointment = appointments.find((item) => item.id === id);
+    if (!appointment) return;
+    await handleStatus(appointment, "CANCELLED", "cancelar");
   }
 
   if (!me) {
@@ -273,51 +348,184 @@ export default function AgendaPage() {
                 Nenhum agendamento neste dia.
               </div>
             ) : (
-              appointments.map((appointment) => (
-                <article key={appointment.id} className="appointment-card">
-                  <div className="appointment-time">
-                    {formatTime(appointment.starts_at)}
-                  </div>
-                  <div className="appointment-main">
-                    <div className="appointment-title">
-                      {appointment.client_name}
-                      {appointment.subscription_id ? (
-                        <span className="badge-subscriber">Assinante</span>
-                      ) : null}
-                    </div>
-                    <div className="appointment-sub">
-                      {appointment.service_name} ·{" "}
-                      {collaboratorNames.get(appointment.collaborator_id) ??
-                        "Profissional"}
-                    </div>
-                    <div className="appointment-sub">
-                      {formatTime(appointment.starts_at)}–
-                      {formatTime(appointment.ends_at)}
-                      {appointment.deposit_amount
-                        ? ` · sinal R$ ${appointment.deposit_amount}`
-                        : ""}
-                    </div>
-                  </div>
-                  <div className="appointment-side">
-                    <span
-                      className={`status status-${appointment.status.toLowerCase()}`}
-                    >
-                      {STATUS_LABEL[appointment.status] ?? appointment.status}
-                    </span>
-                    {appointment.status !== "CANCELLED" &&
-                    appointment.status !== "COMPLETED" &&
-                    appointment.status !== "EXPIRED" ? (
-                      <button
-                        className="button button-ghost button-small"
-                        type="button"
-                        onClick={() => handleCancel(appointment.id)}
+              appointments.map((appointment) => {
+                const closed = [
+                  "CANCELLED",
+                  "COMPLETED",
+                  "EXPIRED",
+                  "NO_SHOW",
+                ].includes(appointment.status);
+                const busy = actionId === appointment.id;
+                return (
+                  <div key={appointment.id}>
+                    <article className="appointment-card">
+                      <div className="appointment-time">
+                        {formatTime(appointment.starts_at)}
+                      </div>
+                      <div className="appointment-main">
+                        <div className="appointment-title">
+                          {appointment.client_name}
+                          {appointment.subscription_id ? (
+                            <span className="badge-subscriber">Assinante</span>
+                          ) : null}
+                        </div>
+                        <div className="appointment-sub">
+                          {appointment.service_name} ·{" "}
+                          {collaboratorNames.get(
+                            appointment.collaborator_id,
+                          ) ?? "Profissional"}
+                        </div>
+                        <div className="appointment-sub">
+                          {formatTime(appointment.starts_at)}–
+                          {formatTime(appointment.ends_at)}
+                          {appointment.deposit_amount
+                            ? ` · sinal R$ ${appointment.deposit_amount}`
+                            : ""}
+                        </div>
+                      </div>
+                      <div className="appointment-side">
+                        <span
+                          className={`status status-${appointment.status.toLowerCase()}`}
+                        >
+                          {STATUS_LABEL[appointment.status] ??
+                            appointment.status}
+                        </span>
+                        {appointment.status === "PENDING_DEPOSIT" ? (
+                          <button
+                            className="button button-ghost button-small"
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              handleStatus(
+                                appointment,
+                                "CONFIRMED",
+                                "confirmar",
+                              )
+                            }
+                          >
+                            Confirmar
+                          </button>
+                        ) : null}
+                        {appointment.status === "SCHEDULED" ||
+                        appointment.status === "CONFIRMED" ? (
+                          <>
+                            <button
+                              className="button button-ghost button-small"
+                              type="button"
+                              disabled={busy}
+                              onClick={() =>
+                                handleStatus(
+                                  appointment,
+                                  "COMPLETED",
+                                  "concluir",
+                                )
+                              }
+                            >
+                              Concluir
+                            </button>
+                            <button
+                              className="button button-ghost button-small button-danger"
+                              type="button"
+                              disabled={busy}
+                              onClick={() =>
+                                handleStatus(
+                                  appointment,
+                                  "NO_SHOW",
+                                  "marcar falta",
+                                )
+                              }
+                            >
+                              Faltou
+                            </button>
+                          </>
+                        ) : null}
+                        {!closed ? (
+                          <>
+                            <button
+                              className="button button-ghost button-small"
+                              type="button"
+                              disabled={busy}
+                              onClick={() => startReschedule(appointment)}
+                            >
+                              Reagendar
+                            </button>
+                            <button
+                              className="button button-ghost button-small"
+                              type="button"
+                              disabled={busy}
+                              onClick={() => handleCancel(appointment.id)}
+                            >
+                              Cancelar
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </article>
+
+                    {reschedule?.id === appointment.id ? (
+                      <form
+                        className="panel agenda-reschedule"
+                        onSubmit={handleReschedule}
                       >
-                        Cancelar
-                      </button>
+                        <strong>Reagendar {appointment.client_name}</strong>
+                        <div className="agenda-reschedule-fields">
+                          <div className="field">
+                            <label htmlFor={`reschedule-date-${appointment.id}`}>
+                              Nova data
+                            </label>
+                            <input
+                              id={`reschedule-date-${appointment.id}`}
+                              type="date"
+                              value={reschedule.date}
+                              onChange={(event) =>
+                                setReschedule({
+                                  ...reschedule,
+                                  date: event.target.value,
+                                })
+                              }
+                              required
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`reschedule-time-${appointment.id}`}>
+                              Novo horário
+                            </label>
+                            <input
+                              id={`reschedule-time-${appointment.id}`}
+                              type="time"
+                              value={reschedule.time}
+                              onChange={(event) =>
+                                setReschedule({
+                                  ...reschedule,
+                                  time: event.target.value,
+                                })
+                              }
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div className="row-actions">
+                          <button
+                            className="button button-small"
+                            type="submit"
+                            disabled={busy}
+                          >
+                            {busy ? "Reagendando…" : "Confirmar novo horário"}
+                          </button>
+                          <button
+                            className="button button-ghost button-small"
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setReschedule(null)}
+                          >
+                            Voltar
+                          </button>
+                        </div>
+                      </form>
                     ) : null}
                   </div>
-                </article>
-              ))
+                );
+              })
             )}
           </section>
 
