@@ -37,6 +37,8 @@ uv run uvicorn app.main:app --reload --port 8010
   cancelamento de agendamentos (anti-conflito no backend).
 - `/clientes` — cadastro, edição, exclusão, score confidencial e bloqueio
   (telefone mascarado para colaboradores).
+- `/clientes/[id]` — prontuário com evoluções cifradas, consentimento LGPD e
+  anexos via pre-signed URL de 60s.
 - `/catalogo` — serviços, edição, exclusão, duração, buffer, preço, custo e
   sinal.
 - `/equipe` — usuários, edição, exclusão, papéis e comissões

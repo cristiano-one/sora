@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { AppShell } from "@/components/app-shell";
@@ -184,7 +185,7 @@ export default function ClientsPage() {
                       <th>Telefone</th>
                       <th>Score</th>
                       <th>Status</th>
-                      {isManager ? <th /> : null}
+                      <th />
                     </tr>
                   </thead>
                   <tbody>
@@ -205,33 +206,43 @@ export default function ClientsPage() {
                             <span className="pill pill-active">Ativo</span>
                           )}
                         </td>
-                        {isManager ? (
-                          <td>
-                            <div className="row-actions">
-                              <button
-                                className="button button-ghost button-small"
-                                type="button"
-                                onClick={() => startEdit(client)}
-                              >
-                                Editar
-                              </button>
-                              <button
-                                className="button button-ghost button-small"
-                                type="button"
-                                onClick={() => toggleBlock(client)}
-                              >
-                                {client.is_blocked ? "Desbloquear" : "Bloquear"}
-                              </button>
-                              <button
-                                className="button button-ghost button-small button-danger"
-                                type="button"
-                                onClick={() => handleDelete(client)}
-                              >
-                                Excluir
-                              </button>
-                            </div>
-                          </td>
-                        ) : null}
+                        <td>
+                          <div className="row-actions">
+                            <Link
+                              className="button button-ghost button-small"
+                              href={`/clientes/${client.id}`}
+                            >
+                              Prontuário
+                            </Link>
+                            {isManager ? (
+                              <>
+                                <button
+                                  className="button button-ghost button-small"
+                                  type="button"
+                                  onClick={() => startEdit(client)}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  className="button button-ghost button-small"
+                                  type="button"
+                                  onClick={() => toggleBlock(client)}
+                                >
+                                  {client.is_blocked
+                                    ? "Desbloquear"
+                                    : "Bloquear"}
+                                </button>
+                                <button
+                                  className="button button-ghost button-small button-danger"
+                                  type="button"
+                                  onClick={() => handleDelete(client)}
+                                >
+                                  Excluir
+                                </button>
+                              </>
+                            ) : null}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
