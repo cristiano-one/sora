@@ -13,7 +13,7 @@ import { AppShell } from "@/components/app-shell";
 import {
   ApiError,
   createAppointment,
-  getAppointments,
+  getAppointmentsRange,
   getAvailability,
   getClients,
   getMe,
@@ -31,10 +31,19 @@ import {
   formatTime,
   isoToTenantDate,
   isoToTenantTime,
-  shiftDate,
   toTenantIso,
   todayInTenant,
 } from "@/lib/agenda";
+import {
+  buildMonthCells,
+  dayNumber,
+  groupByDate,
+  monthBounds,
+  monthLabel,
+  monthStart,
+  shiftMonth,
+} from "@/lib/agenda-calendar";
+import { formatPrice } from "@/lib/public";
 
 const STATUS_LABEL: Record<string, string> = {
   SCHEDULED: "Agendado",
@@ -52,24 +61,47 @@ const ROLE_LABEL: Record<string, string> = {
   COLLABORATOR: "Colaborador",
 };
 
+const WEEKDAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+function statusClass(status: string): string {
+  return `agenda-event agenda-event-${status.toLowerCase()}`;
+}
+
+function initials(name: string): string {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
 export default function AgendaPage() {
   const router = useRouter();
+  const today = todayInTenant();
   const [me, setMe] = useState<Me | null>(null);
-  const [date, setDate] = useState(todayInTenant());
+  const [month, setMonth] = useState(monthStart(today));
+  const [selectedDate, setSelectedDate] = useState(today);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [filterCollaborator, setFilterCollaborator] = useState("");
-  const [formCollaborator, setFormCollaborator] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [actionId, setActionId] = useState<string | null>(null);
+
+  const [showForm, setShowForm] = useState(false);
   const [formClient, setFormClient] = useState("");
   const [formService, setFormService] = useState("");
+  const [formCollaborator, setFormCollaborator] = useState("");
   const [formTime, setFormTime] = useState("");
   const [slots, setSlots] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [actionId, setActionId] = useState<string | null>(null);
+
   const [reschedule, setReschedule] = useState<{
     id: string;
     date: string;
@@ -77,34 +109,53 @@ export default function AgendaPage() {
   } | null>(null);
 
   const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
+  const cells = useMemo(() => buildMonthCells(month), [month]);
+  const byDate = useMemo(() => groupByDate(appointments), [appointments]);
+  const selectedAppointments = byDate[selectedDate] ?? [];
+  const collaboratorNames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const user of users) map.set(user.id, user.full_name);
+    if (me) map.set(me.id, me.full_name);
+    return map;
+  }, [users, me]);
 
   const refreshAgenda = useCallback(async () => {
-    const data = await getAppointments(date, filterCollaborator || undefined);
+    const range = monthBounds(month);
+    const data = await getAppointmentsRange(
+      range.from,
+      range.to,
+      filterCollaborator || undefined,
+    );
     setAppointments(data);
-  }, [date, filterCollaborator]);
+  }, [filterCollaborator, month]);
 
   useEffect(() => {
     let active = true;
-
-    getMe()
-      .then(async (data) => {
+    Promise.all([getMe(), getServices(), getClients()])
+      .then(async ([user, serviceData, clientData]) => {
         if (!active) return;
-        setMe(data);
-        const [svc, cli] = await Promise.all([getServices(), getClients()]);
-        if (!active) return;
-        setServices(svc.filter((item) => item.is_active));
-        setClients(cli);
-        if (data.role === "OWNER" || data.role === "ADMIN") {
-          const usr = await getUsers();
+        setMe(user);
+        setServices(serviceData.filter((item) => item.is_active));
+        setClients(clientData);
+        setFormCollaborator(user.id);
+        setFormService(
+          serviceData.find((item) => item.is_active)?.id ?? "",
+        );
+        if (user.role === "OWNER" || user.role === "ADMIN") {
+          const userData = await getUsers();
           if (!active) return;
-          setUsers(usr.filter((item) => item.is_active));
+          setUsers(userData.filter((item) => item.is_active));
         }
-        setFormCollaborator(data.id);
       })
-      .catch(() => {
-        if (active) router.replace("/login");
+      .catch((err) => {
+        if (active) {
+          if (err instanceof ApiError && err.status === 401) {
+            router.replace("/login");
+          } else {
+            setError("Não foi possível carregar a agenda.");
+          }
+        }
       });
-
     return () => {
       active = false;
     };
@@ -127,29 +178,45 @@ export default function AgendaPage() {
   }, [me, refreshAgenda]);
 
   useEffect(() => {
-    if (!formService || !formCollaborator) {
+    if (!showForm || !formService || !formCollaborator) {
       setSlots([]);
       return;
     }
     let active = true;
-    getAvailability(formService, date, formCollaborator)
+    setSlotsLoading(true);
+    getAvailability(formService, selectedDate, formCollaborator)
       .then((data) => {
         if (active) setSlots(data.available_slots);
       })
       .catch(() => {
         if (active) setSlots([]);
+      })
+      .finally(() => {
+        if (active) setSlotsLoading(false);
       });
     return () => {
       active = false;
     };
-  }, [formService, date, formCollaborator]);
+  }, [formCollaborator, formService, selectedDate, showForm]);
 
-  const collaboratorNames = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const user of users) map.set(user.id, user.full_name);
-    if (me) map.set(me.id, me.full_name);
-    return map;
-  }, [users, me]);
+  function goToMonth(nextMonth: string) {
+    setMonth(nextMonth);
+    setSelectedDate(nextMonth);
+  }
+
+  function selectDate(date: string) {
+    setSelectedDate(date);
+    if (!date.startsWith(month.slice(0, 7))) {
+      setMonth(monthStart(date));
+    }
+  }
+
+  function openForm() {
+    setShowForm(true);
+    setFormTime("");
+    setError(null);
+    setNotice(null);
+  }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -160,39 +227,33 @@ export default function AgendaPage() {
     }
     setSaving(true);
     try {
-      await createAppointment({
+      const created = await createAppointment({
         client_id: formClient,
         service_id: formService,
         collaborator_id: formCollaborator || undefined,
-        starts_at: toTenantIso(date, formTime),
+        starts_at: toTenantIso(selectedDate, formTime),
       });
+      setShowForm(false);
       setFormTime("");
+      setFormClient("");
+      setSelectedDate(isoToTenantDate(created.starts_at));
       await refreshAgenda();
-      const available = await getAvailability(formService, date, formCollaborator);
-      setSlots(available.available_slots);
+      setNotice("Agendamento criado.");
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setError("Horário indisponível — escolha outra brecha.");
-        const available = await getAvailability(formService, date, formCollaborator);
-        setSlots(available.available_slots);
       } else if (err instanceof ApiError && err.status === 403) {
         setError("Você não pode agendar para outro profissional.");
       } else {
-        setError("Não foi possível criar o agendamento.");
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : "Não foi possível criar o agendamento.",
+        );
       }
     } finally {
       setSaving(false);
     }
-  }
-
-  async function refreshSlots() {
-    if (!formService) return;
-    const available = await getAvailability(
-      formService,
-      date,
-      formCollaborator,
-    );
-    setSlots(available.available_slots);
   }
 
   async function handleStatus(
@@ -217,12 +278,12 @@ export default function AgendaPage() {
     try {
       await updateAppointment(appointment.id, { status });
       await refreshAgenda();
-      if (formService) await refreshSlots();
+      setNotice(`Agendamento atualizado: ${label}.`);
     } catch (err) {
       setError(
         err instanceof ApiError
           ? err.message
-          : `Não foi possível ${label.toLowerCase()} o agendamento.`,
+          : "Não foi possível atualizar o agendamento.",
       );
     } finally {
       setActionId(null);
@@ -247,9 +308,10 @@ export default function AgendaPage() {
       await updateAppointment(reschedule.id, {
         starts_at: toTenantIso(reschedule.date, reschedule.time),
       });
+      setSelectedDate(reschedule.date);
       setReschedule(null);
       await refreshAgenda();
-      if (formService) await refreshSlots();
+      setNotice("Atendimento reagendado.");
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setError("Horário indisponível — escolha outra brecha.");
@@ -265,12 +327,6 @@ export default function AgendaPage() {
     }
   }
 
-  async function handleCancel(id: string) {
-    const appointment = appointments.find((item) => item.id === id);
-    if (!appointment) return;
-    await handleStatus(appointment, "CANCELLED", "cancelar");
-  }
-
   if (!me) {
     return (
       <main className="shell">
@@ -283,123 +339,120 @@ export default function AgendaPage() {
 
   return (
     <AppShell>
-      <div className="page">
-        <header className="page-header">
-          <div className="greeting">
+      <div className="page agenda-page">
+        <header className="page-header agenda-header">
+          <div>
             <span className="badge">{ROLE_LABEL[me.role] ?? me.role}</span>
             <h1>Agenda</h1>
             <p>
-              {formatDateLabel(date)} · {appointments.length} agendamento(s)
+              {formatDateLabel(selectedDate)} ·{" "}
+              {selectedAppointments.length} atendimento(s)
             </p>
+          </div>
+          <div className="page-actions">
+            <button
+              className="button button-ghost button-small"
+              type="button"
+              onClick={() => {
+                goToMonth(monthStart(today));
+                setSelectedDate(today);
+              }}
+            >
+              Hoje
+            </button>
+            <button className="button" type="button" onClick={openForm}>
+              + Novo agendamento
+            </button>
           </div>
         </header>
 
-        <section className="panel agenda-datebar">
-          <button
-            className="button button-ghost"
-            type="button"
-            onClick={() => setDate(shiftDate(date, -1))}
-          >
-            ← Anterior
-          </button>
-          <input
-            aria-label="Data"
-            type="date"
-            value={date}
-            onChange={(event) => setDate(event.target.value)}
-          />
-          <button
-            className="button button-ghost"
-            type="button"
-            onClick={() => setDate(shiftDate(date, 1))}
-          >
-            Próximo →
-          </button>
-          <button
-            className="button button-ghost"
-            type="button"
-            onClick={() => setDate(todayInTenant())}
-          >
-            Hoje
-          </button>
-          {isManager ? (
-            <select
-              aria-label="Filtrar profissional"
-              className="select"
-              value={filterCollaborator}
-              onChange={(event) => setFilterCollaborator(event.target.value)}
-            >
-              <option value="">Todos os profissionais</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.full_name}
-                </option>
-              ))}
-            </select>
-          ) : null}
-        </section>
+        {error ? <p className="error">{error}</p> : null}
+        {notice ? <p className="public-notice">{notice}</p> : null}
 
-        <div className="agenda-layout">
-          <section className="agenda-list">
+        <div className="agenda-workspace">
+          <aside className="agenda-side">
+            <div className="agenda-side-head">
+              <div>
+                <span className="agenda-eyebrow">Você vai atender</span>
+                <h2>{formatDateLabel(selectedDate)}</h2>
+              </div>
+              <span className="agenda-count">
+                {selectedAppointments.length}
+              </span>
+            </div>
+
             {loading ? (
-              <div className="panel">Carregando…</div>
-            ) : appointments.length === 0 ? (
-              <div className="panel agenda-empty">
-                Nenhum agendamento neste dia.
+              <p className="table-empty">Carregando…</p>
+            ) : selectedAppointments.length === 0 ? (
+              <div className="agenda-empty-card">
+                <span>☾</span>
+                <p>Nenhum atendimento neste dia.</p>
+                <button
+                  className="button button-ghost button-small"
+                  type="button"
+                  onClick={openForm}
+                >
+                  Agendar horário
+                </button>
               </div>
             ) : (
-              appointments.map((appointment) => {
-                const closed = [
-                  "CANCELLED",
-                  "COMPLETED",
-                  "EXPIRED",
-                  "NO_SHOW",
-                ].includes(appointment.status);
-                const busy = actionId === appointment.id;
-                return (
-                  <div key={appointment.id}>
-                    <article className="appointment-card">
-                      <div className="appointment-time">
-                        {formatTime(appointment.starts_at)}
-                      </div>
-                      <div className="appointment-main">
-                        <div className="appointment-title">
-                          {appointment.client_name}
-                          {appointment.subscription_id ? (
-                            <span className="badge-subscriber">Assinante</span>
-                          ) : null}
+              <div className="agenda-appointments">
+                {selectedAppointments.map((appointment) => {
+                  const closed = [
+                    "CANCELLED",
+                    "COMPLETED",
+                    "EXPIRED",
+                    "NO_SHOW",
+                  ].includes(appointment.status);
+                  const busy = actionId === appointment.id;
+                  return (
+                    <article
+                      className="agenda-person-card"
+                      key={appointment.id}
+                    >
+                      <div className="agenda-person-top">
+                        <div className="agenda-avatar">
+                          {initials(appointment.client_name)}
                         </div>
-                        <div className="appointment-sub">
-                          {appointment.service_name} ·{" "}
+                        <div className="agenda-person-info">
+                          <strong>{appointment.client_name}</strong>
+                          <span>
+                            {formatTime(appointment.starts_at)}–
+                            {formatTime(appointment.ends_at)}
+                          </span>
+                        </div>
+                        <span
+                          className={`agenda-dot agenda-dot-${appointment.status.toLowerCase()}`}
+                          title={
+                            STATUS_LABEL[appointment.status] ??
+                            appointment.status
+                          }
+                        />
+                      </div>
+                      <div className="agenda-person-details">
+                        <span>{appointment.service_name}</span>
+                        <span>
                           {collaboratorNames.get(
                             appointment.collaborator_id,
                           ) ?? "Profissional"}
-                        </div>
-                        <div className="appointment-sub">
-                          {formatTime(appointment.starts_at)}–
-                          {formatTime(appointment.ends_at)}
-                          {appointment.deposit_amount
-                            ? ` · sinal R$ ${appointment.deposit_amount}`
-                            : ""}
-                        </div>
-                      </div>
-                      <div className="appointment-side">
-                        <span
-                          className={`status status-${appointment.status.toLowerCase()}`}
-                        >
-                          {STATUS_LABEL[appointment.status] ??
-                            appointment.status}
                         </span>
+                      </div>
+                      {appointment.deposit_amount ? (
+                        <span className="agenda-deposit">
+                          Sinal {formatPrice(appointment.deposit_amount)}
+                        </span>
+                      ) : null}
+                      <div className="agenda-card-actions">
                         {appointment.status === "PENDING_DEPOSIT" ? (
                           <button
-                            className="button button-ghost button-small"
+                            className="agenda-text-action"
                             type="button"
                             disabled={busy}
                             onClick={() =>
                               handleStatus(
                                 appointment,
                                 "CONFIRMED",
-                                "confirmar",
+                                "confirmado",
                               )
                             }
                           >
@@ -410,28 +463,28 @@ export default function AgendaPage() {
                         appointment.status === "CONFIRMED" ? (
                           <>
                             <button
-                              className="button button-ghost button-small"
+                              className="agenda-text-action"
                               type="button"
                               disabled={busy}
                               onClick={() =>
                                 handleStatus(
                                   appointment,
                                   "COMPLETED",
-                                  "concluir",
+                                  "concluído",
                                 )
                               }
                             >
                               Concluir
                             </button>
                             <button
-                              className="button button-ghost button-small button-danger"
+                              className="agenda-text-action agenda-text-danger"
                               type="button"
                               disabled={busy}
                               onClick={() =>
                                 handleStatus(
                                   appointment,
                                   "NO_SHOW",
-                                  "marcar falta",
+                                  "falta",
                                 )
                               }
                             >
@@ -442,7 +495,7 @@ export default function AgendaPage() {
                         {!closed ? (
                           <>
                             <button
-                              className="button button-ghost button-small"
+                              className="agenda-text-action"
                               type="button"
                               disabled={busy}
                               onClick={() => startReschedule(appointment)}
@@ -450,10 +503,16 @@ export default function AgendaPage() {
                               Reagendar
                             </button>
                             <button
-                              className="button button-ghost button-small"
+                              className="agenda-text-action agenda-text-danger"
                               type="button"
                               disabled={busy}
-                              onClick={() => handleCancel(appointment.id)}
+                              onClick={() =>
+                                handleStatus(
+                                  appointment,
+                                  "CANCELLED",
+                                  "cancelado",
+                                )
+                              }
                             >
                               Cancelar
                             </button>
@@ -461,187 +520,351 @@ export default function AgendaPage() {
                         ) : null}
                       </div>
                     </article>
-
-                    {reschedule?.id === appointment.id ? (
-                      <form
-                        className="panel agenda-reschedule"
-                        onSubmit={handleReschedule}
-                      >
-                        <strong>Reagendar {appointment.client_name}</strong>
-                        <div className="agenda-reschedule-fields">
-                          <div className="field">
-                            <label htmlFor={`reschedule-date-${appointment.id}`}>
-                              Nova data
-                            </label>
-                            <input
-                              id={`reschedule-date-${appointment.id}`}
-                              type="date"
-                              value={reschedule.date}
-                              onChange={(event) =>
-                                setReschedule({
-                                  ...reschedule,
-                                  date: event.target.value,
-                                })
-                              }
-                              required
-                            />
-                          </div>
-                          <div className="field">
-                            <label htmlFor={`reschedule-time-${appointment.id}`}>
-                              Novo horário
-                            </label>
-                            <input
-                              id={`reschedule-time-${appointment.id}`}
-                              type="time"
-                              value={reschedule.time}
-                              onChange={(event) =>
-                                setReschedule({
-                                  ...reschedule,
-                                  time: event.target.value,
-                                })
-                              }
-                              required
-                            />
-                          </div>
-                        </div>
-                        <div className="row-actions">
-                          <button
-                            className="button button-small"
-                            type="submit"
-                            disabled={busy}
-                          >
-                            {busy ? "Reagendando…" : "Confirmar novo horário"}
-                          </button>
-                          <button
-                            className="button button-ghost button-small"
-                            type="button"
-                            disabled={busy}
-                            onClick={() => setReschedule(null)}
-                          >
-                            Voltar
-                          </button>
-                        </div>
-                      </form>
-                    ) : null}
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
-          </section>
 
-          <section className="panel agenda-form">
-            <h2>Novo agendamento</h2>
-            <p className="subtitle">
-              Conflitos são bloqueados pelo backend (lock + constraint).
-            </p>
+            <button
+              className="agenda-see-more"
+              type="button"
+              onClick={openForm}
+            >
+              + Adicionar atendimento
+            </button>
+          </aside>
 
-            <form onSubmit={handleCreate}>
-              <div className="field">
-                <label htmlFor="client">Cliente</label>
-                <select
-                  id="client"
-                  value={formClient}
-                  onChange={(event) => setFormClient(event.target.value)}
-                  required
-                >
-                  <option value="">Selecione…</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.full_name}
-                    </option>
-                  ))}
-                </select>
+          <section className="agenda-calendar-panel">
+            <div className="agenda-calendar-toolbar">
+              <div>
+                <span className="agenda-eyebrow">Calendário</span>
+                <h2>{monthLabel(month)}</h2>
               </div>
-
-              <div className="field">
-                <label htmlFor="service">Serviço</label>
-                <select
-                  id="service"
-                  value={formService}
-                  onChange={(event) => setFormService(event.target.value)}
-                  required
-                >
-                  <option value="">Selecione…</option>
-                  {services.map((service) => (
-                    <option key={service.id} value={service.id}>
-                      {service.name} ({service.duration_minutes} min)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="field">
-                <label htmlFor="collaborator">Profissional</label>
+              <div className="agenda-calendar-controls">
                 {isManager ? (
                   <select
-                    id="collaborator"
-                    value={formCollaborator}
-                    onChange={(event) => setFormCollaborator(event.target.value)}
-                    required
+                    aria-label="Filtrar profissional"
+                    className="select"
+                    value={filterCollaborator}
+                    onChange={(event) =>
+                      setFilterCollaborator(event.target.value)
+                    }
                   >
-                    <option value="">Selecione…</option>
+                    <option value="">Todos os profissionais</option>
                     {users.map((user) => (
                       <option key={user.id} value={user.id}>
                         {user.full_name}
                       </option>
                     ))}
                   </select>
-                ) : (
-                  <input id="collaborator" value={me.full_name} disabled />
-                )}
+                ) : null}
+                <button
+                  className="agenda-nav-button"
+                  type="button"
+                  aria-label="Mês anterior"
+                  onClick={() => goToMonth(shiftMonth(month, -1))}
+                >
+                  ‹
+                </button>
+                <button
+                  className="agenda-nav-button"
+                  type="button"
+                  aria-label="Próximo mês"
+                  onClick={() => goToMonth(shiftMonth(month, 1))}
+                >
+                  ›
+                </button>
               </div>
+            </div>
 
-              <div className="field">
-                <label htmlFor="date">Data</label>
-                <input
-                  id="date"
-                  type="date"
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                />
-              </div>
+            <div className="agenda-weekdays">
+              {WEEKDAYS.map((weekday) => (
+                <span key={weekday}>{weekday}</span>
+              ))}
+            </div>
 
-              <div className="field">
-                <label>Horários livres</label>
-                <div className="slot-grid">
-                  {slots.length === 0 ? (
-                    <span className="appointment-sub">
-                      Sem horários livres para este serviço.
+            <div className="agenda-month-grid">
+              {cells.map((cell) => {
+                const dayAppointments = byDate[cell.date] ?? [];
+                const selected = cell.date === selectedDate;
+                const isToday = cell.date === today;
+                return (
+                  <button
+                    key={cell.date}
+                    className={`agenda-day ${
+                      cell.inMonth ? "" : "agenda-day-outside"
+                    } ${selected ? "agenda-day-selected" : ""} ${
+                      isToday ? "agenda-day-today" : ""
+                    }`}
+                    type="button"
+                    onClick={() => selectDate(cell.date)}
+                  >
+                    <span className="agenda-day-number">
+                      {dayNumber(cell.date)}
                     </span>
-                  ) : (
-                    slots.map((slot) => (
-                      <button
-                        key={slot}
-                        className={`slot ${formTime === slot ? "active" : ""}`}
-                        type="button"
-                        onClick={() => setFormTime(slot)}
-                      >
-                        {slot}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
+                    <span className="agenda-day-events">
+                      {dayAppointments.slice(0, 3).map((appointment) => (
+                        <span
+                          className={statusClass(appointment.status)}
+                          key={appointment.id}
+                          title={`${formatTime(appointment.starts_at)} · ${
+                            appointment.client_name
+                          } · ${appointment.service_name}`}
+                        >
+                          {formatTime(appointment.starts_at)}{" "}
+                          {appointment.client_name.split(" ")[0]}
+                        </span>
+                      ))}
+                      {dayAppointments.length > 3 ? (
+                        <span className="agenda-more-events">
+                          +{dayAppointments.length - 3}
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-              <div className="field">
-                <label htmlFor="time">Horário</label>
-                <input
-                  id="time"
-                  type="time"
-                  value={formTime}
-                  onChange={(event) => setFormTime(event.target.value)}
-                  required
-                />
-              </div>
-
-              <button className="button" type="submit" disabled={saving}>
-                {saving ? "Agendando…" : "Agendar"}
-              </button>
-
-              {error ? <p className="error">{error}</p> : null}
-            </form>
+            <div className="agenda-legend">
+              <span>
+                <i className="agenda-dot agenda-dot-scheduled" /> Agendado
+              </span>
+              <span>
+                <i className="agenda-dot agenda-dot-confirmed" /> Confirmado
+              </span>
+              <span>
+                <i className="agenda-dot agenda-dot-pending_deposit" /> Sinal
+              </span>
+              <span>
+                <i className="agenda-dot agenda-dot-completed" /> Concluído
+              </span>
+              <span>
+                <i className="agenda-dot agenda-dot-no_show" /> Falta
+              </span>
+            </div>
           </section>
         </div>
+
+        {showForm ? (
+          <div
+            className="agenda-modal-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setShowForm(false);
+            }}
+          >
+            <section className="agenda-modal">
+              <div className="agenda-modal-head">
+                <div>
+                  <span className="agenda-eyebrow">Novo atendimento</span>
+                  <h2>{formatDateLabel(selectedDate)}</h2>
+                </div>
+                <button
+                  className="agenda-nav-button"
+                  type="button"
+                  aria-label="Fechar"
+                  onClick={() => setShowForm(false)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <form onSubmit={handleCreate}>
+                <div className="field">
+                  <label htmlFor="agenda-client">Cliente</label>
+                  <select
+                    id="agenda-client"
+                    value={formClient}
+                    onChange={(event) => setFormClient(event.target.value)}
+                    required
+                  >
+                    <option value="">Selecione…</option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-grid">
+                  <div className="field">
+                    <label htmlFor="agenda-service">Serviço</label>
+                    <select
+                      id="agenda-service"
+                      value={formService}
+                      onChange={(event) => setFormService(event.target.value)}
+                      required
+                    >
+                      <option value="">Selecione…</option>
+                      {services.map((service) => (
+                        <option key={service.id} value={service.id}>
+                          {service.name} ({service.duration_minutes} min)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="agenda-collaborator">Profissional</label>
+                    {isManager ? (
+                      <select
+                        id="agenda-collaborator"
+                        value={formCollaborator}
+                        onChange={(event) =>
+                          setFormCollaborator(event.target.value)
+                        }
+                        required
+                      >
+                        <option value="">Selecione…</option>
+                        {users.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.full_name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        id="agenda-collaborator"
+                        value={me.full_name}
+                        disabled
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label>Horários livres</label>
+                  <div className="slot-grid">
+                    {slotsLoading ? (
+                      <span className="appointment-sub">Carregando…</span>
+                    ) : slots.length === 0 ? (
+                      <span className="appointment-sub">
+                        Sem horários livres para este serviço.
+                      </span>
+                    ) : (
+                      slots.map((slot) => (
+                        <button
+                          key={slot}
+                          className={`slot ${
+                            formTime === slot ? "active" : ""
+                          }`}
+                          type="button"
+                          onClick={() => setFormTime(slot)}
+                        >
+                          {slot}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="agenda-time">Horário</label>
+                  <input
+                    id="agenda-time"
+                    type="time"
+                    value={formTime}
+                    onChange={(event) => setFormTime(event.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="agenda-modal-actions">
+                  <button
+                    className="button button-ghost"
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button className="button" type="submit" disabled={saving}>
+                    {saving ? "Agendando…" : "Confirmar agendamento"}
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+        ) : null}
+
+        {reschedule ? (
+          <div
+            className="agenda-modal-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setReschedule(null);
+            }}
+          >
+            <section className="agenda-modal agenda-modal-small">
+              <div className="agenda-modal-head">
+                <div>
+                  <span className="agenda-eyebrow">Reagendar</span>
+                  <h2>Novo horário</h2>
+                </div>
+                <button
+                  className="agenda-nav-button"
+                  type="button"
+                  aria-label="Fechar"
+                  onClick={() => setReschedule(null)}
+                >
+                  ×
+                </button>
+              </div>
+              <form onSubmit={handleReschedule}>
+                <div className="form-grid">
+                  <div className="field">
+                    <label htmlFor="reschedule-date">Data</label>
+                    <input
+                      id="reschedule-date"
+                      type="date"
+                      value={reschedule.date}
+                      onChange={(event) =>
+                        setReschedule({
+                          ...reschedule,
+                          date: event.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="reschedule-time">Horário</label>
+                    <input
+                      id="reschedule-time"
+                      type="time"
+                      value={reschedule.time}
+                      onChange={(event) =>
+                        setReschedule({
+                          ...reschedule,
+                          time: event.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="agenda-modal-actions">
+                  <button
+                    className="button button-ghost"
+                    type="button"
+                    onClick={() => setReschedule(null)}
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    className="button"
+                    type="submit"
+                    disabled={actionId === reschedule.id}
+                  >
+                    {actionId === reschedule.id
+                      ? "Reagendando…"
+                      : "Confirmar novo horário"}
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+        ) : null}
       </div>
     </AppShell>
   );

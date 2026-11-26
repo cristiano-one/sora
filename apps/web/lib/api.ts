@@ -1528,6 +1528,21 @@ export async function getAppointments(
   );
 }
 
+export async function getAppointmentsRange(
+  fromDate: string,
+  toDate: string,
+  collaboratorId?: string,
+): Promise<Appointment[]> {
+  const params = new URLSearchParams({
+    from_date: fromDate,
+    to_date: toDate,
+  });
+  if (collaboratorId) params.set("collaborator_id", collaboratorId);
+  return authenticatedRequest<Appointment[]>(
+    `/api/v1/appointments?${params.toString()}`,
+  );
+}
+
 export async function getAvailability(
   serviceId: string,
   date: string,
