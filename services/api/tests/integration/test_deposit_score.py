@@ -156,6 +156,7 @@ async def test_owner_reads_and_updates_settings(
         "enable_tithe_and_offering": False,
         "tithe_percentage": "10.00",
         "offering_amount": "0.00",
+        "birthday_credit_amount": "0.00",
     }
 
     updated = await _patch_settings(

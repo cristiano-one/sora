@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     payment_merchant_name: str = "SORA STUDIO"
     payment_merchant_city: str = "SAO PAULO"
     payment_subscription_ttl_minutes: int = 30
+    whatsapp_provider: str = "mock"
+    whatsapp_meta_token: str = ""
+    whatsapp_meta_phone_number_id: str = ""
 
     # Infraestrutura (portas do HOST do compose de dev; ver .env.example)
     database_url: str = "postgresql+asyncpg://sora_app:sora_app_dev_only@127.0.0.1:5433/sora"

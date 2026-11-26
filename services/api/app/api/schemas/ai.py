@@ -1,6 +1,7 @@
 """Contratos da SORA IA e da central de conversas."""
 
 from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -78,3 +79,25 @@ class AiSummaryResponse(BaseModel):
     messages_today: int
     appointments_today: int
     birthdays: list[BirthdayItemResponse]
+
+
+class BirthdayCreditResponse(BaseModel):
+    """Crédito de aniversário de um cliente."""
+
+    id: UUID
+    client_id: UUID
+    client_name: str
+    amount: Decimal
+    used_amount: Decimal
+    reason: str
+    reference: str
+    expires_at: date
+
+
+class BirthdayCreditRunResponse(BaseModel):
+    """Resultado da geração idempotente de créditos."""
+
+    year: str
+    created: int
+    total_amount: Decimal
+    credits: list[BirthdayCreditResponse]

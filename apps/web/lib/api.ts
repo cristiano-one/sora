@@ -56,6 +56,7 @@ export type TenantSettings = {
   enable_tithe_and_offering: boolean;
   tithe_percentage: string;
   offering_amount: string;
+  birthday_credit_amount: string;
 };
 
 export type SubscriptionPlanItem = {
@@ -230,6 +231,24 @@ export type AiSummary = {
     birth_date: string;
     days_until: number;
   }[];
+};
+
+export type BirthdayCredit = {
+  id: string;
+  client_id: string;
+  client_name: string;
+  amount: string;
+  used_amount: string;
+  reason: string;
+  reference: string;
+  expires_at: string;
+};
+
+export type BirthdayCreditRun = {
+  year: string;
+  created: number;
+  total_amount: string;
+  credits: BirthdayCredit[];
 };
 
 export type Appointment = {
@@ -860,6 +879,24 @@ export async function closeAiConversation(
 ): Promise<AiConversationDetail> {
   return authenticatedRequest<AiConversationDetail>(
     `/api/v1/ai/conversations/${id}/close`,
+    { method: "POST" },
+  );
+}
+
+export async function getBirthdayCredits(
+  year?: string,
+): Promise<BirthdayCredit[]> {
+  const params = new URLSearchParams();
+  if (year) params.set("year", year);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return authenticatedRequest<BirthdayCredit[]>(
+    `/api/v1/ai/birthday-credits${suffix}`,
+  );
+}
+
+export async function runBirthdayCredits(): Promise<BirthdayCreditRun> {
+  return authenticatedRequest<BirthdayCreditRun>(
+    "/api/v1/ai/birthday-credits/run",
     { method: "POST" },
   );
 }

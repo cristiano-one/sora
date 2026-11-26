@@ -10,15 +10,19 @@ import {
   getAiConversation,
   getAiConversations,
   getAiSummary,
+  getBirthdayCredits,
   getMe,
+  runBirthdayCredits,
   sendAiConversationMessage,
   takeoverAiConversation,
   type AiConversation,
   type AiConversationDetail,
   type AiSummary,
+  type BirthdayCredit,
   type Me,
 } from "@/lib/api";
 import { formatDateLabel, formatDateOnly, formatTime } from "@/lib/agenda";
+import { formatPrice } from "@/lib/public";
 
 const STATUS_LABEL: Record<string, string> = {
   OPEN: "SORA IA",
@@ -30,23 +34,28 @@ export default function SoraAiPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [summary, setSummary] = useState<AiSummary | null>(null);
   const [conversations, setConversations] = useState<AiConversation[]>([]);
+  const [credits, setCredits] = useState<BirthdayCredit[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AiConversationDetail | null>(null);
   const [reply, setReply] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [creditBusy, setCreditBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
 
   const loadOverview = useCallback(async () => {
-    const [summaryData, conversationData] = await Promise.all([
+    const year = String(new Date().getFullYear());
+    const [summaryData, conversationData, creditData] = await Promise.all([
       getAiSummary(),
       getAiConversations(),
+      getBirthdayCredits(year),
     ]);
     setSummary(summaryData);
     setConversations(conversationData);
+    setCredits(creditData);
     setSelectedId((current) => {
       if (current && conversationData.some((item) => item.id === current)) {
         return current;
@@ -154,6 +163,29 @@ export default function SoraAiPage() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleRunCredits() {
+    setCreditBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await runBirthdayCredits();
+      await loadOverview();
+      setNotice(
+        result.created > 0
+          ? `${result.created} crédito(s) gerado(s) · R$ ${result.total_amount}`
+          : "Nenhum aniversariante novo para creditar.",
+      );
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Falha ao gerar créditos de aniversário.",
+      );
+    } finally {
+      setCreditBusy(false);
     }
   }
 
@@ -288,6 +320,41 @@ export default function SoraAiPage() {
                 ))
               ) : (
                 <p className="muted-small">Nenhum aniversariante próximo.</p>
+              )}
+            </div>
+
+            <div className="ai-birthdays">
+              <div className="panel-title">
+                <h2>Créditos gerados</h2>
+                <button
+                  className="button button-ghost button-small"
+                  type="button"
+                  onClick={handleRunCredits}
+                  disabled={creditBusy}
+                >
+                  {creditBusy ? "Gerando…" : "Gerar créditos"}
+                </button>
+              </div>
+              {credits.length > 0 ? (
+                credits.map((credit) => (
+                  <div className="ai-birthday" key={credit.id}>
+                    <div>
+                      <strong>{credit.client_name}</strong>
+                      <span className="muted-small">
+                        válido até {formatDateOnly(credit.expires_at)} · usado{" "}
+                        {credit.used_amount}
+                      </span>
+                    </div>
+                    <span className="pill pill-active">
+                      {formatPrice(credit.amount)}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="muted-small">
+                  Nenhum crédito gerado neste ano. Configure o valor em
+                  Configurações.
+                </p>
               )}
             </div>
           </section>

@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [enableTithe, setEnableTithe] = useState(false);
   const [tithePercentage, setTithePercentage] = useState("10.00");
   const [offeringAmount, setOfferingAmount] = useState("0.00");
+  const [birthdayCredit, setBirthdayCredit] = useState("0.00");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +45,7 @@ export default function SettingsPage() {
         setEnableTithe(data.enable_tithe_and_offering);
         setTithePercentage(data.tithe_percentage);
         setOfferingAmount(data.offering_amount);
+        setBirthdayCredit(data.birthday_credit_amount);
       })
       .catch((err) => {
         if (active) {
@@ -78,6 +80,7 @@ export default function SettingsPage() {
         enable_tithe_and_offering: enableTithe,
         tithe_percentage: tithePercentage,
         offering_amount: offeringAmount,
+        birthday_credit_amount: birthdayCredit,
       });
       setThreshold(
         saved.deposit_score_threshold === null
@@ -90,6 +93,7 @@ export default function SettingsPage() {
       setEnableTithe(saved.enable_tithe_and_offering);
       setTithePercentage(saved.tithe_percentage);
       setOfferingAmount(saved.offering_amount);
+      setBirthdayCredit(saved.birthday_credit_amount);
       setNotice("Configurações salvas.");
       window.dispatchEvent(
         new CustomEvent<string>("sora-theme", {
@@ -210,6 +214,24 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 ) : null}
+
+                <div className="panel-title theme-title">
+                  <h2>Crédito de aniversário</h2>
+                </div>
+                <div className="field">
+                  <label htmlFor="birthday-credit">
+                    Valor do crédito (R$ · 0 desativa)
+                  </label>
+                  <input
+                    id="birthday-credit"
+                    value={birthdayCredit}
+                    onChange={(event) => setBirthdayCredit(event.target.value)}
+                  />
+                </div>
+                <p className="muted-small">
+                  A SORA IA gera o crédito 7 dias antes do aniversário, uma vez
+                  por ano, com validade de 30 dias.
+                </p>
 
                 <div className="panel-title theme-title">
                   <h2>Tema e identidade</h2>

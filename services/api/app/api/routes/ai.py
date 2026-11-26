@@ -13,6 +13,8 @@ from app.api.schemas.ai import (
     AiConversationResponse,
     AiMessageResponse,
     AiSummaryResponse,
+    BirthdayCreditResponse,
+    BirthdayCreditRunResponse,
     WhatsAppWebhookRequest,
     WhatsAppWebhookResponse,
 )
@@ -33,7 +35,9 @@ from app.modules.ai.service import (
     ai_summary,
     close_conversation,
     conversation_detail,
+    create_birthday_credits,
     handle_whatsapp_message,
+    list_birthday_credits,
     list_conversations,
     send_human_message,
     takeover_conversation,
@@ -90,6 +94,46 @@ async def summary_endpoint(
         tenant_id=principal.tenant_id,
         day=day,
     )
+
+
+@router.get(
+    "/birthday-credits",
+    response_model=list[BirthdayCreditResponse],
+    summary="Lista créditos de aniversário gerados",
+)
+async def birthday_credits_endpoint(
+    year: str | None = Query(default=None),
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> list[BirthdayCreditResponse]:
+    return await list_birthday_credits(session, year=year)
+
+
+@router.post(
+    "/birthday-credits/run",
+    response_model=BirthdayCreditRunResponse,
+    summary="Gera créditos para aniversariantes dos próximos 7 dias",
+)
+async def run_birthday_credits_endpoint(
+    request: Request,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> BirthdayCreditRunResponse:
+    result = await create_birthday_credits(
+        session,
+        tenant_id=principal.tenant_id,
+    )
+    await record_audit(
+        session,
+        tenant_id=principal.tenant_id,
+        actor=principal,
+        action="ai.birthday_credits.run",
+        resource_type="client_credit",
+        resource_id=None,
+        ip_address=client_ip(request),
+        details={"created": result.created, "year": result.year},
+    )
+    return result
 
 
 @router.get(
