@@ -15,6 +15,7 @@ import {
   getClients,
   type Client,
 } from "../api";
+import { ClientRecordScreen } from "./ClientRecordScreen";
 import { colors } from "../theme";
 import { ui } from "../ui";
 
@@ -25,6 +26,7 @@ export function ClientsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -77,6 +79,15 @@ export function ClientsScreen() {
     } finally {
       setActionId(null);
     }
+  }
+
+  if (selectedClient) {
+    return (
+      <ClientRecordScreen
+        client={selectedClient}
+        onBack={() => setSelectedClient(null)}
+      />
+    );
   }
 
   return (
@@ -167,7 +178,22 @@ export function ClientsScreen() {
                 </View>
               </View>
 
-              <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginTop: 12,
+                }}
+              >
+                <Pressable
+                  onPress={() => setSelectedClient(item)}
+                  style={[ui.buttonGhost, { borderColor: colors.primary }]}
+                >
+                  <Text style={[ui.buttonGhostText, { color: colors.primary }]}>
+                    Prontuário
+                  </Text>
+                </Pressable>
                 <Pressable
                   disabled={busy}
                   onPress={() => handleScore(item, "POSITIVE")}
