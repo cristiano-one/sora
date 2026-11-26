@@ -355,6 +355,47 @@ export default function MedicalRecordPage() {
         {error ? <p className="error">{error}</p> : null}
         {notice ? <p className="public-notice">{notice}</p> : null}
 
+        <section className="panel">
+          <div className="panel-title">
+            <div>
+              <h2>Dados do cliente</h2>
+              <span className="muted-small">
+                Perfil e informações administrativas.
+              </span>
+            </div>
+          </div>
+          <div className="client-profile-grid">
+            <div>
+              <span>Data de nascimento</span>
+              <strong>
+                {client.birth_date
+                  ? formatDateOnly(client.birth_date)
+                  : "Não informada"}
+              </strong>
+            </div>
+            <div>
+              <span>Endereço</span>
+              <strong>
+                {[
+                  client.address_street,
+                  client.address_number,
+                  client.address_complement,
+                  client.address_neighborhood,
+                  client.address_city,
+                  client.address_state,
+                  client.address_zip,
+                ]
+                  .filter(Boolean)
+                  .join(", ") || "Não informado"}
+              </strong>
+            </div>
+            <div className="client-profile-notes">
+              <span>Observações</span>
+              <strong>{client.notes?.trim() || "Nenhuma observação."}</strong>
+            </div>
+          </div>
+        </section>
+
         {medicalEnabled ? (
           <div className="admin-grid">
             <section className="panel">

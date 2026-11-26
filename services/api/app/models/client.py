@@ -55,6 +55,35 @@ class Client(Base):
     phone: Mapped[str] = mapped_column(String(20), nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    address_zip: Mapped[str | None] = mapped_column(String(9), nullable=True)
+    address_street: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    address_number: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+    address_complement: Mapped[str | None] = mapped_column(
+        String(120),
+        nullable=True,
+    )
+    address_neighborhood: Mapped[str | None] = mapped_column(
+        String(120),
+        nullable=True,
+    )
+    address_city: Mapped[str | None] = mapped_column(
+        String(120),
+        nullable=True,
+    )
+    address_state: Mapped[str | None] = mapped_column(
+        String(2),
+        nullable=True,
+    )
+    notes_encrypted: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
     score: Mapped[int] = mapped_column(
         Integer,
         nullable=False,

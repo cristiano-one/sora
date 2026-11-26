@@ -133,6 +133,18 @@ async def export_tenant_data(
                 "phone": client.phone,
                 "email": client.email,
                 "birth_date": _value(client.birth_date),
+                "address_zip": client.address_zip,
+                "address_street": client.address_street,
+                "address_number": client.address_number,
+                "address_complement": client.address_complement,
+                "address_neighborhood": client.address_neighborhood,
+                "address_city": client.address_city,
+                "address_state": client.address_state,
+                "notes": (
+                    decrypt_text(client.notes_encrypted)
+                    if client.notes_encrypted
+                    else None
+                ),
                 "score": client.score,
                 "is_blocked": client.is_blocked,
                 "created_at": _value(client.created_at),

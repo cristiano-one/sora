@@ -78,6 +78,12 @@ def _client_response(client: Client, role: UserRole) -> ClientResponse:
         if role in (UserRole.OWNER, UserRole.ADMIN)
         else mask_phone(client.phone)
     )
+    notes: str | None = None
+    if client.notes_encrypted:
+        try:
+            notes = decrypt_text(client.notes_encrypted)
+        except ValueError:
+            notes = None
     return ClientResponse(
         id=client.id,
         tenant_id=client.tenant_id,
@@ -85,6 +91,14 @@ def _client_response(client: Client, role: UserRole) -> ClientResponse:
         phone=phone,
         email=client.email,
         birth_date=client.birth_date,
+        address_zip=client.address_zip,
+        address_street=client.address_street,
+        address_number=client.address_number,
+        address_complement=client.address_complement,
+        address_neighborhood=client.address_neighborhood,
+        address_city=client.address_city,
+        address_state=client.address_state,
+        notes=notes,
         score=client.score,
         is_blocked=client.is_blocked,
     )

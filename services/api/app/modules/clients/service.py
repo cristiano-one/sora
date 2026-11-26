@@ -42,6 +42,32 @@ async def create_client(
         phone=body.phone.strip(),
         email=str(body.email) if body.email else None,
         birth_date=body.birth_date,
+        address_zip=body.address_zip.strip() if body.address_zip else None,
+        address_street=(
+            body.address_street.strip() if body.address_street else None
+        ),
+        address_number=(
+            body.address_number.strip() if body.address_number else None
+        ),
+        address_complement=(
+            body.address_complement.strip()
+            if body.address_complement
+            else None
+        ),
+        address_neighborhood=(
+            body.address_neighborhood.strip()
+            if body.address_neighborhood
+            else None
+        ),
+        address_city=(
+            body.address_city.strip() if body.address_city else None
+        ),
+        address_state=(
+            body.address_state.strip().upper() if body.address_state else None
+        ),
+        notes_encrypted=(
+            encrypt_text(body.notes.strip()) if body.notes else None
+        ),
     )
     session.add(client)
     await session.commit()
@@ -55,11 +81,36 @@ async def update_client(
     changes: dict[str, object],
 ) -> Client:
     """Aplica alterações parciais no cliente."""
-    for field in ("full_name", "phone", "email", "birth_date", "score", "is_blocked"):
+    changes = dict(changes)
+    notes_provided = "notes" in changes
+    notes = changes.pop("notes", None)
+    if notes_provided:
+        client.notes_encrypted = (
+            encrypt_text(str(notes).strip()) if notes else None
+        )
+    for field in (
+        "full_name",
+        "phone",
+        "email",
+        "birth_date",
+        "address_zip",
+        "address_street",
+        "address_number",
+        "address_complement",
+        "address_neighborhood",
+        "address_city",
+        "address_state",
+        "score",
+        "is_blocked",
+    ):
         if field in changes:
             value = changes[field]
             if field == "email" and value is not None:
                 value = str(value)
+            if field.startswith("address_") and isinstance(value, str):
+                value = value.strip()
+            if field == "address_state" and isinstance(value, str):
+                value = value.upper()
             setattr(client, field, value)
     await session.commit()
     return client

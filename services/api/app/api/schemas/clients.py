@@ -16,6 +16,22 @@ class ClientCreateRequest(BaseModel):
     phone: str = Field(min_length=5, max_length=20)
     email: EmailStr | None = None
     birth_date: date | None = None
+    address_zip: str | None = Field(
+        default=None,
+        max_length=9,
+        pattern=r"^\d{5}-?\d{3}$",
+    )
+    address_street: str | None = Field(default=None, max_length=255)
+    address_number: str | None = Field(default=None, max_length=20)
+    address_complement: str | None = Field(default=None, max_length=120)
+    address_neighborhood: str | None = Field(default=None, max_length=120)
+    address_city: str | None = Field(default=None, max_length=120)
+    address_state: str | None = Field(
+        default=None,
+        max_length=2,
+        pattern=r"^[A-Z]{2}$",
+    )
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class ClientUpdateRequest(BaseModel):
@@ -25,6 +41,22 @@ class ClientUpdateRequest(BaseModel):
     phone: str | None = Field(default=None, min_length=5, max_length=20)
     email: EmailStr | None = None
     birth_date: date | None = None
+    address_zip: str | None = Field(
+        default=None,
+        max_length=9,
+        pattern=r"^\d{5}-?\d{3}$",
+    )
+    address_street: str | None = Field(default=None, max_length=255)
+    address_number: str | None = Field(default=None, max_length=20)
+    address_complement: str | None = Field(default=None, max_length=120)
+    address_neighborhood: str | None = Field(default=None, max_length=120)
+    address_city: str | None = Field(default=None, max_length=120)
+    address_state: str | None = Field(
+        default=None,
+        max_length=2,
+        pattern=r"^[A-Z]{2}$",
+    )
+    notes: str | None = Field(default=None, max_length=5000)
     score: int | None = Field(default=None, ge=0, le=100)
     is_blocked: bool | None = None
 
@@ -38,6 +70,14 @@ class ClientResponse(BaseModel):
     phone: str
     email: str | None
     birth_date: date | None
+    address_zip: str | None
+    address_street: str | None
+    address_number: str | None
+    address_complement: str | None
+    address_neighborhood: str | None
+    address_city: str | None
+    address_state: str | None
+    notes: str | None
     score: int
     is_blocked: bool
 

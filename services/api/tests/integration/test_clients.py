@@ -6,7 +6,7 @@ import pytest
 from app.core.crypto import decrypt_text
 from app.db.rls import set_tenant_context
 from app.db.session import create_engine, create_session_factory
-from app.models import AuditLog, MedicalRecord, UserRole
+from app.models import AuditLog, Client, MedicalRecord, UserRole
 from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
 
@@ -380,3 +380,79 @@ async def test_audit_log_is_immutable(app_session, tenant_users) -> None:
     with pytest.raises(DBAPIError):
         await app_session.execute(text("DELETE FROM audit_logs"))
     await app_session.rollback()
+
+
+async def test_client_profile_address_and_encrypted_notes(
+    auth_client,
+    tenant_users,
+    database_urls,
+) -> None:
+    owner_token = await _login(auth_client, tenant_users.users[UserRole.OWNER])
+    suffix = uuid4().hex[:8]
+    notes = "Prefere atendimento pela manhã. Alergia a henna."
+    response = await auth_client.post(
+        CLIENTS,
+        headers=_auth(owner_token),
+        json={
+            "full_name": f"Cliente Perfil {suffix}",
+            "phone": "(11) 98888-7777",
+            "email": f"perfil-{suffix}@example.com",
+            "birth_date": "1992-05-10",
+            "address_zip": "01310-100",
+            "address_street": "Avenida Paulista",
+            "address_number": "1000",
+            "address_complement": "Sala 12",
+            "address_neighborhood": "Bela Vista",
+            "address_city": "São Paulo",
+            "address_state": "SP",
+            "notes": notes,
+        },
+    )
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["birth_date"] == "1992-05-10"
+    assert body["address_city"] == "São Paulo"
+    assert body["address_state"] == "SP"
+    assert body["notes"] == notes
+
+    engine = create_engine(database_urls["owner"])
+    factory = create_session_factory(engine)
+    try:
+        async with factory() as session:
+            client = await session.get(Client, body["id"])
+            assert client is not None
+            assert client.notes_encrypted is not None
+            assert client.notes_encrypted != notes
+            assert decrypt_text(client.notes_encrypted) == notes
+    finally:
+        await engine.dispose()
+
+    updated = await auth_client.patch(
+        f"{CLIENTS}/{body['id']}",
+        headers=_auth(owner_token),
+        json={
+            "address_city": "Campinas",
+            "notes": "Atualizado",
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["address_city"] == "Campinas"
+    assert updated.json()["notes"] == "Atualizado"
+
+
+async def test_client_profile_rejects_invalid_zip_and_state(
+    auth_client,
+    tenant_users,
+) -> None:
+    owner_token = await _login(auth_client, tenant_users.users[UserRole.OWNER])
+    response = await auth_client.post(
+        CLIENTS,
+        headers=_auth(owner_token),
+        json={
+            "full_name": "Cliente Inválido",
+            "phone": "(11) 98888-7777",
+            "address_zip": "123",
+            "address_state": "sp",
+        },
+    )
+    assert response.status_code == 422
