@@ -1,6 +1,7 @@
 """Endpoints financeiros: contas, lançamentos, caixa, DRE e exportação."""
 
 from datetime import date
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -19,6 +20,9 @@ from app.api.schemas.finance import (
     FinancialEntryResponse,
     FinancialEntryUpdateRequest,
     SalesResponse,
+    TitheDeliveryCreateRequest,
+    TitheDeliveryResponse,
+    TitheSummaryResponse,
 )
 from app.core.audit import client_ip, record_audit
 from app.core.auth.dependencies import (
@@ -27,7 +31,7 @@ from app.core.auth.dependencies import (
     get_tenant_session,
     require_roles,
 )
-from app.models import FinancialEntryStatus, UserRole
+from app.models import FinancialEntryStatus, TitheDelivery, UserRole
 from app.modules.finance.service import (
     FinanceConflictError,
     FinanceInUseError,
@@ -38,14 +42,17 @@ from app.modules.finance.service import (
     commission_summary,
     create_account,
     create_entry,
+    create_tithe_delivery,
     delete_account,
     delete_entry,
+    delete_tithe_delivery,
     dre,
     export_csv,
     get_account,
     get_entry,
     list_accounts,
     list_entries,
+    list_tithe_deliveries,
     sales,
     update_account,
     update_entry,
@@ -452,4 +459,128 @@ async def export_endpoint(
         content=csv_content,
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _tithe_delivery_response(delivery: TitheDelivery) -> TitheDeliveryResponse:
+    return TitheDeliveryResponse(
+        id=delivery.id,
+        competence_date=delivery.competence_date,
+        tithe_amount=delivery.tithe_amount,
+        offering_amount=delivery.offering_amount,
+        note=delivery.note,
+        created_at=delivery.created_at,
+    )
+
+
+@router.get(
+    "/tithe",
+    response_model=TitheSummaryResponse,
+    summary="Provisão de dízimo/oferta e entregas do período",
+)
+async def tithe_summary_endpoint(
+    from_date: date = Query(...),
+    to_date: date = Query(...),
+    principal: Principal = Depends(_require_owner),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> TitheSummaryResponse:
+    _period(from_date, to_date)
+    dre_data = await dre(
+        session,
+        tenant_id=principal.tenant_id,
+        from_date=from_date,
+        to_date=to_date,
+    )
+    deliveries = await list_tithe_deliveries(
+        session,
+        from_date=from_date,
+        to_date=to_date,
+    )
+    delivered_tithe = sum(
+        (item.tithe_amount for item in deliveries),
+        Decimal("0.00"),
+    )
+    delivered_offering = sum(
+        (item.offering_amount for item in deliveries),
+        Decimal("0.00"),
+    )
+    return TitheSummaryResponse(
+        dre=dre_data,
+        deliveries=[_tithe_delivery_response(item) for item in deliveries],
+        delivered_tithe=delivered_tithe,
+        delivered_offering=delivered_offering,
+        pending_tithe=max(
+            dre_data.tithe_amount - delivered_tithe,
+            Decimal("0.00"),
+        ),
+        pending_offering=max(
+            dre_data.offering_amount - delivered_offering,
+            Decimal("0.00"),
+        ),
+    )
+
+
+@router.post(
+    "/tithe/deliveries",
+    response_model=TitheDeliveryResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Registra entrega de dízimo/oferta",
+)
+async def create_tithe_delivery_endpoint(
+    body: TitheDeliveryCreateRequest,
+    request: Request,
+    principal: Principal = Depends(_require_owner),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> TitheDeliveryResponse:
+    try:
+        delivery = await create_tithe_delivery(
+            session,
+            tenant_id=principal.tenant_id,
+            actor_id=principal.user_id,
+            body=body,
+        )
+    except FinanceValidationError as exc:
+        raise _map_error(exc) from exc
+    await record_audit(
+        session,
+        tenant_id=principal.tenant_id,
+        actor=principal,
+        action="finance.tithe_delivery",
+        resource_type="tithe_delivery",
+        resource_id=delivery.id,
+        ip_address=client_ip(request),
+        details={
+            "tithe_amount": str(delivery.tithe_amount),
+            "offering_amount": str(delivery.offering_amount),
+        },
+    )
+    return _tithe_delivery_response(delivery)
+
+
+@router.delete(
+    "/tithe/deliveries/{delivery_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Exclui uma entrega de dízimo/oferta",
+)
+async def delete_tithe_delivery_endpoint(
+    delivery_id: UUID,
+    request: Request,
+    principal: Principal = Depends(_require_owner),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> None:
+    delivery = await session.get(TitheDelivery, delivery_id)
+    if delivery is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Entrega não encontrada",
+        )
+    await delete_tithe_delivery(session, delivery)
+    await record_audit(
+        session,
+        tenant_id=principal.tenant_id,
+        actor=principal,
+        action="finance.tithe_delivery.delete",
+        resource_type="tithe_delivery",
+        resource_id=delivery_id,
+        ip_address=client_ip(request),
     )
