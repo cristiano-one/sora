@@ -41,8 +41,11 @@ uv run uvicorn app.main:app --reload --port 8010
   sinal.
 - `/equipe` — usuários, edição, exclusão, papéis e comissões
   (`OWNER`/`ADMIN`).
-- `/assinaturas` — planos, cotas, edição, exclusão, contratação e cancelamento
+- `/assinaturas/assinantes` — assinantes, cotas, cancelamento e exclusão
   (`OWNER`/`ADMIN`).
+- `/assinaturas/planos` — planos, edição, ativação e exclusão.
+- `/assinaturas/contratar` — contratação manual para um cliente.
+- `/assinaturas/novo-plano` — criação de clube/serviço/cotas.
 - `/financeiro/fluxo-caixa` — fluxo de caixa realizado (`OWNER`).
 - `/financeiro/dre` — DRE por competência (`OWNER`).
 - `/financeiro/lancamentos` — lançamentos e baixa de títulos (`OWNER`).
