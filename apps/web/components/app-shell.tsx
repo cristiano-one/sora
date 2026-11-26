@@ -42,6 +42,7 @@ const SECTIONS = [
         manager: true,
         ownerOnly: true,
       },
+      { href: "/sora-ia", label: "SORA IA", icon: "✦", manager: true },
       { href: "/configuracoes", label: "Configurações", icon: "⚙", manager: true },
     ],
   },

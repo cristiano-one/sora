@@ -15,7 +15,11 @@
   - resumo diário e aniversariantes dos próximos 7 dias.
   - testes: token interno, link mágico, preços, injection, escopo do cliente,
     central, RBAC e cross-tenant.
-- [ ] **Passo 2 — Central SORA IA no web**.
+- [x] **Passo 2 — Central SORA IA no web** · branch `feat/web-ai-center`
+  - `/sora-ia` com resumo diário, lista de conversas e histórico em bolhas.
+  - assumir conversa, responder como humano e encerrar atendimento.
+  - aniversariantes dos próximos 7 dias e link para configurar o agente.
+  - menu/dashboard com a central para `OWNER`/`ADMIN`.
 - [ ] **Passo 3 — Gateway real, envio WhatsApp e crédito de aniversário**.
 
 ## Regras de aceite

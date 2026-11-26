@@ -42,6 +42,15 @@ export function formatIsoDate(iso: string): string {
   }).format(new Date(iso));
 }
 
+export function formatDateOnly(value: string): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T12:00:00Z`));
+}
+
 export function toTenantIso(date: string, time: string): string {
   return new Date(`${date}T${time}:00-03:00`).toISOString();
 }

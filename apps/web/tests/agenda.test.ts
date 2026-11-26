@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatDateOnly,
   formatIsoDate,
   formatTime,
   shiftDate,
@@ -30,5 +31,9 @@ describe("agenda helpers", () => {
 
   it("formata data ISO no fuso da clínica", () => {
     expect(formatIsoDate("2027-01-11T13:00:00Z")).toBe("11/01/2027");
+  });
+
+  it("formata data-only sem deslocar o dia", () => {
+    expect(formatDateOnly("1995-11-27")).toBe("27/11/1995");
   });
 });
