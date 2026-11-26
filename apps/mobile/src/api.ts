@@ -47,6 +47,24 @@ export type Client = {
   is_blocked: boolean;
 };
 
+export type Attachment = {
+  id: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
+export type MedicalRecord = {
+  id: string;
+  client_id: string;
+  title: string;
+  notes: string;
+  created_by: string | null;
+  created_at: string;
+  attachments: Attachment[];
+};
+
 export type UserSummary = {
   id: string;
   full_name: string;
@@ -201,6 +219,61 @@ export async function updateAppointmentStatus(
 
 export async function getClients(): Promise<Client[]> {
   return authenticatedRequest<Client[]>("/api/v1/clients");
+}
+
+export async function getMedicalRecords(
+  clientId: string,
+): Promise<MedicalRecord[]> {
+  return authenticatedRequest<MedicalRecord[]>(
+    `/api/v1/clients/${clientId}/records`,
+  );
+}
+
+export async function createMedicalRecord(
+  clientId: string,
+  input: { title: string; notes: string },
+): Promise<MedicalRecord> {
+  return authenticatedRequest<MedicalRecord>(
+    `/api/v1/clients/${clientId}/records`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function addLgpdConsent(clientId: string): Promise<void> {
+  await authenticatedRequest<unknown>(`/api/v1/clients/${clientId}/consents`, {
+    method: "POST",
+    body: JSON.stringify({
+      terms_version: "v1",
+      purposes: ["health_data", "appointment_management"],
+    }),
+  });
+}
+
+export async function presignAttachment(
+  clientId: string,
+  recordId: string,
+  input: { filename: string; content_type: string; size_bytes: number },
+): Promise<{ attachment_id: string; upload_url: string; expires_in: number }> {
+  return authenticatedRequest(
+    `/api/v1/clients/${clientId}/records/${recordId}/attachments/presign`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function getAttachmentUrl(
+  clientId: string,
+  recordId: string,
+  attachmentId: string,
+): Promise<{ url: string; expires_in: number }> {
+  return authenticatedRequest(
+    `/api/v1/clients/${clientId}/records/${recordId}/attachments/${attachmentId}/url`,
+  );
 }
 
 export async function addScoreEvent(

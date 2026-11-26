@@ -28,6 +28,8 @@
   - abas Agenda, Clientes, Equipe (gestor/admin) e Perfil.
   - agenda do dia com navegação, confirmação, conclusão e cancelamento.
   - clientes com busca, score pós-atendimento e telefone mascarado.
+  - prontuário com evoluções cifradas, consentimento LGPD e fotos pela
+    câmera/galeria com upload privado (pre-signed URL).
   - comissão do próprio usuário e regra de comissão da equipe.
   - tema primário do tenant aplicado ao app para gestores.
   - validação: lint, `tsc --noEmit`, 5 testes e bundle Android via

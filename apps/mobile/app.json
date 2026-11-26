@@ -14,6 +14,15 @@
     "android": {
       "package": "app.sora.studio"
     },
-    "plugins": ["expo-secure-store"]
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permita acessar suas fotos para anexar ao prontuário.",
+          "cameraPermission": "Permita usar a câmera para fotografar o prontuário."
+        }
+      ]
+    ]
   }
 }
