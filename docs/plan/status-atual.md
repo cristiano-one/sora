@@ -42,6 +42,7 @@ Concluído:
 - Início com resumo e check-ins;
 - agenda;
 - clientes/score/prontuário;
+- **Atendimento/secretária**: inbox, aprovações, takeover, respostas e check-ins;
 - equipe;
 - perfil/comissão.
 
@@ -53,6 +54,9 @@ Pendente:
 - financeiro/caixa;
 - automações;
 - build EAS/APK.
+
+O acesso ao atendimento no mobile é controlado por `can_manage_ai_inbox`,
+liberado em `/equipe`. Detalhes em [`atendimento-mobile.md`](atendimento-mobile.md).
 
 ## WhatsApp — como testar
 

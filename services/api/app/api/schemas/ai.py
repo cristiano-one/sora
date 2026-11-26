@@ -102,6 +102,17 @@ class AiSummaryResponse(BaseModel):
     birthdays: list[BirthdayItemResponse]
 
 
+class AiCheckinResponse(BaseModel):
+    """Cliente que fez check-in e está na recepção."""
+
+    appointment_id: UUID
+    client_name: str
+    service_name: str
+    collaborator_name: str
+    starts_at: datetime
+    checked_in_at: datetime
+
+
 class BirthdayCreditResponse(BaseModel):
     """Crédito de aniversário de um cliente."""
 

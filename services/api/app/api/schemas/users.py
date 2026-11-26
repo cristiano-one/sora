@@ -30,6 +30,7 @@ class UserCreateRequest(BaseModel):
     )
     commission_base: CommissionBase = CommissionBase.GROSS
     employment_type: EmploymentType = EmploymentType.EMPLOYEE
+    can_manage_ai_inbox: bool = False
 
 
 class UserInviteRequest(BaseModel):
@@ -53,6 +54,7 @@ class UserInviteRequest(BaseModel):
     )
     commission_base: CommissionBase = CommissionBase.GROSS
     employment_type: EmploymentType = EmploymentType.EMPLOYEE
+    can_manage_ai_inbox: bool = False
 
 
 class UserUpdateRequest(BaseModel):
@@ -76,6 +78,7 @@ class UserUpdateRequest(BaseModel):
     )
     commission_base: CommissionBase | None = None
     employment_type: EmploymentType | None = None
+    can_manage_ai_inbox: bool | None = None
 
 
 class UserResponse(BaseModel):
@@ -93,6 +96,7 @@ class UserResponse(BaseModel):
     commission_fixed: Decimal | None
     commission_base: CommissionBase
     employment_type: EmploymentType
+    can_manage_ai_inbox: bool
 
 
 class CommissionResponse(BaseModel):

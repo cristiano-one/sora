@@ -9,6 +9,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from app.api.schemas.ai import (
+    AiCheckinResponse,
     AiConversationDetailResponse,
     AiConversationResponse,
     AiMessageResponse,
@@ -741,6 +742,52 @@ async def ai_summary(
         appointments_today=int(appointments_today or 0),
         birthdays=await _birthdays(session, tenant_id=tenant_id, today=today),
     )
+
+
+async def list_inbox_checkins(
+    session: AsyncSession,
+    *,
+    day: date | None = None,
+) -> list[AiCheckinResponse]:
+    """Lista check-ins do dia para a recepção (sem filtro por colaborador)."""
+    tz = ZoneInfo(settings.default_tenant_timezone)
+    today = day or datetime.now(tz).date()
+    start = datetime.combine(today, time.min, tzinfo=tz).astimezone(UTC)
+    end = datetime.combine(
+        today + timedelta(days=1),
+        time.min,
+        tzinfo=tz,
+    ).astimezone(UTC)
+    appointments = (
+        await session.scalars(
+            select(Appointment)
+            .where(
+                Appointment.checked_in_at.is_not(None),
+                Appointment.starts_at >= start,
+                Appointment.starts_at < end,
+                Appointment.status.notin_(
+                    (
+                        AppointmentStatus.CANCELLED,
+                        AppointmentStatus.EXPIRED,
+                        AppointmentStatus.COMPLETED,
+                        AppointmentStatus.NO_SHOW,
+                    )
+                ),
+            )
+            .order_by(Appointment.starts_at)
+        )
+    ).all()
+    return [
+        AiCheckinResponse(
+            appointment_id=appointment.id,
+            client_name=appointment.client.full_name,
+            service_name=appointment.service.name,
+            collaborator_name=appointment.collaborator.full_name,
+            starts_at=appointment.starts_at,
+            checked_in_at=appointment.checked_in_at or appointment.starts_at,
+        )
+        for appointment in appointments
+    ]
 
 
 def _credit_response(credit: ClientCredit) -> BirthdayCreditResponse:

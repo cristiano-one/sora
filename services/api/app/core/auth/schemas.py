@@ -46,6 +46,7 @@ class MeResponse(BaseModel):
     full_name: str
     role: UserRole
     business_profile: BusinessProfile
+    can_manage_ai_inbox: bool
 
 
 class ForgotPasswordRequest(BaseModel):

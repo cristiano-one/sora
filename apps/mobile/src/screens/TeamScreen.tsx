@@ -96,6 +96,9 @@ export function TeamScreen() {
             >
               <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>
                 {ROLE_LABEL[item.role] ?? item.role}
+                {item.role === "COLLABORATOR" && item.can_manage_ai_inbox
+                  ? " · Atendimento"
+                  : ""}
               </Text>
               <Text style={{ color: colors.muted, fontSize: 11, flexShrink: 1, textAlign: "right" }}>
                 {commissionLabel(item)}

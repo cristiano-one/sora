@@ -34,6 +34,7 @@ export type Me = {
     | "SALON"
     | "BARBERSHOP"
     | "GENERAL";
+  can_manage_ai_inbox: boolean;
 };
 
 export type Appointment = {
@@ -88,6 +89,7 @@ export type UserSummary = {
   commission_percentage: string | null;
   commission_fixed: string | null;
   commission_base: string;
+  can_manage_ai_inbox: boolean;
 };
 
 export type Commission = {
@@ -356,4 +358,120 @@ export async function getCommission(): Promise<Commission> {
 
 export async function getTenantSettings(): Promise<TenantSettings> {
   return authenticatedRequest<TenantSettings>("/api/v1/tenants/settings");
+}
+
+export type AiConversationStatus = "OPEN" | "HUMAN" | "CLOSED";
+
+export type AiConversation = {
+  id: string;
+  client_id: string | null;
+  client_name: string | null;
+  phone: string;
+  status: AiConversationStatus;
+  needs_approval: boolean;
+  approval_note: string | null;
+  last_message: string | null;
+  last_message_at: string;
+  last_intent: string | null;
+};
+
+export type AiMessage = {
+  id: string;
+  direction: "INBOUND" | "OUTBOUND";
+  content: string;
+  intent: string | null;
+  created_at: string;
+};
+
+export type AiConversationDetail = AiConversation & {
+  messages: AiMessage[];
+};
+
+export type AiSummary = {
+  date: string;
+  agent_name: string;
+  open_conversations: number;
+  human_conversations: number;
+  approvals_pending: number;
+  messages_today: number;
+  appointments_today: number;
+  birthdays: {
+    client_id: string;
+    full_name: string;
+    birth_date: string;
+    days_until: number;
+  }[];
+};
+
+export async function getAiSummary(day?: string): Promise<AiSummary> {
+  const query = day ? `?date=${encodeURIComponent(day)}` : "";
+  return authenticatedRequest<AiSummary>(`/api/v1/ai/summary${query}`);
+}
+
+export type AiCheckin = {
+  appointment_id: string;
+  client_name: string;
+  service_name: string;
+  collaborator_name: string;
+  starts_at: string;
+  checked_in_at: string;
+};
+
+export async function getAiCheckins(day?: string): Promise<AiCheckin[]> {
+  const query = day ? `?date=${encodeURIComponent(day)}` : "";
+  return authenticatedRequest<AiCheckin[]>(
+    `/api/v1/ai/inbox/checkins${query}`,
+  );
+}
+
+export async function getAiConversations(): Promise<AiConversation[]> {
+  return authenticatedRequest<AiConversation[]>("/api/v1/ai/conversations");
+}
+
+export async function getAiConversation(
+  id: string,
+): Promise<AiConversationDetail> {
+  return authenticatedRequest<AiConversationDetail>(
+    `/api/v1/ai/conversations/${id}`,
+  );
+}
+
+export async function takeoverAiConversation(
+  id: string,
+): Promise<AiConversationDetail> {
+  return authenticatedRequest<AiConversationDetail>(
+    `/api/v1/ai/conversations/${id}/takeover`,
+    { method: "POST" },
+  );
+}
+
+export async function approveAiConversation(
+  id: string,
+): Promise<AiConversationDetail> {
+  return authenticatedRequest<AiConversationDetail>(
+    `/api/v1/ai/conversations/${id}/approve`,
+    { method: "POST" },
+  );
+}
+
+export async function sendAiConversationMessage(
+  id: string,
+  content: string,
+): Promise<AiMessage> {
+  return authenticatedRequest<AiMessage>(
+    `/api/v1/ai/conversations/${id}/messages`,
+    {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    },
+  );
+}
+
+export async function closeAiConversation(
+  id: string,
+): Promise<AiConversationDetail> {
+  return authenticatedRequest<AiConversationDetail>(
+    `/api/v1/ai/conversations/${id}/close`,
+    { method: "POST" },
+  );
 }

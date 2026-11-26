@@ -9,6 +9,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.ai import (
+    AiCheckinResponse,
     AiConversationDetailResponse,
     AiConversationReplyRequest,
     AiConversationResponse,
@@ -25,6 +26,7 @@ from app.core.audit import client_ip, record_audit
 from app.core.auth.dependencies import (
     Principal,
     get_tenant_session,
+    require_ai_inbox,
     require_roles,
 )
 from app.core.internal_auth import verify_internal_token
@@ -46,6 +48,7 @@ from app.modules.ai.service import (
     handle_whatsapp_message,
     list_birthday_credits,
     list_conversations,
+    list_inbox_checkins,
     send_human_message,
     takeover_conversation,
 )
@@ -54,6 +57,7 @@ router = APIRouter(prefix="/ai", tags=["sora-ai"])
 
 _require_manager = require_roles(UserRole.OWNER, UserRole.ADMIN)
 _require_owner = require_roles(UserRole.OWNER)
+_require_ai_inbox = require_ai_inbox
 
 
 @router.post(
@@ -194,7 +198,7 @@ async def test_provider_endpoint(
 )
 async def summary_endpoint(
     day: date | None = Query(default=None, alias="date"),
-    principal: Principal = Depends(_require_manager),
+    principal: Principal = Depends(_require_ai_inbox),
     session: AsyncSession = Depends(get_tenant_session),
 ) -> AiSummaryResponse:
     return await ai_summary(
@@ -245,12 +249,25 @@ async def run_birthday_credits_endpoint(
 
 
 @router.get(
+    "/inbox/checkins",
+    response_model=list[AiCheckinResponse],
+    summary="Lista check-ins do dia para a recepção",
+)
+async def inbox_checkins_endpoint(
+    day: date | None = Query(default=None, alias="date"),
+    principal: Principal = Depends(_require_ai_inbox),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> list[AiCheckinResponse]:
+    return await list_inbox_checkins(session, day=day)
+
+
+@router.get(
     "/conversations",
     response_model=list[AiConversationResponse],
     summary="Lista conversas da central",
 )
 async def conversations_endpoint(
-    principal: Principal = Depends(_require_manager),
+    principal: Principal = Depends(_require_ai_inbox),
     session: AsyncSession = Depends(get_tenant_session),
 ) -> list[AiConversationResponse]:
     return await list_conversations(session)
@@ -263,7 +280,7 @@ async def conversations_endpoint(
 )
 async def conversation_detail_endpoint(
     conversation_id: UUID,
-    principal: Principal = Depends(_require_manager),
+    principal: Principal = Depends(_require_ai_inbox),
     session: AsyncSession = Depends(get_tenant_session),
 ) -> AiConversationDetailResponse:
     try:
@@ -283,7 +300,7 @@ async def conversation_detail_endpoint(
 async def takeover_endpoint(
     conversation_id: UUID,
     request: Request,
-    principal: Principal = Depends(_require_manager),
+    principal: Principal = Depends(_require_ai_inbox),
     session: AsyncSession = Depends(get_tenant_session),
 ) -> AiConversationDetailResponse:
     try:
@@ -317,7 +334,7 @@ async def takeover_endpoint(
 async def approve_endpoint(
     conversation_id: UUID,
     request: Request,
-    principal: Principal = Depends(_require_manager),
+    principal: Principal = Depends(_require_ai_inbox),
     session: AsyncSession = Depends(get_tenant_session),
 ) -> AiConversationDetailResponse:
     try:
@@ -358,7 +375,7 @@ async def human_message_endpoint(
     conversation_id: UUID,
     body: AiConversationReplyRequest,
     request: Request,
-    principal: Principal = Depends(_require_manager),
+    principal: Principal = Depends(_require_ai_inbox),
     session: AsyncSession = Depends(get_tenant_session),
 ) -> AiMessageResponse:
     try:
@@ -393,7 +410,7 @@ async def human_message_endpoint(
 async def close_endpoint(
     conversation_id: UUID,
     request: Request,
-    principal: Principal = Depends(_require_manager),
+    principal: Principal = Depends(_require_ai_inbox),
     session: AsyncSession = Depends(get_tenant_session),
 ) -> AiConversationDetailResponse:
     try:
