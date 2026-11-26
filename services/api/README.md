@@ -202,6 +202,12 @@ gateway real; ele usa os lançamentos manuais para validar o fluxo.
 - `GET /api/v1/ai/birthday-credits?year=` e `POST /birthday-credits/run` —
   créditos idempotentes (1x/ano, 30 dias), valor em
   `tenant_settings.birthday_credit_amount`.
+- Worker diário: `uv run python -m app.workers.birthday_credits` percorre todos
+  os tenants ativos. Exemplo de cron:
+
+  ```cron
+  0 8 * * * cd /srv/sora/services/api && uv run python -m app.workers.birthday_credits
+  ```
 - Envio WhatsApp: `WHATSAPP_PROVIDER=mock` (padrão) ou `meta` com
   `WHATSAPP_META_TOKEN` + `WHATSAPP_META_PHONE_NUMBER_ID`.
 - Pagamentos: `PaymentProviderPort` em `modules/payments/providers.py`; o mock

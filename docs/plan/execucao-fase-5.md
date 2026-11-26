@@ -26,6 +26,8 @@
     - `PaymentProviderPort` com mock e erro explícito para gateway não plugado.
     - `client_credits` + `birthday_credit_amount` (migration `0014`, RLS).
     - geração idempotente 1x/ano, validade 30 dias, mensagem via WhatsApp mock.
+    - worker `python -m app.workers.birthday_credits` percorre todos os
+      tenants ativos e pode rodar via cron/scheduler.
     - botão de geração na central e campo nas configurações.
     - `eas.json` com perfis preview/production.
   - [ ] **3.2 Credenciais reais**.
