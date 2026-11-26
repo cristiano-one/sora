@@ -52,6 +52,15 @@ export type Client = {
   full_name: string;
   phone: string;
   email: string | null;
+  birth_date: string | null;
+  address_zip: string | null;
+  address_street: string | null;
+  address_number: string | null;
+  address_complement: string | null;
+  address_neighborhood: string | null;
+  address_city: string | null;
+  address_state: string | null;
+  notes: string | null;
   score: number;
   is_blocked: boolean;
 };
@@ -1152,7 +1161,15 @@ type CreateClientInput = {
   full_name: string;
   phone: string;
   email?: string;
-  birth_date?: string;
+  birth_date?: string | null;
+  address_zip?: string | null;
+  address_street?: string | null;
+  address_number?: string | null;
+  address_complement?: string | null;
+  address_neighborhood?: string | null;
+  address_city?: string | null;
+  address_state?: string | null;
+  notes?: string | null;
 };
 
 export async function createClient(input: CreateClientInput): Promise<Client> {
@@ -1167,6 +1184,14 @@ type UpdateClientInput = {
   phone?: string;
   email?: string | null;
   birth_date?: string | null;
+  address_zip?: string | null;
+  address_street?: string | null;
+  address_number?: string | null;
+  address_complement?: string | null;
+  address_neighborhood?: string | null;
+  address_city?: string | null;
+  address_state?: string | null;
+  notes?: string | null;
   score?: number;
   is_blocked?: boolean;
 };

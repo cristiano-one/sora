@@ -3882,3 +3882,49 @@ h1 {
   color: var(--muted);
   font-size: 12px;
 }
+
+.form-section-title {
+  margin: 22px 0 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.client-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.client-profile-grid > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.client-profile-grid span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.client-profile-grid strong {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.client-profile-notes {
+  grid-column: 1 / -1;
+}
+
+.client-profile-notes strong {
+  white-space: pre-wrap;
+}
