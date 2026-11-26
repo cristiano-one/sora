@@ -121,11 +121,23 @@ async def update_tenant_settings_endpoint(
     principal: Principal = Depends(_require_owner_or_admin),
     session: AsyncSession = Depends(get_tenant_session),
 ) -> TenantSettingsResponse:
+    changes = body.model_dump(exclude_unset=True)
+    ai_fields = {
+        "ai_provider",
+        "ai_model",
+        "ai_api_key",
+        "clear_ai_api_key",
+    }
+    if principal.role is not UserRole.OWNER and ai_fields.intersection(changes):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Somente o proprietário altera o provedor de IA.",
+        )
     try:
         return await update_tenant_settings(
             session,
             tenant_id=principal.tenant_id,
-            changes=body.model_dump(exclude_unset=True),
+            changes=changes,
         )
     except TenantSettingsValidationError as exc:
         raise HTTPException(
