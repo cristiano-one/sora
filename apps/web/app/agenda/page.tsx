@@ -58,6 +58,7 @@ import {
   shiftMonth,
 } from "@/lib/agenda-calendar";
 import { formatPrice } from "@/lib/public";
+import { normalizeDecimal } from "@/lib/money";
 
 const STATUS_LABEL: Record<string, string> = {
   SCHEDULED: "Agendado",
@@ -443,7 +444,7 @@ export default function AgendaPage() {
         category: "PRODUCT",
         description: saleItemDescription.trim(),
         quantity: 1,
-        unit_price: saleItemPrice,
+        unit_price: normalizeDecimal(saleItemPrice),
         cost: "0.00",
       });
       setSale(updated);
@@ -480,7 +481,7 @@ export default function AgendaPage() {
     try {
       setSale(
         await updateSale(sale.id, {
-          discount: saleDiscount,
+          discount: normalizeDecimal(saleDiscount),
           notes: saleNotes.trim() || null,
         }),
       );
@@ -500,7 +501,7 @@ export default function AgendaPage() {
     try {
       const updated = await applySaleCredit(sale.id, {
         credit_id: saleCreditId,
-        amount: saleCreditAmount,
+        amount: normalizeDecimal(saleCreditAmount),
       });
       setSale(updated);
       const credits = await getClientCredits(sale.client_id);

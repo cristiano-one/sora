@@ -631,7 +631,14 @@ async function toApiError(response: Response): Promise<ApiError> {
   let message = `HTTP ${response.status}`;
   try {
     const body = (await response.json()) as { detail?: unknown };
-    if (typeof body.detail === "string") message = body.detail;
+    if (typeof body.detail === "string") {
+      message = body.detail;
+    } else if (Array.isArray(body.detail) && body.detail.length > 0) {
+      message =
+        response.status === 422
+          ? "Confira os dados informados."
+          : `HTTP ${response.status}`;
+    }
   } catch {
     // Resposta sem corpo JSON: mantém a mensagem padrão.
   }
