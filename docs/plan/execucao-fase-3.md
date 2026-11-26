@@ -37,8 +37,13 @@
   - tema primário do tenant aplicado ao app para gestores.
   - validação: lint, `tsc --noEmit`, 5 testes e bundle Android via
     `expo export`.
-- [ ] **Passo 5 — Financeiro (Fase 4) e SORA IA (Fase 5)**.
-  - próximos: prontuário com câmera, caixa/DRE/comissões e atendente IA.
+- [x] **Passo 5 — Financeiro (Fase 4) e SORA IA (Fase 5)**.
+  - `/financeiro/*` completo, incluindo folha/pró-labore e dízimo/oferta.
+  - `/sora-ia` com tags, filtros, aprovação de exceções e persona configurável.
+  - créditos de aniversário aplicáveis no prontuário.
+  - cadastro público, recuperação de senha e convite por e-mail.
+  - agenda com confirmação, conclusão, falta e reagendamento.
+  - pacotes e estoque de insumos no catálogo/gestão.
 
 ## Regras de aceite
 

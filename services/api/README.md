@@ -42,6 +42,19 @@ Access token: **15 min**. Refresh token: **7 dias**, rotativo no Redis com
 chaves sempre prefixadas por `tenant:{tenant_id}:auth:*`. Revogação em massa
 (desligamento de usuário) via `revoked_at` em milissegundos.
 
+### Recuperação de senha e convite
+
+- `POST /api/v1/auth/forgot-password` — resposta sempre genérica; quando o
+  e-mail existe, grava token no Redis (`tenant:{id}:auth:password_reset:*`, TTL
+  30 min) e envia link.
+- `POST /api/v1/auth/reset-password` — define a nova senha, invalida o token e
+  revoga todas as sessões do usuário.
+- `POST /api/v1/users/invite` — cria colaborador/admin e envia convite
+  (`tenant:{id}:auth:invite:*`, TTL 7 dias).
+- `POST /api/v1/auth/accept-invite` — aceita o convite e define a senha inicial.
+- `EMAIL_PROVIDER=mock` registra o e-mail no log; `smtp` usa `SMTP_HOST`,
+  `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` e `EMAIL_FROM`.
+
 ## Tenants (RBAC + RLS)
 
 - `POST /api/v1/tenants` — cadastro público de empresa + OWNER inicial
@@ -109,6 +122,24 @@ cotas por ciclo, intervalo mínimo e dias da semana permitidos.
 
 Ações sensíveis gravam `AuditLog` append-only (UPDATE/DELETE revogados para
 `sora_app`). O score e o bloqueio são confidenciais da clínica.
+
+### Créditos de aniversário no prontuário
+
+- `GET /api/v1/clients/{id}/credits` — saldo restante, validade e
+  disponibilidade.
+- `GET /api/v1/clients/{id}/credit-usages` — histórico de aplicações.
+- `POST /api/v1/clients/{id}/credits/{credit_id}/use` — aplica valor parcial ou
+  total, com validação de saldo/validade, vínculo opcional ao agendamento e
+  auditoria. Exclusivo `OWNER`/`ADMIN`.
+
+## Estoque de insumos
+
+- `GET/POST /api/v1/inventory`, `PATCH/DELETE /api/v1/inventory/{id}`.
+- `POST /api/v1/inventory/{id}/movements` — `IN`, `OUT` ou `ADJUSTMENT`, com
+  bloqueio de saldo negativo.
+- `GET /api/v1/inventory/{id}/movements` — histórico.
+- Cada insumo traz `low_stock`, custo unitário e valor total. Exclusivo
+  `OWNER`/`ADMIN`, com RLS e auditoria.
 
 ## Agenda (Fase 2)
 
@@ -194,12 +225,27 @@ Tudo em `/api/v1/finance/*` é exclusivo do `OWNER`.
 - `GET /accounts/balances` — saldo atual por conta/caixa.
 - `GET /dre?from_date=&to_date=` — receita, deduções, custos, despesas e lucro.
 - `GET /commissions` — comissões apuradas por atendimentos `COMPLETED`.
+- `GET /my-commission` — comissão do próprio usuário autenticado (todos os
+  papéis).
 - `GET /sales` — valor bruto, custo, comissão e líquido por atendimento.
 - `GET /export` — CSV com proteção contra injeção de fórmula.
+- `GET/POST /payroll`, `PATCH/DELETE /payroll/{id}` — salários, adiantamentos,
+  pró-labore e repasses. Verba paga gera automaticamente despesa `PAYROLL` no
+  caixa/DRE; voltar para pendente remove o lançamento.
+- `GET /tithe`, `POST/DELETE /tithe/deliveries` — provisão da DRE, entregas e
+  pendências de dízimo/oferta (bloqueado quando a flag está desativada).
 
 Dízimo/oferta são configurados em `/tenants/settings` (`enable_tithe_and_offering`,
 `tithe_percentage`, `offering_amount`) e aparecem na DRE. O CSV não substitui o
 gateway real; ele usa os lançamentos manuais para validar o fluxo.
+
+## Cobranças Pix (gestão)
+
+- `GET /api/v1/payments?status=` — lista cobranças com cliente e origem
+  (`OWNER`/`ADMIN`).
+- `POST /api/v1/payments/{id}/confirm` — confirma manualmente um Pix pendente,
+  libera agendamento/assinatura e audita a ação. Idempotente para pagamentos já
+  pagos.
 
 ## SORA IA (Fase 5)
 
@@ -213,7 +259,15 @@ gateway real; ele usa os lançamentos manuais para validar o fluxo.
   (`OWNER`/`ADMIN`).
 - `POST /conversations/{id}/takeover`, `/messages` e `/close` — assume,
   responde e encerra o atendimento humano.
-- `GET /api/v1/ai/summary?date=` — resumo diário e aniversariantes (7 dias).
+- `POST /conversations/{id}/approve` — aprova exceção sinalizada pela IA e
+  devolve a conversa para `OPEN`.
+- Conversas carregam `needs_approval`, `approval_note` e `last_intent`.
+- Persona em `/tenants/settings`: `agent_tone`, `agent_welcome_message`,
+  `agent_knowledge`, `agent_cancellation_policy`, `agent_address_info` e
+  `agent_upsell`. Saudação, política, endereço e upsell são usados nas respostas
+  determinísticas.
+- `GET /api/v1/ai/summary?date=` — resumo diário, aprovações pendentes e
+  aniversariantes (7 dias).
 - `GET /api/v1/ai/birthday-credits?year=` e `POST /birthday-credits/run` —
   créditos idempotentes (1x/ano, 30 dias), valor em
   `tenant_settings.birthday_credit_amount`.

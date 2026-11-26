@@ -20,6 +20,11 @@
   - assumir conversa, responder como humano e encerrar atendimento.
   - aniversariantes dos próximos 7 dias e link para configurar o agente.
   - menu/dashboard com a central para `OWNER`/`ADMIN`.
+- [x] **Passo 2.1 — Persona e aprovação humana**
+  - tom, saudação, conhecimento, política de cancelamento, endereço e upsell.
+  - conversas com `needs_approval`, nota contextual e filtro de aprovações.
+  - aprovação em 1 clique devolve a conversa para a SORA IA.
+  - tags de intenção no feed e nas mensagens.
 - [ ] **Passo 3 — Gateway real, envio WhatsApp e crédito de aniversário**.
   - [x] **3.1 Adapters e crédito de aniversário** · branch `feat/integrations-birthday`
     - envio WhatsApp com port `mock`/Meta Cloud API (`WHATSAPP_PROVIDER`).
@@ -30,6 +35,10 @@
       tenants ativos e pode rodar via cron/scheduler.
     - botão de geração na central e campo nas configurações.
     - `eas.json` com perfis preview/production.
+  - [x] **3.1.1 Créditos aplicáveis no prontuário**
+    - histórico `client_credit_usages` com RLS.
+    - aplicação parcial/total com saldo, validade e vínculo ao cliente.
+    - painel de créditos no prontuário para `OWNER`/`ADMIN`.
   - [ ] **3.2 Credenciais reais**.
     - Meta WhatsApp: token + phone_number_id.
     - Gateway: escolher Asaas/Mercado Pago/Stripe/Efí e plugar `PaymentProviderPort`.
