@@ -27,6 +27,9 @@
   - atendimento concluído gerando comissão e valor líquido.
   - smoke: `/financeiro` 200, caixa/DRE/comissões/exportação 200.
   - dashboard e menu exibem Financeiro apenas para `OWNER`.
+  - **Portabilidade LGPD**: `GET /tenants/export` (OWNER) e botão em
+    Configurações baixam JSON com clientes, agenda, financeiro, prontuários,
+    consentimentos e créditos.
 
 ## Regras de aceite
 

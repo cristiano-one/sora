@@ -1,6 +1,7 @@
 """Endpoints de tenants: cadastro de empresa e leitura do tenant atual."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.tenants import (
@@ -11,9 +12,11 @@ from app.api.schemas.tenants import (
     TenantSettingsResponse,
     TenantSettingsUpdateRequest,
 )
+from app.core.audit import client_ip, record_audit
 from app.core.auth.dependencies import Principal, get_tenant_session, require_roles
 from app.db.session import get_session
 from app.models import Tenant, UserRole
+from app.modules.tenants.export import export_tenant_data
 from app.modules.tenants.service import (
     SlugAlreadyExistsError,
     create_tenant_with_owner,
@@ -27,6 +30,7 @@ from app.modules.tenants.settings import (
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 
 _require_owner_or_admin = require_roles(UserRole.OWNER, UserRole.ADMIN)
+_require_owner = require_roles(UserRole.OWNER)
 
 
 @router.post(
@@ -125,3 +129,32 @@ async def update_tenant_settings_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
+
+
+@router.get(
+    "/export",
+    summary="Exporta todos os dados da clínica (portabilidade LGPD)",
+)
+async def export_tenant_endpoint(
+    request: Request,
+    principal: Principal = Depends(_require_owner),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> JSONResponse:
+    data = await export_tenant_data(session, tenant_id=principal.tenant_id)
+    await record_audit(
+        session,
+        tenant_id=principal.tenant_id,
+        actor=principal,
+        action="tenant.export",
+        resource_type="tenant",
+        resource_id=principal.tenant_id,
+        ip_address=client_ip(request),
+    )
+    return JSONResponse(
+        content=data,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="sora-dados-{principal.tenant_id}.json"'
+            )
+        },
+    )
