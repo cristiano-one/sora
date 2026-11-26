@@ -40,7 +40,8 @@ uv run uvicorn app.main:app --reload --port 8010
 - `/catalogo` — serviços, duração, buffer, preço, custo e sinal.
 - `/equipe` — usuários, papéis e comissões (`OWNER`/`ADMIN`).
 - `/assinaturas` — planos, cotas, contratação e cancelamento (`OWNER`/`ADMIN`).
-- `/configuracoes` — score mínimo, sinal, tema e nome do agente
+- `/financeiro` — caixa, DRE, comissões, saldos e exportação CSV (`OWNER`).
+- `/configuracoes` — score mínimo, sinal, dízimo/oferta, tema e nome do agente
   (`OWNER`/`ADMIN`).
 - `/public/[slug]?t=<token>` — página pública do link mágico (sem login):
   serviços, profissionais, horários livres, planos de assinatura, cotas e

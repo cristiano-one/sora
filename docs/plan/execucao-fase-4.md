@@ -14,8 +14,17 @@
   - exportação CSV com proteção contra injeção de fórmula.
   - tudo restrito a `OWNER`; comissão própria continua em
     `/users/me/commission`.
-- [ ] **Passo 2 — Dashboard financeiro no web**.
-- [ ] **Passo 3 — Fechamento da fase (documentação/seed de demonstração)**.
+- [x] **Passo 2 — Dashboard financeiro no web** · branch `feat/web-finance`
+  - `/financeiro` com filtro de período, caixa, DRE, contas/saldos,
+    lançamentos, comissões e valor líquido por venda.
+  - criação de conta, criação/baixa de lançamentos e exportação CSV.
+  - dízimo/oferta configuráveis em `/configuracoes` e refletidos na DRE.
+  - link de financeiro apenas para `OWNER` no menu e no dashboard.
+- [x] **Passo 3 — Fechamento da fase** · seed de demonstração
+  - `Caixa Demo` com saldo inicial, receitas de serviço/assinatura e despesas.
+  - atendimento concluído gerando comissão e valor líquido.
+  - smoke: `/financeiro` 200, caixa/DRE/comissões/exportação 200.
+  - dashboard e menu exibem Financeiro apenas para `OWNER`.
 
 ## Regras de aceite
 

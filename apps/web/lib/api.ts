@@ -53,6 +53,9 @@ export type TenantSettings = {
   deposit_amount_low_score: string | null;
   theme_primary_color: string;
   agent_name: string;
+  enable_tithe_and_offering: boolean;
+  tithe_percentage: string;
+  offering_amount: string;
 };
 
 export type SubscriptionPlanItem = {
@@ -85,6 +88,111 @@ export type ClientSubscription = {
   current_period_start: string;
   current_period_end: string;
   quotas: PublicQuota[];
+};
+
+export type FinancialAccount = {
+  id: string;
+  name: string;
+  type: "CASH" | "BANK";
+  initial_balance: string;
+  is_active: boolean;
+};
+
+export type AccountBalance = {
+  account_id: string;
+  name: string;
+  type: "CASH" | "BANK";
+  initial_balance: string;
+  balance: string;
+};
+
+export type FinancialEntryType = "INCOME" | "EXPENSE";
+export type FinancialEntryStatus = "PENDING" | "PAID";
+export type FinancialCategory =
+  | "SERVICE"
+  | "PACKAGE"
+  | "SUBSCRIPTION"
+  | "PRODUCT"
+  | "OTHER_INCOME"
+  | "TAX"
+  | "CARD_FEE"
+  | "SUPPLIES"
+  | "COMMISSION"
+  | "RENT"
+  | "UTILITY"
+  | "MARKETING"
+  | "PAYROLL"
+  | "OTHER_EXPENSE";
+
+export type FinancialEntry = {
+  id: string;
+  account_id: string;
+  type: FinancialEntryType;
+  category: FinancialCategory;
+  description: string;
+  amount: string;
+  competence_date: string;
+  cash_date: string | null;
+  status: FinancialEntryStatus;
+  appointment_id: string | null;
+};
+
+export type CashFlow = {
+  from_date: string;
+  to_date: string;
+  opening_balance: string;
+  inflows: string;
+  outflows: string;
+  closing_balance: string;
+};
+
+export type Dre = {
+  from_date: string;
+  to_date: string;
+  gross_revenue: string;
+  deductions: string;
+  costs: string;
+  operating_expenses: string;
+  net_profit: string;
+  commissions_accrued: string;
+  tithe_enabled: boolean;
+  tithe_percentage: string;
+  tithe_amount: string;
+  offering_amount: string;
+  after_tithe_and_offering: string;
+};
+
+export type CommissionSummary = {
+  from_date: string;
+  to_date: string;
+  items: {
+    collaborator_id: string;
+    collaborator_name: string;
+    completed_appointments: number;
+    gross_revenue: string;
+    commission_amount: string;
+  }[];
+  total: string;
+};
+
+export type SaleItem = {
+  appointment_id: string;
+  starts_at: string;
+  client_name: string;
+  service_name: string;
+  collaborator_name: string;
+  gross_amount: string;
+  cost_amount: string;
+  commission_amount: string;
+  net_amount: string;
+};
+
+export type SalesSummary = {
+  from_date: string;
+  to_date: string;
+  items: SaleItem[];
+  gross_total: string;
+  net_total: string;
 };
 
 export type Appointment = {
@@ -520,6 +628,156 @@ export async function cancelSubscription(
     `/api/v1/subscriptions/${id}/cancel`,
     { method: "POST" },
   );
+}
+
+async function authenticatedText(
+  path: string,
+  init: RequestInit = {},
+  retried = false,
+): Promise<string> {
+  const accessToken = getAccessToken();
+  const headers = new Headers(init.headers);
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  const response = await fetch(path, { ...init, headers, cache: "no-store" });
+  if (response.status === 401 && !retried) {
+    if (await refreshTokens()) return authenticatedText(path, init, true);
+    clearTokens();
+    throw new ApiError(401, "Sessão expirada");
+  }
+  if (!response.ok) throw await toApiError(response);
+  return response.text();
+}
+
+export async function getFinancialAccounts(): Promise<FinancialAccount[]> {
+  return authenticatedRequest<FinancialAccount[]>("/api/v1/finance/accounts");
+}
+
+export async function createFinancialAccount(input: {
+  name: string;
+  type: "CASH" | "BANK";
+  initial_balance: string;
+}): Promise<FinancialAccount> {
+  return authenticatedRequest<FinancialAccount>("/api/v1/finance/accounts", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getAccountBalances(): Promise<AccountBalance[]> {
+  return authenticatedRequest<AccountBalance[]>(
+    "/api/v1/finance/accounts/balances",
+  );
+}
+
+export async function getFinancialEntries(
+  fromDate: string,
+  toDate: string,
+): Promise<FinancialEntry[]> {
+  const params = new URLSearchParams({
+    from_date: fromDate,
+    to_date: toDate,
+  });
+  return authenticatedRequest<FinancialEntry[]>(
+    `/api/v1/finance/entries?${params.toString()}`,
+  );
+}
+
+export async function createFinancialEntry(input: {
+  account_id: string;
+  type: FinancialEntryType;
+  category: FinancialCategory;
+  description: string;
+  amount: string;
+  competence_date: string;
+  cash_date: string | null;
+  status: FinancialEntryStatus;
+}): Promise<FinancialEntry> {
+  return authenticatedRequest<FinancialEntry>("/api/v1/finance/entries", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateFinancialEntry(
+  id: string,
+  changes: Partial<{
+    account_id: string;
+    category: FinancialCategory;
+    description: string;
+    amount: string;
+    competence_date: string;
+    cash_date: string | null;
+    status: FinancialEntryStatus;
+  }>,
+): Promise<FinancialEntry> {
+  return authenticatedRequest<FinancialEntry>(
+    `/api/v1/finance/entries/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    },
+  );
+}
+
+export async function getCashFlow(
+  fromDate: string,
+  toDate: string,
+): Promise<CashFlow> {
+  const params = new URLSearchParams({
+    from_date: fromDate,
+    to_date: toDate,
+  });
+  return authenticatedRequest<CashFlow>(
+    `/api/v1/finance/cash-flow?${params.toString()}`,
+  );
+}
+
+export async function getDre(
+  fromDate: string,
+  toDate: string,
+): Promise<Dre> {
+  const params = new URLSearchParams({
+    from_date: fromDate,
+    to_date: toDate,
+  });
+  return authenticatedRequest<Dre>(`/api/v1/finance/dre?${params.toString()}`);
+}
+
+export async function getCommissions(
+  fromDate: string,
+  toDate: string,
+): Promise<CommissionSummary> {
+  const params = new URLSearchParams({
+    from_date: fromDate,
+    to_date: toDate,
+  });
+  return authenticatedRequest<CommissionSummary>(
+    `/api/v1/finance/commissions?${params.toString()}`,
+  );
+}
+
+export async function getSales(
+  fromDate: string,
+  toDate: string,
+): Promise<SalesSummary> {
+  const params = new URLSearchParams({
+    from_date: fromDate,
+    to_date: toDate,
+  });
+  return authenticatedRequest<SalesSummary>(
+    `/api/v1/finance/sales?${params.toString()}`,
+  );
+}
+
+export async function getFinanceCsv(
+  fromDate: string,
+  toDate: string,
+): Promise<string> {
+  const params = new URLSearchParams({
+    from_date: fromDate,
+    to_date: toDate,
+  });
+  return authenticatedText(`/api/v1/finance/export?${params.toString()}`);
 }
 
 export async function getAppointments(
