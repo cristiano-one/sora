@@ -1,0 +1,126 @@
+import { StyleSheet } from "react-native";
+
+import { colors } from "./theme";
+
+export const ui = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  scroll: {
+    padding: 18,
+    paddingBottom: 32,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 16,
+  },
+  title: {
+    color: colors.text,
+    fontSize: 26,
+    fontWeight: "700",
+    letterSpacing: -0.6,
+  },
+  subtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 4,
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+  },
+  label: {
+    color: "#334155",
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  input: {
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    backgroundColor: "#f8fafc",
+    color: colors.text,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  button: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buttonDisabled: {
+    opacity: 0.55,
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  buttonGhost: {
+    backgroundColor: "transparent",
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buttonGhostText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  error: {
+    backgroundColor: "#fef2f2",
+    borderColor: "#fecaca",
+    borderWidth: 1,
+    borderRadius: 10,
+    color: colors.danger,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 10,
+    padding: 10,
+  },
+  empty: {
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderRadius: 12,
+    backgroundColor: "#f8fafc",
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    padding: 14,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  spaceBetween: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+});

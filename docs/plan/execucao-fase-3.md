@@ -17,8 +17,17 @@
   - `/assinaturas`: planos, cotas, contratação manual e cancelamento.
   - `/configuracoes`: score mínimo, valor do sinal, cor primária e agente.
   - agenda com tag `Assinante` e tema dinâmico.
-- [ ] **Passo 4 — `apps/mobile` (Expo iOS/Android)**.
+- [x] **Passo 4 — `apps/mobile` (Expo iOS/Android)** · branch `feat/mobile-core`
+  - login JWT + refresh com SecureStore.
+  - abas Agenda, Clientes, Equipe (gestor/admin) e Perfil.
+  - agenda do dia com navegação, confirmação, conclusão e cancelamento.
+  - clientes com busca, score pós-atendimento e telefone mascarado.
+  - comissão do próprio usuário e regra de comissão da equipe.
+  - tema primário do tenant aplicado ao app para gestores.
+  - validação: lint, `tsc --noEmit`, 5 testes e bundle Android via
+    `expo export`.
 - [ ] **Passo 5 — Financeiro (Fase 4) e SORA IA (Fase 5)**.
+  - próximos: prontuário com câmera, caixa/DRE/comissões e atendente IA.
 
 ## Regras de aceite
 
