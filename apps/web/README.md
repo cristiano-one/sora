@@ -38,7 +38,8 @@ uv run uvicorn app.main:app --reload --port 8010
 - `/clientes` — cadastro, edição, exclusão, score confidencial e bloqueio
   (telefone mascarado para colaboradores).
 - `/clientes/[id]` — prontuário com evoluções cifradas, consentimento LGPD e
-  anexos via pre-signed URL de 60s.
+  anexos via pre-signed URL de 60s, com **abrir**, **baixar** e **excluir**
+  (OWNER/ADMIN).
 - `/catalogo` — serviços, edição, exclusão, duração, buffer, preço, custo e
   sinal.
 - `/equipe` — usuários, edição, exclusão, papéis e comissões

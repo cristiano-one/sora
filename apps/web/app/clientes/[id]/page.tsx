@@ -9,12 +9,15 @@ import {
   ApiError,
   addLgpdConsent,
   createMedicalRecord,
+  deleteAttachment,
   getAttachmentUrl,
   getClient,
   getMedicalRecords,
+  getMe,
   presignAttachment,
   type Client,
   type MedicalRecord,
+  type Me,
 } from "@/lib/api";
 import { formatIsoDate } from "@/lib/agenda";
 
@@ -29,6 +32,7 @@ export default function MedicalRecordPage() {
   const clientId = Array.isArray(params.id) ? params.id[0] : params.id;
   const [client, setClient] = useState<Client | null>(null);
   const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [role, setRole] = useState<Me["role"] | null>(null);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
@@ -45,11 +49,12 @@ export default function MedicalRecordPage() {
   useEffect(() => {
     if (!clientId) return;
     let active = true;
-    Promise.all([getClient(clientId), getMedicalRecords(clientId)])
-      .then(([clientData, recordsData]) => {
+    Promise.all([getClient(clientId), getMedicalRecords(clientId), getMe()])
+      .then(([clientData, recordsData, me]) => {
         if (!active) return;
         setClient(clientData);
         setRecords(recordsData);
+        setRole(me.role);
       })
       .catch((err) => {
         if (active) {
@@ -161,6 +166,66 @@ export default function MedicalRecordPage() {
     }
   }
 
+  async function downloadAttachment(
+    record: MedicalRecord,
+    attachmentId: string,
+    filename: string,
+  ) {
+    if (!clientId) return;
+    setError(null);
+    setAttachmentBusy(record.id);
+    try {
+      const data = await getAttachmentUrl(clientId, record.id, attachmentId);
+      const response = await fetch(data.url, { cache: "no-store" });
+      if (!response.ok) throw new Error("Falha ao baixar anexo.");
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (err) {
+      try {
+        const data = await getAttachmentUrl(clientId, record.id, attachmentId);
+        window.open(data.url, "_blank", "noopener,noreferrer");
+      } catch {
+        setError(
+          err instanceof ApiError ? err.message : "Falha ao baixar anexo.",
+        );
+      }
+    } finally {
+      setAttachmentBusy(null);
+    }
+  }
+
+  async function handleDeleteAttachment(
+    record: MedicalRecord,
+    attachmentId: string,
+    filename: string,
+  ) {
+    if (!clientId) return;
+    if (!window.confirm(`Excluir o anexo "${filename}"?`)) return;
+    setError(null);
+    setNotice(null);
+    setAttachmentBusy(record.id);
+    try {
+      await deleteAttachment(clientId, record.id, attachmentId);
+      await loadRecords();
+      setNotice("Anexo excluído.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao excluir anexo.",
+      );
+    } finally {
+      setAttachmentBusy(null);
+    }
+  }
+
+  const isManager = role === "OWNER" || role === "ADMIN";
+
   if (loading) {
     return (
       <AppShell>
@@ -245,15 +310,47 @@ export default function MedicalRecordPage() {
                             {attachment.filename}
                             <small> · {fileSize(attachment.size_bytes)}</small>
                           </span>
-                          <button
-                            className="button button-ghost button-small"
-                            type="button"
-                            onClick={() =>
-                              openAttachment(record, attachment.id)
-                            }
-                          >
-                            Abrir
-                          </button>
+                          <div className="row-actions">
+                            <button
+                              className="button button-ghost button-small"
+                              type="button"
+                              onClick={() =>
+                                openAttachment(record, attachment.id)
+                              }
+                            >
+                              Abrir
+                            </button>
+                            <button
+                              className="button button-ghost button-small"
+                              type="button"
+                              disabled={attachmentBusy === record.id}
+                              onClick={() =>
+                                downloadAttachment(
+                                  record,
+                                  attachment.id,
+                                  attachment.filename,
+                                )
+                              }
+                            >
+                              Baixar
+                            </button>
+                            {isManager ? (
+                              <button
+                                className="button button-ghost button-small button-danger"
+                                type="button"
+                                disabled={attachmentBusy === record.id}
+                                onClick={() =>
+                                  handleDeleteAttachment(
+                                    record,
+                                    attachment.id,
+                                    attachment.filename,
+                                  )
+                                }
+                              >
+                                Excluir
+                              </button>
+                            ) : null}
+                          </div>
                         </li>
                       ))}
                     </ul>

@@ -13,6 +13,7 @@ from app.api.routes.clients import router as clients_router
 from app.api.routes.finance import router as finance_router
 from app.api.routes.health import router as health_router
 from app.api.routes.public_booking import router as public_booking_router
+from app.api.routes.storage import router as storage_router
 from app.api.routes.subscriptions import router as subscriptions_router
 from app.api.routes.tenants import router as tenants_router
 from app.api.routes.users import router as users_router
@@ -52,6 +53,7 @@ def create_app() -> FastAPI:
     application.include_router(users_router, prefix=settings.api_v1_prefix)
     application.include_router(catalog_router, prefix=settings.api_v1_prefix)
     application.include_router(clients_router, prefix=settings.api_v1_prefix)
+    application.include_router(storage_router, prefix=settings.api_v1_prefix)
     application.include_router(finance_router, prefix=settings.api_v1_prefix)
     application.include_router(ai_router, prefix=settings.api_v1_prefix)
     application.include_router(agenda_router, prefix=settings.api_v1_prefix)

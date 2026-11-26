@@ -54,14 +54,16 @@ class Settings(BaseSettings):
     jwt_issuer: str = "sora-api"
     jwt_audience: str = "sora-clients"
 
-    # Storage privado (S3/MinIO)
-    storage_provider: str = "s3"
+    # Storage privado (local assinado em dev; S3/MinIO/R2 em produção)
+    storage_provider: str = "local"
     storage_bucket: str = "sora-private"
     storage_region: str = "us-east-1"
     storage_endpoint: str | None = "http://127.0.0.1:9000"
     storage_access_key_id: str = "sora_minio"
     storage_secret_access_key: str = "sora_minio_dev_only"
     storage_presigned_url_ttl_seconds: int = 60
+    storage_local_path: str = "var/storage-private"
+    storage_max_attachment_bytes: int = 10 * 1024 * 1024
     encryption_key: str = "change-me-encryption-key"
 
 

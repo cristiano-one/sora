@@ -197,3 +197,13 @@ async def create_attachment(
     session.add(attachment)
     await session.commit()
     return attachment
+
+
+async def delete_attachment(
+    session: AsyncSession,
+    *,
+    attachment: MedicalRecordAttachment,
+) -> None:
+    """Remove o metadado do anexo; o objeto é apagado pelo storage."""
+    await session.delete(attachment)
+    await session.commit()

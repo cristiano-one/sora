@@ -567,6 +567,17 @@ export async function getAttachmentUrl(
   );
 }
 
+export async function deleteAttachment(
+  clientId: string,
+  recordId: string,
+  attachmentId: string,
+): Promise<void> {
+  await authenticatedRequest<void>(
+    `/api/v1/clients/${clientId}/records/${recordId}/attachments/${attachmentId}`,
+    { method: "DELETE" },
+  );
+}
+
 export async function getUsers(): Promise<UserSummary[]> {
   return authenticatedRequest<UserSummary[]>("/api/v1/users");
 }

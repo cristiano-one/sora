@@ -10,7 +10,8 @@ App nativo iOS/Android para colaboradores, administradores e donos da clínica.
 - **Clientes** com busca, telefone mascarado para colaborador, avaliação
   pós-atendimento (+5/−10 no score) e **prontuário**;
 - **Prontuário**: evoluções clínicas, consentimento LGPD, fotos pela câmera ou
-  galeria e upload privado via pre-signed URL de 60s;
+  galeria, upload privado via pre-signed URL de 60s e exclusão de anexos por
+  gestores;
 - **Equipe** (gestor/admin) com papéis e comissões;
 - **Perfil** com comissão do próprio usuário e logout;
 - tema primário da clínica aplicado ao app para gestores.
