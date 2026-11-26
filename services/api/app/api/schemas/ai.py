@@ -17,6 +17,13 @@ class WhatsAppWebhookRequest(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
 
 
+class WhatsAppSimulationRequest(BaseModel):
+    """Mensagem enviada pelo simulador autenticado da central."""
+
+    phone: str = Field(min_length=10, max_length=20)
+    text: str = Field(min_length=1, max_length=2000)
+
+
 class WhatsAppWebhookResponse(BaseModel):
     """Resposta automática gravada na conversa."""
 

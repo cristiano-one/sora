@@ -508,3 +508,33 @@ async def test_exception_requires_human_approval(
         headers=_auth(token),
     )
     assert again.status_code == 409
+
+
+async def test_whatsapp_simulator_runs_without_meta(
+    auth_client,
+    tenant_users,
+) -> None:
+    owner = tenant_users.users[UserRole.OWNER]
+    collaborator = tenant_users.users[UserRole.COLLABORATOR]
+    token = await _login(auth_client, owner)
+    phone = _phone()
+
+    simulated = await auth_client.post(
+        "/api/v1/ai/whatsapp/simulate",
+        headers=_auth(token),
+        json={"phone": phone, "text": "Oi, quero agendar"},
+    )
+    assert simulated.status_code == 200, simulated.text
+    assert simulated.json()["reply"]
+    assert simulated.json()["intent"] == "booking"
+
+    conversations = await auth_client.get(CONVERSATIONS, headers=_auth(token))
+    assert any(item["phone"] == phone for item in conversations.json())
+
+    collaborator_token = await _login(auth_client, collaborator)
+    forbidden = await auth_client.post(
+        "/api/v1/ai/whatsapp/simulate",
+        headers=_auth(collaborator_token),
+        json={"phone": phone, "text": "Oi"},
+    )
+    assert forbidden.status_code == 403

@@ -465,6 +465,13 @@ export type AiConversationDetail = AiConversation & {
   messages: AiMessage[];
 };
 
+export type WhatsAppSimulationResult = {
+  conversation_id: string;
+  reply: string;
+  intent: string;
+  status: "OPEN" | "HUMAN" | "CLOSED";
+};
+
 export type AiSummary = {
   date: string;
   agent_name: string;
@@ -1737,6 +1744,16 @@ export async function approveAiConversation(
   return authenticatedRequest<AiConversationDetail>(
     `/api/v1/ai/conversations/${id}/approve`,
     { method: "POST" },
+  );
+}
+
+export async function simulateWhatsApp(input: {
+  phone: string;
+  text: string;
+}): Promise<WhatsAppSimulationResult> {
+  return authenticatedRequest<WhatsAppSimulationResult>(
+    "/api/v1/ai/whatsapp/simulate",
+    { method: "POST", body: JSON.stringify(input) },
   );
 }
 
