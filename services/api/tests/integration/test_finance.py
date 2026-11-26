@@ -21,6 +21,8 @@ COMMISSIONS = "/api/v1/finance/commissions"
 MY_COMMISSION = "/api/v1/finance/my-commission"
 SALES = "/api/v1/finance/sales"
 EXPORT = "/api/v1/finance/export"
+TITHE = "/api/v1/finance/tithe"
+TITHE_DELIVERIES = "/api/v1/finance/tithe/deliveries"
 SERVICES = "/api/v1/services"
 CLIENTS = "/api/v1/clients"
 APPOINTMENTS = "/api/v1/appointments"
@@ -455,3 +457,111 @@ async def test_export_sanitizes_formula_injection(
     )
     assert exported.status_code == 200
     assert "'=SUM(A1:A9)" in exported.text
+
+
+async def test_tithe_provision_and_delivery_control(
+    auth_client,
+    tenant_users,
+    auth_user,
+) -> None:
+    owner = tenant_users.users[UserRole.OWNER]
+    admin = tenant_users.users[UserRole.ADMIN]
+    token = await _login(auth_client, owner)
+    account = await _create_account(auth_client, token)
+    await _create_entry(
+        auth_client,
+        token,
+        account_id=account["id"],
+        entry_type="INCOME",
+        category="SERVICE",
+        amount="1000.00",
+    )
+    await _create_entry(
+        auth_client,
+        token,
+        account_id=account["id"],
+        entry_type="EXPENSE",
+        category="RENT",
+        amount="200.00",
+    )
+    settings = await auth_client.patch(
+        SETTINGS,
+        headers=_auth(token),
+        json={
+            "enable_tithe_and_offering": True,
+            "tithe_percentage": "10.00",
+            "offering_amount": "50.00",
+        },
+    )
+    assert settings.status_code == 200, settings.text
+
+    summary = await auth_client.get(
+        TITHE,
+        headers=_auth(token),
+        params={"from_date": DAY.isoformat(), "to_date": DAY.isoformat()},
+    )
+    assert summary.status_code == 200, summary.text
+    body = summary.json()
+    assert body["dre"]["tithe_amount"] == "80.00"
+    assert body["dre"]["offering_amount"] == "50.00"
+    assert body["pending_tithe"] == "80.00"
+    assert body["pending_offering"] == "50.00"
+
+    delivery = await auth_client.post(
+        TITHE_DELIVERIES,
+        headers=_auth(token),
+        json={
+            "competence_date": DAY.isoformat(),
+            "tithe_amount": "30.00",
+            "offering_amount": "20.00",
+            "note": "Entrega parcial",
+        },
+    )
+    assert delivery.status_code == 201, delivery.text
+
+    after = await auth_client.get(
+        TITHE,
+        headers=_auth(token),
+        params={"from_date": DAY.isoformat(), "to_date": DAY.isoformat()},
+    )
+    assert after.status_code == 200
+    assert after.json()["delivered_tithe"] == "30.00"
+    assert after.json()["pending_tithe"] == "50.00"
+    assert after.json()["pending_offering"] == "30.00"
+
+    admin_token = await _login(auth_client, admin)
+    forbidden = await auth_client.get(
+        TITHE,
+        headers=_auth(admin_token),
+        params={"from_date": DAY.isoformat(), "to_date": DAY.isoformat()},
+    )
+    assert forbidden.status_code == 403
+
+    other_token = await _login(auth_client, auth_user)
+    cross = await auth_client.delete(
+        f"{TITHE_DELIVERIES}/{delivery.json()['id']}",
+        headers=_auth(other_token),
+    )
+    assert cross.status_code == 404
+
+    deleted = await auth_client.delete(
+        f"{TITHE_DELIVERIES}/{delivery.json()['id']}",
+        headers=_auth(token),
+    )
+    assert deleted.status_code == 204
+
+    disabled = await auth_client.patch(
+        SETTINGS,
+        headers=_auth(token),
+        json={"enable_tithe_and_offering": False},
+    )
+    assert disabled.status_code == 200
+    rejected = await auth_client.post(
+        TITHE_DELIVERIES,
+        headers=_auth(token),
+        json={
+            "competence_date": DAY.isoformat(),
+            "tithe_amount": "10.00",
+        },
+    )
+    assert rejected.status_code == 422

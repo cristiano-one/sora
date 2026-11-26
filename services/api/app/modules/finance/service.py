@@ -5,7 +5,7 @@ import io
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from app.api.schemas.finance import (
@@ -21,6 +21,7 @@ from app.api.schemas.finance import (
     FinancialEntryResponse,
     SaleItemResponse,
     SalesResponse,
+    TitheDeliveryCreateRequest,
 )
 from app.core.config import settings as app_settings
 from app.models import (
@@ -34,6 +35,7 @@ from app.models import (
     FinancialEntryStatus,
     FinancialEntryType,
     TenantSettings,
+    TitheDelivery,
 )
 from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
@@ -692,3 +694,57 @@ async def export_csv(
             ]
         )
     return buffer.getvalue()
+
+
+async def list_tithe_deliveries(
+    session: AsyncSession,
+    *,
+    from_date: date,
+    to_date: date,
+) -> list[TitheDelivery]:
+    return list(
+        (
+            await session.scalars(
+                select(TitheDelivery)
+                .where(
+                    TitheDelivery.competence_date >= from_date,
+                    TitheDelivery.competence_date <= to_date,
+                )
+                .order_by(TitheDelivery.competence_date.desc())
+            )
+        ).all()
+    )
+
+
+async def create_tithe_delivery(
+    session: AsyncSession,
+    *,
+    tenant_id: UUID,
+    actor_id: UUID,
+    body: TitheDeliveryCreateRequest,
+) -> TitheDelivery:
+    tenant_settings = await session.get(TenantSettings, tenant_id)
+    if tenant_settings is None or not tenant_settings.enable_tithe_and_offering:
+        raise FinanceValidationError(
+            "Dízimo e oferta estão desativados nas configurações"
+        )
+    delivery = TitheDelivery(
+        id=uuid4(),
+        tenant_id=tenant_id,
+        competence_date=body.competence_date,
+        tithe_amount=body.tithe_amount,
+        offering_amount=body.offering_amount,
+        note=body.note.strip() if body.note else None,
+        created_by=actor_id,
+    )
+    session.add(delivery)
+    await session.commit()
+    return delivery
+
+
+async def delete_tithe_delivery(
+    session: AsyncSession,
+    delivery: TitheDelivery,
+) -> None:
+    await session.delete(delivery)
+    await session.commit()

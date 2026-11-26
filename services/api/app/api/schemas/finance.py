@@ -194,3 +194,50 @@ class SalesResponse(BaseModel):
     items: list[SaleItemResponse]
     gross_total: Decimal
     net_total: Decimal
+
+
+class TitheDeliveryCreateRequest(BaseModel):
+    """Registro de entrega de dízimo/oferta."""
+
+    competence_date: date
+    tithe_amount: Decimal = Field(
+        default=Decimal("0.00"),
+        ge=0,
+        max_digits=12,
+        decimal_places=2,
+    )
+    offering_amount: Decimal = Field(
+        default=Decimal("0.00"),
+        ge=0,
+        max_digits=12,
+        decimal_places=2,
+    )
+    note: str | None = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _validate_total(self) -> Self:
+        if self.tithe_amount + self.offering_amount <= 0:
+            raise ValueError("Informe dízimo ou oferta")
+        return self
+
+
+class TitheDeliveryResponse(BaseModel):
+    """Entrega registrada."""
+
+    id: UUID
+    competence_date: date
+    tithe_amount: Decimal
+    offering_amount: Decimal
+    note: str | None
+    created_at: datetime
+
+
+class TitheSummaryResponse(BaseModel):
+    """Provisão do período e histórico de entregas."""
+
+    dre: DreResponse
+    deliveries: list[TitheDeliveryResponse]
+    delivered_tithe: Decimal
+    delivered_offering: Decimal
+    pending_tithe: Decimal
+    pending_offering: Decimal

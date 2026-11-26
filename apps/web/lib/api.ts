@@ -278,6 +278,24 @@ export type PayrollEntry = {
   created_at: string;
 };
 
+export type TitheDelivery = {
+  id: string;
+  competence_date: string;
+  tithe_amount: string;
+  offering_amount: string;
+  note: string | null;
+  created_at: string;
+};
+
+export type TitheSummary = {
+  dre: Dre;
+  deliveries: TitheDelivery[];
+  delivered_tithe: string;
+  delivered_offering: string;
+  pending_tithe: string;
+  pending_offering: string;
+};
+
 export type SaleItem = {
   appointment_id: string;
   starts_at: string;
@@ -1247,6 +1265,38 @@ export async function deletePayroll(id: string): Promise<void> {
   await authenticatedRequest<void>(`/api/v1/payroll/${id}`, {
     method: "DELETE",
   });
+}
+
+export async function getTitheSummary(
+  fromDate: string,
+  toDate: string,
+): Promise<TitheSummary> {
+  const params = new URLSearchParams({
+    from_date: fromDate,
+    to_date: toDate,
+  });
+  return authenticatedRequest<TitheSummary>(
+    `/api/v1/finance/tithe?${params.toString()}`,
+  );
+}
+
+export async function createTitheDelivery(input: {
+  competence_date: string;
+  tithe_amount: string;
+  offering_amount: string;
+  note?: string | null;
+}): Promise<TitheDelivery> {
+  return authenticatedRequest<TitheDelivery>(
+    "/api/v1/finance/tithe/deliveries",
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export async function deleteTitheDelivery(id: string): Promise<void> {
+  await authenticatedRequest<void>(
+    `/api/v1/finance/tithe/deliveries/${id}`,
+    { method: "DELETE" },
+  );
 }
 
 export async function getSales(

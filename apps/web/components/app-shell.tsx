@@ -67,6 +67,11 @@ const SECTIONS = [
           { href: "/financeiro/contas", label: "Contas e caixa" },
           { href: "/financeiro/comissoes", label: "Comissões" },
           { href: "/financeiro/folha", label: "Folha & pró-labore" },
+          {
+            href: "/financeiro/dizimo",
+            label: "Dízimo & oferta",
+            titheOnly: true,
+          },
           { href: "/financeiro/vendas", label: "Vendas" },
         ],
       },
@@ -81,6 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [me, setMe] = useState<Me | null>(null);
   const [theme, setTheme] = useState("#4f46e5");
+  const [titheEnabled, setTitheEnabled] = useState(false);
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -92,7 +98,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         if (data.role === "OWNER" || data.role === "ADMIN") {
           getTenantSettings()
             .then((settings) => {
-              if (active) setTheme(settings.theme_primary_color);
+              if (active) {
+                setTheme(settings.theme_primary_color);
+                setTitheEnabled(settings.enable_tithe_and_offering);
+              }
             })
             .catch(() => {
               // Tema é opcional; mantém o padrão.
@@ -192,17 +201,24 @@ export function AppShell({ children }: { children: ReactNode }) {
                         </button>
                         {isOpen ? (
                           <div className="sidebar-submenu">
-                            {children.map((child) => (
-                              <Link
-                                key={child.href}
-                                className={`sidebar-sublink ${
-                                  pathname === child.href ? "active" : ""
-                                }`}
-                                href={child.href}
-                              >
-                                {child.label}
-                              </Link>
-                            ))}
+                            {children
+                              .filter(
+                                (child) =>
+                                  !("titheOnly" in child) ||
+                                  !child.titheOnly ||
+                                  titheEnabled,
+                              )
+                              .map((child) => (
+                                <Link
+                                  key={child.href}
+                                  className={`sidebar-sublink ${
+                                    pathname === child.href ? "active" : ""
+                                  }`}
+                                  href={child.href}
+                                >
+                                  {child.label}
+                                </Link>
+                              ))}
                           </div>
                         ) : null}
                       </div>
