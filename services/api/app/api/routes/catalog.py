@@ -24,11 +24,15 @@ from app.core.auth.dependencies import (
 )
 from app.models import Package, Service, SubscriptionPlan, UserRole
 from app.modules.catalog.service import (
+    CatalogInUseError,
     CatalogReferenceError,
     CatalogValidationError,
     create_package,
     create_service,
     create_subscription_plan,
+    delete_package,
+    delete_service,
+    delete_subscription_plan,
     update_package,
     update_service,
     update_subscription_plan,
@@ -99,6 +103,31 @@ async def update_service_endpoint(
         ) from exc
 
 
+@router.delete(
+    "/services/{service_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Exclui serviço sem vínculos",
+)
+async def delete_service_endpoint(
+    service_id: UUID,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> None:
+    service = await session.get(Service, service_id)
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Serviço não encontrado",
+        )
+    try:
+        await delete_service(session, service=service)
+    except CatalogInUseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Serviço possui agendamentos/planos e não pode ser excluído",
+        ) from exc
+
+
 @router.get(
     "/packages",
     response_model=list[PackageResponse],
@@ -159,6 +188,31 @@ async def update_package_endpoint(
         package=package,
         changes=body.model_dump(exclude_unset=True),
     )
+
+
+@router.delete(
+    "/packages/{package_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Exclui pacote",
+)
+async def delete_package_endpoint(
+    package_id: UUID,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> None:
+    package = await session.get(Package, package_id)
+    if package is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pacote não encontrado",
+        )
+    try:
+        await delete_package(session, package=package)
+    except CatalogInUseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Pacote possui vínculos e não pode ser excluído",
+        ) from exc
 
 
 @router.get(
@@ -223,3 +277,30 @@ async def update_subscription_plan_endpoint(
         plan=plan,
         changes=body.model_dump(exclude_unset=True),
     )
+
+
+@router.delete(
+    "/subscription-plans/{plan_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Exclui plano sem assinaturas",
+)
+async def delete_subscription_plan_endpoint(
+    plan_id: UUID,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> None:
+    plan = await session.scalar(
+        select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id)
+    )
+    if plan is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Plano não encontrado",
+        )
+    try:
+        await delete_subscription_plan(session, plan=plan)
+    except CatalogInUseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Plano possui assinaturas e não pode ser excluído",
+        ) from exc

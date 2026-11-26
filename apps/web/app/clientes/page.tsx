@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import {
   ApiError,
   createClient,
+  deleteClient,
   getClients,
   getMe,
   updateClient,
@@ -23,6 +24,7 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Client | null>(null);
 
   const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
 
@@ -64,26 +66,64 @@ export default function ClientsPage() {
     );
   }, [clients, search]);
 
-  async function handleCreate(event: FormEvent<HTMLFormElement>) {
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSaving(true);
     try {
-      await createClient({
-        full_name: fullName.trim(),
-        phone: phone.trim(),
-        email: email.trim() || undefined,
-      });
+      if (editing) {
+        await updateClient(editing.id, {
+          full_name: fullName.trim(),
+          phone: phone.trim(),
+          email: email.trim() || null,
+        });
+      } else {
+        await createClient({
+          full_name: fullName.trim(),
+          phone: phone.trim(),
+          email: email.trim() || undefined,
+        });
+      }
+      setEditing(null);
       setFullName("");
       setPhone("");
       setEmail("");
       await loadClients();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Falha ao cadastrar cliente.",
+        err instanceof ApiError ? err.message : "Falha ao salvar cliente.",
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  function startEdit(client: Client) {
+    setEditing(client);
+    setFullName(client.full_name);
+    setPhone(client.phone);
+    setEmail(client.email ?? "");
+    setError(null);
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    setFullName("");
+    setPhone("");
+    setEmail("");
+  }
+
+  async function handleDelete(client: Client) {
+    if (!window.confirm(`Excluir o cliente ${client.full_name}?`)) return;
+    setError(null);
+    try {
+      await deleteClient(client.id);
+      if (editing?.id === client.id) cancelEdit();
+      await loadClients();
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao excluir cliente.",
+      );
     }
   }
 
@@ -167,13 +207,29 @@ export default function ClientsPage() {
                         </td>
                         {isManager ? (
                           <td>
-                            <button
-                              className="button button-ghost button-small"
-                              type="button"
-                              onClick={() => toggleBlock(client)}
-                            >
-                              {client.is_blocked ? "Desbloquear" : "Bloquear"}
-                            </button>
+                            <div className="row-actions">
+                              <button
+                                className="button button-ghost button-small"
+                                type="button"
+                                onClick={() => startEdit(client)}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                className="button button-ghost button-small"
+                                type="button"
+                                onClick={() => toggleBlock(client)}
+                              >
+                                {client.is_blocked ? "Desbloquear" : "Bloquear"}
+                              </button>
+                              <button
+                                className="button button-ghost button-small button-danger"
+                                type="button"
+                                onClick={() => handleDelete(client)}
+                              >
+                                Excluir
+                              </button>
+                            </div>
                           </td>
                         ) : null}
                       </tr>
@@ -187,9 +243,18 @@ export default function ClientsPage() {
           {isManager ? (
             <section className="panel">
               <div className="panel-title">
-                <h2>Novo cliente</h2>
+                <h2>{editing ? "Editar cliente" : "Novo cliente"}</h2>
+                {editing ? (
+                  <button
+                    className="button button-ghost button-small"
+                    type="button"
+                    onClick={cancelEdit}
+                  >
+                    Cancelar edição
+                  </button>
+                ) : null}
               </div>
-              <form onSubmit={handleCreate}>
+              <form onSubmit={handleSave}>
                 <div className="field">
                   <label htmlFor="client-name">Nome completo</label>
                   <input
@@ -220,7 +285,11 @@ export default function ClientsPage() {
                   />
                 </div>
                 <button className="button" type="submit" disabled={saving}>
-                  {saving ? "Salvando…" : "Cadastrar cliente"}
+                  {saving
+                    ? "Salvando…"
+                    : editing
+                      ? "Salvar alterações"
+                      : "Cadastrar cliente"}
                 </button>
               </form>
             </section>

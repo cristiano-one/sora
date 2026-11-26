@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import {
   ApiError,
   createService,
+  deleteService,
   getMe,
   getServices,
   updateService,
@@ -28,6 +29,7 @@ export default function CatalogPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Service | null>(null);
 
   const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
 
@@ -59,29 +61,74 @@ export default function CatalogPage() {
     };
   }, []);
 
-  async function handleCreate(event: FormEvent<HTMLFormElement>) {
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSaving(true);
+    const payload = {
+      name: name.trim(),
+      duration_minutes: Number(duration),
+      buffer_minutes: Number(buffer),
+      price,
+      cost,
+      requires_deposit: requiresDeposit,
+      deposit_amount: requiresDeposit ? depositAmount : null,
+      show_average_price: showAveragePrice,
+    };
     try {
-      await createService({
-        name: name.trim(),
-        duration_minutes: Number(duration),
-        buffer_minutes: Number(buffer),
-        price,
-        cost,
-        requires_deposit: requiresDeposit,
-        deposit_amount: requiresDeposit ? depositAmount : null,
-        show_average_price: showAveragePrice,
-      });
+      if (editing) {
+        await updateService(editing.id, payload);
+      } else {
+        await createService(payload);
+      }
       setName("");
+      setEditing(null);
       await loadServices();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Falha ao cadastrar serviço.",
+        err instanceof ApiError ? err.message : "Falha ao salvar serviço.",
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  function startEdit(service: Service) {
+    setEditing(service);
+    setName(service.name);
+    setDuration(String(service.duration_minutes));
+    setBuffer(String(service.buffer_minutes));
+    setPrice(service.price);
+    setCost(service.cost);
+    setRequiresDeposit(service.requires_deposit);
+    setDepositAmount(service.deposit_amount ?? "30.00");
+    setShowAveragePrice(service.show_average_price);
+    setError(null);
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    setName("");
+    setDuration("60");
+    setBuffer("0");
+    setPrice("120.00");
+    setCost("0.00");
+    setRequiresDeposit(false);
+    setDepositAmount("30.00");
+    setShowAveragePrice(true);
+  }
+
+  async function handleDelete(service: Service) {
+    if (!window.confirm(`Excluir o serviço ${service.name}?`)) return;
+    setError(null);
+    try {
+      await deleteService(service.id);
+      if (editing?.id === service.id) cancelEdit();
+      await loadServices();
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao excluir serviço.",
+      );
     }
   }
 
@@ -169,13 +216,29 @@ export default function CatalogPage() {
                         </td>
                         {isManager ? (
                           <td>
-                            <button
-                              className="button button-ghost button-small"
-                              type="button"
-                              onClick={() => toggleActive(service)}
-                            >
-                              {service.is_active ? "Desativar" : "Ativar"}
-                            </button>
+                            <div className="row-actions">
+                              <button
+                                className="button button-ghost button-small"
+                                type="button"
+                                onClick={() => startEdit(service)}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                className="button button-ghost button-small"
+                                type="button"
+                                onClick={() => toggleActive(service)}
+                              >
+                                {service.is_active ? "Desativar" : "Ativar"}
+                              </button>
+                              <button
+                                className="button button-ghost button-small button-danger"
+                                type="button"
+                                onClick={() => handleDelete(service)}
+                              >
+                                Excluir
+                              </button>
+                            </div>
                           </td>
                         ) : null}
                       </tr>
@@ -189,9 +252,18 @@ export default function CatalogPage() {
           {isManager ? (
             <section className="panel">
               <div className="panel-title">
-                <h2>Novo serviço</h2>
+                <h2>{editing ? "Editar serviço" : "Novo serviço"}</h2>
+                {editing ? (
+                  <button
+                    className="button button-ghost button-small"
+                    type="button"
+                    onClick={cancelEdit}
+                  >
+                    Cancelar edição
+                  </button>
+                ) : null}
               </div>
-              <form onSubmit={handleCreate}>
+              <form onSubmit={handleSave}>
                 <div className="field">
                   <label htmlFor="service-name">Nome</label>
                   <input
@@ -285,7 +357,11 @@ export default function CatalogPage() {
                 </div>
 
                 <button className="button" type="submit" disabled={saving}>
-                  {saving ? "Salvando…" : "Cadastrar serviço"}
+                  {saving
+                    ? "Salvando…"
+                    : editing
+                      ? "Salvar alterações"
+                      : "Cadastrar serviço"}
                 </button>
               </form>
             </section>

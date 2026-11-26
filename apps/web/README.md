@@ -35,11 +35,14 @@ uv run uvicorn app.main:app --reload --port 8010
 - `/dashboard` — visão geral com sidebar, perfil e atalhos de gestão.
 - `/agenda` — board do dia, disponibilidade em tempo real, criação e
   cancelamento de agendamentos (anti-conflito no backend).
-- `/clientes` — cadastro, score confidencial e bloqueio (telefone mascarado
-  para colaboradores).
-- `/catalogo` — serviços, duração, buffer, preço, custo e sinal.
-- `/equipe` — usuários, papéis e comissões (`OWNER`/`ADMIN`).
-- `/assinaturas` — planos, cotas, contratação e cancelamento (`OWNER`/`ADMIN`).
+- `/clientes` — cadastro, edição, exclusão, score confidencial e bloqueio
+  (telefone mascarado para colaboradores).
+- `/catalogo` — serviços, edição, exclusão, duração, buffer, preço, custo e
+  sinal.
+- `/equipe` — usuários, edição, exclusão, papéis e comissões
+  (`OWNER`/`ADMIN`).
+- `/assinaturas` — planos, cotas, edição, exclusão, contratação e cancelamento
+  (`OWNER`/`ADMIN`).
 - `/financeiro/fluxo-caixa` — fluxo de caixa realizado (`OWNER`).
 - `/financeiro/dre` — DRE por competência (`OWNER`).
 - `/financeiro/lancamentos` — lançamentos e baixa de títulos (`OWNER`).

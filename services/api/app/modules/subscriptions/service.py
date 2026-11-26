@@ -152,6 +152,22 @@ async def cancel_client_subscription(
     return subscription
 
 
+async def delete_client_subscription(
+    session: AsyncSession,
+    subscription: ClientSubscription,
+) -> None:
+    """Exclui assinatura já cancelada/expirada (usos cascateiam)."""
+    if subscription.status not in (
+        ClientSubscriptionStatus.CANCELLED,
+        ClientSubscriptionStatus.EXPIRED,
+    ):
+        raise SubscriptionConflictError
+    tenant_id = subscription.tenant_id
+    await session.delete(subscription)
+    await session.commit()
+    await set_tenant_context(session, tenant_id)
+
+
 async def list_client_subscriptions(
     session: AsyncSession,
     *,

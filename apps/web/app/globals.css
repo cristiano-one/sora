@@ -1192,6 +1192,18 @@ h1 {
   font-size: 12px;
 }
 
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.button-danger {
+  border-color: #fecaca;
+  color: var(--danger);
+}
+
 .admin-search {
   min-width: 240px;
   padding: 10px 12px;
@@ -1215,6 +1227,11 @@ h1 {
 
 .plan-description {
   margin-top: 12px;
+}
+
+.plan-edit-note {
+  margin: 6px 0 12px;
+  line-height: 1.5;
 }
 
 .theme-title {

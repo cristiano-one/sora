@@ -15,6 +15,7 @@ from app.models import (
     SubscriptionPlanItem,
 )
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 _SERVICE_UPDATE_FIELDS = frozenset(
@@ -39,6 +40,10 @@ class CatalogReferenceError(Exception):
 
 class CatalogValidationError(Exception):
     """Regra de negócio do catálogo violada."""
+
+
+class CatalogInUseError(Exception):
+    """Registro do catálogo possui vínculos e não pode ser excluído."""
 
 
 async def _ensure_services(session: AsyncSession, service_ids: set[UUID]) -> None:
@@ -191,3 +196,28 @@ async def update_subscription_plan(
             setattr(plan, field, changes[field])
     await session.commit()
     return plan
+
+
+async def _delete_record(session: AsyncSession, record: object) -> None:
+    await session.delete(record)
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise CatalogInUseError from exc
+
+
+async def delete_service(session: AsyncSession, *, service: Service) -> None:
+    await _delete_record(session, service)
+
+
+async def delete_package(session: AsyncSession, *, package: Package) -> None:
+    await _delete_record(session, package)
+
+
+async def delete_subscription_plan(
+    session: AsyncSession,
+    *,
+    plan: SubscriptionPlan,
+) -> None:
+    await _delete_record(session, plan)

@@ -14,6 +14,7 @@ from app.models import (
     MedicalRecord,
     MedicalRecordAttachment,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 ALLOWED_MIME_TYPES = frozenset({"image/jpeg", "image/png", "application/pdf"})
@@ -22,6 +23,10 @@ MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
 
 class InvalidAttachmentError(Exception):
     """Tipo ou tamanho de anexo inválido."""
+
+
+class ClientInUseError(Exception):
+    """Cliente possui agendamentos/registros que impedem a exclusão."""
 
 
 async def create_client(
@@ -58,6 +63,20 @@ async def update_client(
             setattr(client, field, value)
     await session.commit()
     return client
+
+
+async def delete_client(
+    session: AsyncSession,
+    *,
+    client: Client,
+) -> None:
+    """Exclui o cliente quando não há agendamentos vinculados."""
+    await session.delete(client)
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise ClientInUseError from exc
 
 
 async def add_score_event(

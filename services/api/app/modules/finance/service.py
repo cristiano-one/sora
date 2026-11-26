@@ -72,6 +72,10 @@ class FinanceConflictError(Exception):
     """Nome de conta já utilizado."""
 
 
+class FinanceInUseError(Exception):
+    """Conta possui lançamentos e não pode ser excluída."""
+
+
 @dataclass
 class _CommissionAccumulator:
     name: str
@@ -187,6 +191,19 @@ async def update_account(
     return _account_response(account)
 
 
+async def delete_account(
+    session: AsyncSession,
+    *,
+    account: FinancialAccount,
+) -> None:
+    await session.delete(account)
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise FinanceInUseError from exc
+
+
 async def create_entry(
     session: AsyncSession,
     *,
@@ -286,6 +303,15 @@ async def update_entry(
         raise FinanceValidationError("cash_date é obrigatório para lançamento pago")
     await session.commit()
     return _entry_response(entry)
+
+
+async def delete_entry(
+    session: AsyncSession,
+    *,
+    entry: FinancialEntry,
+) -> None:
+    await session.delete(entry)
+    await session.commit()
 
 
 async def cash_flow(

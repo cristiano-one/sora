@@ -34,12 +34,14 @@ from app.core.formatting import mask_phone
 from app.core.storage import StoragePort, get_storage
 from app.models import Client, MedicalRecord, MedicalRecordAttachment, UserRole
 from app.modules.clients.service import (
+    ClientInUseError,
     InvalidAttachmentError,
     add_consent,
     add_score_event,
     create_attachment,
     create_client,
     create_medical_record,
+    delete_client,
     update_client,
 )
 
@@ -190,6 +192,36 @@ async def update_client_endpoint(
         ip_address=client_ip(request),
     )
     return _client_response(updated, principal.role)
+
+
+@router.delete(
+    "/{client_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Exclui cliente sem agendamentos vinculados",
+)
+async def delete_client_endpoint(
+    client_id: UUID,
+    request: Request,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> None:
+    client = await _get_client(session, client_id)
+    try:
+        await delete_client(session, client=client)
+    except ClientInUseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cliente possui agendamentos e não pode ser excluído",
+        ) from exc
+    await record_audit(
+        session,
+        tenant_id=principal.tenant_id,
+        actor=principal,
+        action="client.delete",
+        resource_type="client",
+        resource_id=client_id,
+        ip_address=client_ip(request),
+    )
 
 
 @router.post(

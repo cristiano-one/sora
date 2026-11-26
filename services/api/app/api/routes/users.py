@@ -23,9 +23,12 @@ from app.core.auth.service import revoke_all_sessions
 from app.core.redis import get_redis
 from app.models import User, UserRole
 from app.modules.users.service import (
+    CannotDeleteUserError,
     EmailAlreadyExistsError,
     InvalidRoleChangeError,
+    UserInUseError,
     create_user,
+    delete_user,
     update_user,
 )
 
@@ -127,6 +130,43 @@ async def update_user_endpoint(
         )
 
     return updated
+
+
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Exclui usuário sem vínculos (não permite OWNER)",
+)
+async def delete_user_endpoint(
+    user_id: UUID,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+    redis: Redis = Depends(get_redis),
+) -> None:
+    target = await session.get(User, user_id)
+    if target is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuário não encontrado",
+        )
+    tenant_id = target.tenant_id
+    try:
+        await delete_user(session, actor=principal, target=target)
+    except CannotDeleteUserError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuário protegido não pode ser excluído",
+        ) from exc
+    except UserInUseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Usuário possui vínculos e não pode ser excluído",
+        ) from exc
+    await revoke_all_sessions(
+        redis,
+        tenant_id=tenant_id,
+        user_id=user_id,
+    )
 
 
 @router.get(

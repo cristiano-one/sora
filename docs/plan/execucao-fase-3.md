@@ -10,11 +10,14 @@
   - tema primário do tenant aplicado no painel e no link público.
   - páginas passam a usar o mesmo container `page`/`panel`/`data-table`.
 - [x] **Passo 2 — Cadastros do painel**
-  - `/clientes`: busca, cadastro, score e bloqueio/desbloqueio.
-  - `/catalogo`: serviços com duração, buffer, preço, custo e sinal.
-  - `/equipe`: usuários, papéis, status e comissões.
+  - `/clientes`: busca, cadastro, edição, exclusão, score e bloqueio.
+  - `/catalogo`: serviços com edição/exclusão, duração, buffer, preço, custo
+    e sinal.
+  - `/equipe`: usuários com edição/exclusão, papéis, status e comissões.
 - [x] **Passo 3 — Assinaturas e configurações**
-  - `/assinaturas`: planos, cotas, contratação manual e cancelamento.
+  - `/assinaturas`: planos, cotas, contratação manual, edição e cancelamento.
+  - `/financeiro/*`: contas e lançamentos com edição/exclusão; relatórios
+    separados em submenus.
   - `/configuracoes`: score mínimo, valor do sinal, cor primária e agente.
   - agenda com tag `Assinante` e tema dinâmico.
 - [x] **Passo 4 — `apps/mobile` (Expo iOS/Android)** · branch `feat/mobile-core`

@@ -7,6 +7,8 @@ import {
   ApiError,
   createFinancialAccount,
   createFinancialEntry,
+  deleteFinancialAccount,
+  deleteFinancialEntry,
   getAccountBalances,
   getCashFlow,
   getCommissions,
@@ -16,6 +18,7 @@ import {
   getFinancialEntries,
   getMe,
   getSales,
+  updateFinancialAccount,
   updateFinancialEntry,
   type AccountBalance,
   type CashFlow,
@@ -126,6 +129,8 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
   const [accountName, setAccountName] = useState("Caixa principal");
   const [accountType, setAccountType] = useState<"CASH" | "BANK">("CASH");
   const [initialBalance, setInitialBalance] = useState("0.00");
+  const [editingAccount, setEditingAccount] =
+    useState<FinancialAccount | null>(null);
 
   const [entryAccount, setEntryAccount] = useState("");
   const [entryType, setEntryType] = useState<FinancialEntryType>("INCOME");
@@ -136,6 +141,7 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
   const [entryCompetence, setEntryCompetence] = useState(today);
   const [entryStatus, setEntryStatus] = useState<"PENDING" | "PAID">("PAID");
   const [entryCashDate, setEntryCashDate] = useState(today);
+  const [editingEntry, setEditingEntry] = useState<FinancialEntry | null>(null);
 
   const [commissionCollaborator, setCommissionCollaborator] = useState("");
   const [commissionDescription, setCommissionDescription] = useState("");
@@ -208,29 +214,66 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
     void load();
   }, [load]);
 
-  async function handleCreateAccount(event: FormEvent<HTMLFormElement>) {
+  async function handleSaveAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setNotice(null);
     setSaving(true);
     try {
-      await createFinancialAccount({
-        name: accountName.trim(),
-        type: accountType,
-        initial_balance: initialBalance,
-      });
+      if (editingAccount) {
+        await updateFinancialAccount(editingAccount.id, {
+          name: accountName.trim(),
+        });
+      } else {
+        await createFinancialAccount({
+          name: accountName.trim(),
+          type: accountType,
+          initial_balance: initialBalance,
+        });
+      }
+      cancelAccountEdit();
       await load();
-      setNotice("Conta criada.");
+      setNotice(editingAccount ? "Conta atualizada." : "Conta criada.");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Falha ao criar conta.",
+        err instanceof ApiError ? err.message : "Falha ao salvar conta.",
       );
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleCreateEntry(event: FormEvent<HTMLFormElement>) {
+  function startAccountEdit(account: FinancialAccount) {
+    setEditingAccount(account);
+    setAccountName(account.name);
+    setAccountType(account.type);
+    setInitialBalance(account.initial_balance);
+    setError(null);
+  }
+
+  function cancelAccountEdit() {
+    setEditingAccount(null);
+    setAccountName("Caixa principal");
+    setAccountType("CASH");
+    setInitialBalance("0.00");
+  }
+
+  async function handleDeleteAccount(account: FinancialAccount) {
+    if (!window.confirm(`Excluir a conta ${account.name}?`)) return;
+    setError(null);
+    try {
+      await deleteFinancialAccount(account.id);
+      if (editingAccount?.id === account.id) cancelAccountEdit();
+      await load();
+      setNotice("Conta excluída.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao excluir conta.",
+      );
+    }
+  }
+
+  async function handleSaveEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setNotice(null);
@@ -240,25 +283,77 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
     }
     setSaving(true);
     try {
-      await createFinancialEntry({
-        account_id: entryAccount,
-        type: entryType,
-        category: entryCategory,
-        description: entryDescription.trim(),
-        amount: entryAmount,
-        competence_date: entryCompetence,
-        cash_date: entryStatus === "PAID" ? entryCashDate : null,
-        status: entryStatus,
-      });
-      setEntryDescription("");
+      if (editingEntry) {
+        await updateFinancialEntry(editingEntry.id, {
+          account_id: entryAccount,
+          category: entryCategory,
+          description: entryDescription.trim(),
+          amount: entryAmount,
+          competence_date: entryCompetence,
+          cash_date: entryStatus === "PAID" ? entryCashDate : null,
+          status: entryStatus,
+        });
+      } else {
+        await createFinancialEntry({
+          account_id: entryAccount,
+          type: entryType,
+          category: entryCategory,
+          description: entryDescription.trim(),
+          amount: entryAmount,
+          competence_date: entryCompetence,
+          cash_date: entryStatus === "PAID" ? entryCashDate : null,
+          status: entryStatus,
+        });
+      }
+      cancelEntryEdit();
       await load();
-      setNotice("Lançamento registrado.");
+      setNotice(editingEntry ? "Lançamento atualizado." : "Lançamento registrado.");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Falha ao criar lançamento.",
+        err instanceof ApiError ? err.message : "Falha ao salvar lançamento.",
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  function startEntryEdit(entry: FinancialEntry) {
+    setEditingEntry(entry);
+    setEntryAccount(entry.account_id);
+    setEntryType(entry.type);
+    setEntryCategory(entry.category);
+    setEntryDescription(entry.description);
+    setEntryAmount(entry.amount);
+    setEntryCompetence(entry.competence_date);
+    setEntryStatus(entry.status);
+    setEntryCashDate(entry.cash_date ?? entry.competence_date);
+    setError(null);
+  }
+
+  function cancelEntryEdit() {
+    setEditingEntry(null);
+    setEntryAccount(accounts[0]?.id ?? "");
+    setEntryType("INCOME");
+    setEntryCategory("SERVICE");
+    setEntryDescription("");
+    setEntryAmount("100.00");
+    setEntryCompetence(today);
+    setEntryStatus("PAID");
+    setEntryCashDate(today);
+  }
+
+  async function handleDeleteEntry(entry: FinancialEntry) {
+    if (!window.confirm(`Excluir o lançamento "${entry.description}"?`)) return;
+    setError(null);
+    try {
+      await deleteFinancialEntry(entry.id);
+      if (editingEntry?.id === entry.id) cancelEntryEdit();
+      await load();
+      setNotice("Lançamento excluído.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao excluir lançamento.",
+      );
     }
   }
 
@@ -535,6 +630,7 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
                       <th>Tipo</th>
                       <th>Saldo inicial</th>
                       <th>Saldo atual</th>
+                      <th />
                     </tr>
                   </thead>
                   <tbody>
@@ -550,6 +646,34 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
                         <td className="price-cell">
                           {formatPrice(account.balance)}
                         </td>
+                        <td>
+                          <div className="row-actions">
+                            <button
+                              className="button button-ghost button-small"
+                              type="button"
+                              onClick={() => {
+                                const found = accounts.find(
+                                  (item) => item.id === account.account_id,
+                                );
+                                if (found) startAccountEdit(found);
+                              }}
+                            >
+                              Editar
+                            </button>
+                            <button
+                              className="button button-ghost button-small button-danger"
+                              type="button"
+                              onClick={() => {
+                                const found = accounts.find(
+                                  (item) => item.id === account.account_id,
+                                );
+                                if (found) void handleDeleteAccount(found);
+                              }}
+                            >
+                              Excluir
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -559,9 +683,18 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
 
             <section className="panel">
               <div className="panel-title">
-                <h2>Nova conta</h2>
+                <h2>{editingAccount ? "Editar conta" : "Nova conta"}</h2>
+                {editingAccount ? (
+                  <button
+                    className="button button-ghost button-small"
+                    type="button"
+                    onClick={cancelAccountEdit}
+                  >
+                    Cancelar edição
+                  </button>
+                ) : null}
               </div>
-              <form onSubmit={handleCreateAccount}>
+              <form onSubmit={handleSaveAccount}>
                 <div className="field">
                   <label htmlFor="account-name">Nome</label>
                   <input
@@ -580,6 +713,7 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
                       onChange={(event) =>
                         setAccountType(event.target.value as "CASH" | "BANK")
                       }
+                      disabled={Boolean(editingAccount)}
                     >
                       <option value="CASH">Caixa</option>
                       <option value="BANK">Banco</option>
@@ -593,11 +727,21 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
                       onChange={(event) =>
                         setInitialBalance(event.target.value)
                       }
+                      disabled={Boolean(editingAccount)}
                     />
                   </div>
                 </div>
+                {editingAccount ? (
+                  <p className="muted-small">
+                    Tipo e saldo inicial não são alterados após o cadastro.
+                  </p>
+                ) : null}
                 <button className="button" type="submit" disabled={saving}>
-                  {saving ? "Salvando…" : "Criar conta"}
+                  {saving
+                    ? "Salvando…"
+                    : editingAccount
+                      ? "Salvar alterações"
+                      : "Criar conta"}
                 </button>
               </form>
             </section>
@@ -659,15 +803,31 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
                           </span>
                         </td>
                         <td>
-                          {entry.status === "PENDING" ? (
+                          <div className="row-actions">
                             <button
                               className="button button-ghost button-small"
                               type="button"
-                              onClick={() => markPaid(entry)}
+                              onClick={() => startEntryEdit(entry)}
                             >
-                              Baixar
+                              Editar
                             </button>
-                          ) : null}
+                            {entry.status === "PENDING" ? (
+                              <button
+                                className="button button-ghost button-small"
+                                type="button"
+                                onClick={() => markPaid(entry)}
+                              >
+                                Baixar
+                              </button>
+                            ) : null}
+                            <button
+                              className="button button-ghost button-small button-danger"
+                              type="button"
+                              onClick={() => handleDeleteEntry(entry)}
+                            >
+                              Excluir
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -679,9 +839,18 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
 
           <section className="panel">
             <div className="panel-title">
-              <h2>Novo lançamento</h2>
+              <h2>{editingEntry ? "Editar lançamento" : "Novo lançamento"}</h2>
+              {editingEntry ? (
+                <button
+                  className="button button-ghost button-small"
+                  type="button"
+                  onClick={cancelEntryEdit}
+                >
+                  Cancelar edição
+                </button>
+              ) : null}
             </div>
-            <form onSubmit={handleCreateEntry}>
+            <form onSubmit={handleSaveEntry}>
               <div className="field">
                 <label htmlFor="entry-account">Conta</label>
                 <select
@@ -711,6 +880,7 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
                         type === "INCOME" ? "SERVICE" : "RENT",
                       );
                     }}
+                    disabled={Boolean(editingEntry)}
                   >
                     <option value="INCOME">Entrada</option>
                     <option value="EXPENSE">Saída</option>
@@ -789,7 +959,11 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
                 ) : null}
               </div>
               <button className="button" type="submit" disabled={saving}>
-                {saving ? "Salvando…" : "Registrar lançamento"}
+                {saving
+                  ? "Salvando…"
+                  : editingEntry
+                    ? "Salvar alterações"
+                    : "Registrar lançamento"}
               </button>
             </form>
           </section>
@@ -1013,15 +1187,24 @@ export function FinanceDashboard({ section }: { section: FinanceSection }) {
                               </span>
                             </td>
                             <td>
-                              {entry.status === "PENDING" ? (
+                              <div className="row-actions">
+                                {entry.status === "PENDING" ? (
+                                  <button
+                                    className="button button-ghost button-small"
+                                    type="button"
+                                    onClick={() => markPaid(entry)}
+                                  >
+                                    Baixar
+                                  </button>
+                                ) : null}
                                 <button
-                                  className="button button-ghost button-small"
+                                  className="button button-ghost button-small button-danger"
                                   type="button"
-                                  onClick={() => markPaid(entry)}
+                                  onClick={() => handleDeleteEntry(entry)}
                                 >
-                                  Baixar
+                                  Excluir
                                 </button>
-                              ) : null}
+                              </div>
                             </td>
                           </tr>
                         ))}

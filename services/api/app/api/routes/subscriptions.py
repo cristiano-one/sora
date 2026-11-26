@@ -25,6 +25,7 @@ from app.modules.subscriptions.service import (
     SubscriptionNotFoundError,
     cancel_client_subscription,
     create_client_subscription,
+    delete_client_subscription,
     list_client_subscriptions,
     subscription_response,
 )
@@ -156,3 +157,23 @@ async def cancel_subscription_endpoint(
             detail="Assinatura já encerrada",
         ) from exc
     return await subscription_response(session, subscription)
+
+
+@router.delete(
+    "/subscriptions/{subscription_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Exclui assinatura cancelada/expirada",
+)
+async def delete_subscription_endpoint(
+    subscription_id: UUID,
+    principal: Principal = Depends(_require_manager),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> None:
+    subscription = await _get_subscription(session, subscription_id)
+    try:
+        await delete_client_subscription(session, subscription)
+    except SubscriptionConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cancele a assinatura antes de excluí-la",
+        ) from exc
