@@ -16,6 +16,7 @@ Concluído:
 - SORA IA, persona, aprovação e aniversários;
 - comanda digital, check-in e NFS-e mock;
 - automações/CRM com worker;
+- WhatsApp Tech Provider/Embedded Signup por clínica;
 - landing de vendas em `/`;
 - configurações em submenus.
 
@@ -25,7 +26,7 @@ Pendências comerciais:
 - checkout/trial/inadimplência;
 - gateway real;
 - NFS-e real;
-- WhatsApp Meta real e LLM;
+- LLM real (WhatsApp real já implementado via Tech Provider);
 - deploy de produção;
 - autoatendimento completo para reagendar/cancelar;
 - painel/TV de sala de espera;
@@ -67,52 +68,53 @@ Não precisa de Meta.
 - O mock **não envia mensagem real**; ele registra a conversa e devolve a
   resposta no painel.
 
-### 2. Número de teste da Meta (grátis para desenvolvimento)
+### 2. WhatsApp real por clínica (Tech Provider)
 
-A Meta oferece um número de teste/sandbox no WhatsApp Cloud API:
+Implementado em `/configuracoes/whatsapp`:
 
-- permite testar com poucos destinatários verificados;
-- não exige número próprio nem business verification completa;
-- serve para validar webhook, envio, templates e conversas reais;
-- limites e políticas podem mudar; conferir o painel da Meta.
+- Embedded Signup v4;
+- troca do code por business token;
+- inscrição no WABA;
+- registro do número com PIN de 6 dígitos;
+- token e PIN cifrados;
+- webhook oficial assinado e idempotente;
+- envio com as credenciais da própria clínica.
 
-Configuração:
-
-```env
-WHATSAPP_PROVIDER=meta
-WHATSAPP_META_TOKEN=...
-WHATSAPP_META_PHONE_NUMBER_ID=...
-WHATSAPP_VERIFY_TOKEN=...
-```
+A Meta cobra as mensagens na conta de cada clínica. O passo a passo completo,
+incluindo sandbox e túnel HTTPS, está em
+[`whatsapp-tech-provider.md`](whatsapp-tech-provider.md).
 
 ### 3. Produção
 
 Para atender clientes reais:
 
 - portfólio empresarial e verificação;
-- WhatsApp Business Account;
-- número dedicado;
-- token permanente;
-- método de pagamento e tarifas por conversa/template;
-- templates aprovados para mensagens fora da janela de 24h.
+- App Review com acesso avançado;
+- app em modo Live;
+- número dedicado e cartão na conta Meta da clínica;
+- templates aprovados para mensagens fora da janela de 24h;
+- monitoramento de qualidade e limites.
 
 ## Como o webhook entra no sistema
 
 ```text
-WhatsApp/Meta -> POST /api/v1/ai/whatsapp/webhook
-              -> resolve tenant pelo slug
+WhatsApp/Meta -> POST /api/v1/whatsapp/webhook (X-Hub-Signature-256)
+              -> resolve tenant pelo phone_number_id
               -> normaliza telefone e localiza/cria conversa
-              -> SORA IA responde
-              -> grava mensagens com RLS
+              -> SORA IA responde com o token da clínica
+              -> grava mensagens com RLS e idempotência
               -> central /sora-ia mostra o histórico
 ```
 
-O endpoint real exige `X-Internal-Token`; o roteador/WhatsApp deve enviar esse
-header. O simulador autenticado usa o mesmo motor sem precisar do token interno.
+O webhook oficial é público, mas só aceita payload com assinatura válida do App
+Secret. O endpoint interno antigo (`/api/v1/ai/whatsapp/webhook`) continua
+disponível atrás de `X-Internal-Token` para roteadores próprios e simulador.
 
 ## Próximo passo recomendado
 
 1. Validar fluxo no simulador mock.
-2. Configurar número de teste da Meta com um telefone verificado.
-3. Trocar `WHATSAPP_PROVIDER=mock` para `meta` em ambiente controlado.
-4. Só depois conectar número de produção e templates.
+2. Criar o app Meta/Tech Provider e configurar Embedded Signup v4.
+3. Subir um túnel HTTPS e cadastrar o webhook.
+4. Conectar o sandbox em `/configuracoes/whatsapp`.
+5. Enviar uma mensagem real e validar a resposta da SORA IA.
+6. Só depois conectar número de produção e templates.

@@ -23,6 +23,7 @@ from app.api.routes.subscriptions import router as subscriptions_router
 from app.api.routes.system import router as system_router
 from app.api.routes.tenants import router as tenants_router
 from app.api.routes.users import router as users_router
+from app.api.routes.whatsapp import router as whatsapp_router
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.core.redis import create_redis
@@ -67,6 +68,7 @@ def create_app() -> FastAPI:
     application.include_router(payroll_router, prefix=settings.api_v1_prefix)
     application.include_router(inventory_router, prefix=settings.api_v1_prefix)
     application.include_router(ai_router, prefix=settings.api_v1_prefix)
+    application.include_router(whatsapp_router, prefix=settings.api_v1_prefix)
     application.include_router(
         automations_router,
         prefix=settings.api_v1_prefix,

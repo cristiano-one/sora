@@ -16,6 +16,7 @@ from app.models import (
     AutomationTrigger,
     Client,
 )
+from app.modules.whatsapp.service import get_credentials_for_tenant
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -397,6 +398,7 @@ async def run_due(
     limit: int = 50,
 ) -> dict[str, int]:
     moment = now or datetime.now(UTC)
+    credentials = await get_credentials_for_tenant(session, tenant_id)
     runs = (
         await session.scalars(
             select(AutomationRun)
@@ -434,7 +436,11 @@ async def run_due(
             skipped += 1
             continue
         text = _render(rule.template, client=client, appointment=appointment)
-        if await send_whatsapp_message(phone=client.phone, text=text):
+        if await send_whatsapp_message(
+            phone=client.phone,
+            text=text,
+            credentials=credentials,
+        ):
             run.status = AutomationRunStatus.SENT
             run.sent_at = moment
             sent += 1

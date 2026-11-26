@@ -40,6 +40,7 @@ from app.modules.agenda.public_service import (
     create_magic_link,
     normalize_phone,
 )
+from app.modules.whatsapp.service import get_credentials_for_tenant
 from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -165,6 +166,7 @@ def _add_message(
     direction: MessageDirection,
     content: str,
     intent: str | None,
+    external_id: str | None = None,
 ) -> AiMessage:
     message = AiMessage(
         tenant_id=tenant_id,
@@ -172,6 +174,7 @@ def _add_message(
         direction=direction,
         content=content,
         intent=intent,
+        external_id=external_id,
     )
     session.add(message)
     conversation.last_message_at = datetime.now(UTC)
@@ -252,11 +255,59 @@ async def handle_whatsapp_message(
     tenant_id = await _tenant_id_by_slug(session, tenant_slug)
     if tenant_id is None:
         raise AiTenantNotFoundError
+    return await handle_tenant_message(
+        session,
+        redis,
+        tenant_id=tenant_id,
+        phone=phone,
+        text=text,
+        deliver=deliver,
+    )
+
+
+async def handle_tenant_message(
+    session: AsyncSession,
+    redis: Redis,
+    *,
+    tenant_id: UUID,
+    phone: str,
+    text: str,
+    external_id: str | None = None,
+    deliver: bool = True,
+) -> WhatsAppWebhookResponse:
+    """Processa uma mensagem já roteada para um tenant (webhook oficial)."""
     await set_tenant_context(session, tenant_id)
     tenant = await session.get(Tenant, tenant_id)
     if tenant is None or not tenant.is_active:
         raise AiTenantNotFoundError
 
+    if external_id is not None:
+        existing = await session.scalar(
+            select(AiMessage)
+            .where(AiMessage.external_id == external_id)
+            .limit(1)
+        )
+        if existing is not None:
+            conversation = await session.get(
+                AiConversation,
+                existing.conversation_id,
+            )
+            return WhatsAppWebhookResponse(
+                conversation_id=existing.conversation_id,
+                reply="",
+                intent="duplicate",
+                status=(
+                    conversation.status
+                    if conversation is not None
+                    else ConversationStatus.CLOSED
+                ),
+            )
+
+    credentials = (
+        await get_credentials_for_tenant(session, tenant_id)
+        if deliver
+        else None
+    )
     digits = normalize_phone(phone)
     client = await _client_by_phone(session, digits)
     conversation = await _get_or_create_conversation(
@@ -272,6 +323,7 @@ async def handle_whatsapp_message(
         direction=MessageDirection.INBOUND,
         content=text.strip(),
         intent=None,
+        external_id=external_id,
     )
 
     tenant_settings = await session.get(TenantSettings, tenant_id)
@@ -310,7 +362,7 @@ async def handle_whatsapp_message(
             link = await create_magic_link(
                 session,
                 redis,
-                slug=tenant_slug,
+                slug=tenant.slug,
                 phone=digits,
             )
             reply = (
@@ -368,7 +420,11 @@ async def handle_whatsapp_message(
     )
     await session.commit()
     if deliver:
-        await send_whatsapp_message(phone=digits, text=reply)
+        await send_whatsapp_message(
+            phone=digits,
+            text=reply,
+            credentials=credentials,
+        )
     return WhatsAppWebhookResponse(
         conversation_id=conversation.id,
         reply=reply,
@@ -517,8 +573,13 @@ async def approve_conversation(
         content=content,
         intent="approval",
     )
+    credentials = await get_credentials_for_tenant(session, tenant_id)
     await session.commit()
-    await send_whatsapp_message(phone=conversation.phone, text=content)
+    await send_whatsapp_message(
+        phone=conversation.phone,
+        text=content,
+        credentials=credentials,
+    )
     await set_tenant_context(session, tenant_id)
     return await conversation_detail(session, conversation_id)
 
@@ -540,10 +601,12 @@ async def send_human_message(
         content=content.strip(),
         intent="human",
     )
+    credentials = await get_credentials_for_tenant(session, tenant_id)
     await session.commit()
     await send_whatsapp_message(
         phone=conversation.phone,
         text=content.strip(),
+        credentials=credentials,
     )
     return _message_response(message)
 
@@ -742,9 +805,14 @@ async def create_birthday_credits(
                 "válido por 30 dias.",
             )
         )
+    credentials = await get_credentials_for_tenant(session, tenant_id)
     await session.commit()
     for phone, message in notifications:
-        await send_whatsapp_message(phone=phone, text=message)
+        await send_whatsapp_message(
+            phone=phone,
+            text=message,
+            credentials=credentials,
+        )
     return BirthdayCreditRunResponse(
         year=reference,
         created=len(created),

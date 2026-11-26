@@ -2,7 +2,7 @@
 # Sora Studio — Makefile de Atalhos (Desenvolvimento, Testes e Infraestrutura)
 # ==============================================================================
 
-.PHONY: help dev down ps logs validate-infra test test-security lint migrate backup
+.PHONY: help dev down ps logs validate-infra test test-security lint migrate backup whatsapp-tunnel
 
 help: ## Mostra todos os comandos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -45,3 +45,9 @@ migrate: ## Aplica migrations Alembic usando MIGRATION_DATABASE_URL (owner role)
 
 backup: ## Executa backup manual validado do PostgreSQL
 	./infra/scripts/backup-postgres.sh
+
+whatsapp-tunnel: ## Expõe o web (3000) por HTTPS para testar WhatsApp/Embedded Signup
+	@echo "Aguardando a URL https://*.trycloudflare.com do Cloudflare Quick Tunnel..."
+	@echo "Use a URL em Allowed domains na Meta e como Callback URL:"
+	@echo "  https://SUA-URL/api/v1/whatsapp/webhook"
+	@docker run --rm --network host cloudflare/cloudflared:latest tunnel --url http://127.0.0.1:3000

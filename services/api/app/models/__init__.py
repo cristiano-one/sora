@@ -57,6 +57,11 @@ from app.models.tenant import (
 )
 from app.models.tithe import TitheDelivery
 from app.models.user import CommissionBase, EmploymentType, User, UserRole
+from app.models.whatsapp import (
+    TenantWhatsAppAccount,
+    WhatsAppConnectionStatus,
+    WhatsAppRegistrationStatus,
+)
 
 __all__ = [
     "AccountType",
@@ -113,8 +118,11 @@ __all__ = [
     "TaxRegime",
     "Tenant",
     "TenantSettings",
+    "TenantWhatsAppAccount",
     "TitheDelivery",
     "User",
     "UserRole",
+    "WhatsAppConnectionStatus",
+    "WhatsAppRegistrationStatus",
     "supports_medical_records",
 ]
