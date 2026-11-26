@@ -18,6 +18,7 @@ ENTRIES = "/api/v1/finance/entries"
 CASH_FLOW = "/api/v1/finance/cash-flow"
 DRE = "/api/v1/finance/dre"
 COMMISSIONS = "/api/v1/finance/commissions"
+MY_COMMISSION = "/api/v1/finance/my-commission"
 SALES = "/api/v1/finance/sales"
 EXPORT = "/api/v1/finance/export"
 SERVICES = "/api/v1/services"
@@ -268,6 +269,33 @@ async def test_commissions_and_net_sales_from_completed_appointments(
     assert item["gross_revenue"] == "100.00"
     assert item["commission_amount"] == "45.00"
     assert commissions.json()["total"] == "45.00"
+
+    collaborator_token = await _login(auth_client, collaborator)
+    mine = await auth_client.get(
+        MY_COMMISSION,
+        headers=_auth(collaborator_token),
+        params={
+            "from_date": APPT_DAY.isoformat(),
+            "to_date": APPT_DAY.isoformat(),
+        },
+    )
+    assert mine.status_code == 200, mine.text
+    assert len(mine.json()["items"]) == 1
+    assert mine.json()["items"][0]["collaborator_id"] == str(
+        collaborator.user_id
+    )
+    assert mine.json()["total"] == "45.00"
+
+    owner_mine = await auth_client.get(
+        MY_COMMISSION,
+        headers=_auth(token),
+        params={
+            "from_date": APPT_DAY.isoformat(),
+            "to_date": APPT_DAY.isoformat(),
+        },
+    )
+    assert owner_mine.status_code == 200
+    assert owner_mine.json()["items"] == []
 
     sales = await auth_client.get(
         SALES,

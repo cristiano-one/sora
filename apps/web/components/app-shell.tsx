@@ -27,6 +27,13 @@ const SECTIONS = [
     items: [
       { href: "/agenda", label: "Agenda", icon: "▤", manager: false },
       { href: "/clientes", label: "Clientes", icon: "◎", manager: false },
+      {
+        href: "/minha-comissao",
+        label: "Minha comissão",
+        icon: "％",
+        manager: false,
+      },
+      { href: "/pagamentos", label: "Sinais Pix", icon: "◈", manager: true },
     ],
   },
   {

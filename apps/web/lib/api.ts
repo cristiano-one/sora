@@ -28,6 +28,22 @@ export type Service = {
   is_active: boolean;
 };
 
+export type PackageItem = {
+  id: string;
+  service_id: string;
+  quantity: number;
+};
+
+export type Package = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string | null;
+  total_price: string;
+  is_active: boolean;
+  items: PackageItem[];
+};
+
 export type Client = {
   id: string;
   full_name: string;
@@ -194,6 +210,27 @@ export type CommissionSummary = {
   total: string;
 };
 
+export type MyCommissionRule = {
+  user_id: string;
+  commission_percentage: string | null;
+  commission_fixed: string | null;
+  commission_base: "GROSS" | "NET";
+};
+
+export type AdminPayment = {
+  id: string;
+  client_id: string;
+  client_name: string;
+  appointment_id: string | null;
+  subscription_id: string | null;
+  amount: string;
+  status: "PENDING" | "PAID" | "EXPIRED" | "CANCELLED";
+  provider: string;
+  expires_at: string;
+  paid_at: string | null;
+  created_at: string;
+};
+
 export type SaleItem = {
   appointment_id: string;
   starts_at: string;
@@ -230,6 +267,7 @@ export type AiConversation = {
   status: "OPEN" | "HUMAN" | "CLOSED";
   last_message: string | null;
   last_message_at: string;
+  last_intent: string | null;
 };
 
 export type AiConversationDetail = AiConversation & {
@@ -664,6 +702,50 @@ export async function updateService(
   });
 }
 
+export type CreatePackageInput = {
+  name: string;
+  description?: string | null;
+  total_price: string;
+  items: { service_id: string; quantity: number }[];
+  is_active?: boolean;
+};
+
+type UpdatePackageInput = {
+  name?: string;
+  description?: string | null;
+  total_price?: string;
+  is_active?: boolean;
+};
+
+export async function getPackages(): Promise<Package[]> {
+  return authenticatedRequest<Package[]>("/api/v1/packages");
+}
+
+export async function createPackage(
+  input: CreatePackageInput,
+): Promise<Package> {
+  return authenticatedRequest<Package>("/api/v1/packages", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updatePackage(
+  id: string,
+  changes: UpdatePackageInput,
+): Promise<Package> {
+  return authenticatedRequest<Package>(`/api/v1/packages/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
+}
+
+export async function deletePackage(id: string): Promise<void> {
+  await authenticatedRequest<void>(`/api/v1/packages/${id}`, {
+    method: "DELETE",
+  });
+}
+
 type CreateUserInput = {
   full_name: string;
   email: string;
@@ -953,6 +1035,43 @@ export async function getCommissions(
   );
 }
 
+export async function getMyCommission(
+  fromDate: string,
+  toDate: string,
+): Promise<CommissionSummary> {
+  const params = new URLSearchParams({
+    from_date: fromDate,
+    to_date: toDate,
+  });
+  return authenticatedRequest<CommissionSummary>(
+    `/api/v1/finance/my-commission?${params.toString()}`,
+  );
+}
+
+export async function getMyCommissionRule(): Promise<MyCommissionRule> {
+  return authenticatedRequest<MyCommissionRule>("/api/v1/users/me/commission");
+}
+
+export async function getAdminPayments(
+  status?: AdminPayment["status"],
+): Promise<AdminPayment[]> {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  const suffix = params.toString();
+  return authenticatedRequest<AdminPayment[]>(
+    `/api/v1/payments${suffix ? `?${suffix}` : ""}`,
+  );
+}
+
+export async function confirmAdminPayment(
+  paymentId: string,
+): Promise<AdminPayment> {
+  return authenticatedRequest<AdminPayment>(
+    `/api/v1/payments/${paymentId}/confirm`,
+    { method: "POST" },
+  );
+}
+
 export async function getSales(
   fromDate: string,
   toDate: string,
@@ -1081,11 +1200,32 @@ export async function createAppointment(
   });
 }
 
-export async function cancelAppointment(id: string): Promise<void> {
-  await authenticatedRequest<void>(`/api/v1/appointments/${id}`, {
+export type AppointmentUpdateInput = {
+  status?:
+    | "SCHEDULED"
+    | "PENDING_DEPOSIT"
+    | "CONFIRMED"
+    | "CANCELLED"
+    | "EXPIRED"
+    | "COMPLETED"
+    | "NO_SHOW";
+  starts_at?: string;
+  collaborator_id?: string;
+  notes?: string | null;
+};
+
+export async function updateAppointment(
+  id: string,
+  changes: AppointmentUpdateInput,
+): Promise<Appointment> {
+  return authenticatedRequest<Appointment>(`/api/v1/appointments/${id}`, {
     method: "PATCH",
-    body: JSON.stringify({ status: "CANCELLED" }),
+    body: JSON.stringify(changes),
   });
+}
+
+export async function cancelAppointment(id: string): Promise<void> {
+  await updateAppointment(id, { status: "CANCELLED" });
 }
 
 export async function getPublicContext(

@@ -46,6 +46,7 @@ class AiConversationResponse(BaseModel):
     status: ConversationStatus
     last_message: str | None
     last_message_at: datetime
+    last_intent: str | None = None
 
 
 class AiConversationDetailResponse(AiConversationResponse):

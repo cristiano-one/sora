@@ -30,12 +30,33 @@ const STATUS_LABEL: Record<string, string> = {
   CLOSED: "Encerrada",
 };
 
+const INTENT_LABEL: Record<string, string> = {
+  booking: "Agendamento",
+  my_appointments: "Meus agendamentos",
+  prices: "Preços",
+  human: "Escalado para humano",
+  takeover: "Atendimento humano",
+  greeting: "Saudação",
+  guardrail: "Guardrail",
+  fallback: "Dúvida",
+};
+
+const STATUS_FILTERS = [
+  { value: "ALL", label: "Todas" },
+  { value: "OPEN", label: "SORA IA" },
+  { value: "HUMAN", label: "Humano" },
+  { value: "CLOSED", label: "Encerradas" },
+] as const;
+
+type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
+
 export default function SoraAiPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [summary, setSummary] = useState<AiSummary | null>(null);
   const [conversations, setConversations] = useState<AiConversation[]>([]);
   const [credits, setCredits] = useState<BirthdayCredit[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [detail, setDetail] = useState<AiConversationDetail | null>(null);
   const [reply, setReply] = useState("");
   const [loading, setLoading] = useState(true);
@@ -45,6 +66,10 @@ export default function SoraAiPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
+  const visibleConversations =
+    statusFilter === "ALL"
+      ? conversations
+      : conversations.filter((item) => item.status === statusFilter);
 
   const loadOverview = useCallback(async () => {
     const year = String(new Date().getFullYear());
@@ -253,17 +278,32 @@ export default function SoraAiPage() {
           <section className="panel ai-conversations">
             <div className="panel-title">
               <h2>Conversas</h2>
-              <span className="muted-small">{conversations.length}</span>
+              <span className="muted-small">
+                {visibleConversations.length}/{conversations.length}
+              </span>
+            </div>
+            <div className="ai-filters">
+              {STATUS_FILTERS.map((filter) => (
+                <button
+                  key={filter.value}
+                  className={`pill ${
+                    statusFilter === filter.value ? "pill-active" : ""
+                  }`}
+                  type="button"
+                  onClick={() => setStatusFilter(filter.value)}
+                >
+                  {filter.label}
+                </button>
+              ))}
             </div>
             {loading ? (
               <p className="table-empty">Carregando…</p>
-            ) : conversations.length === 0 ? (
+            ) : visibleConversations.length === 0 ? (
               <p className="table-empty">
-                Nenhuma conversa ainda. O canal é mock: use o webhook interno
-                para simular uma mensagem.
+                Nenhuma conversa neste filtro.
               </p>
             ) : (
-              conversations.map((conversation) => (
+              visibleConversations.map((conversation) => (
                 <button
                   key={conversation.id}
                   type="button"
@@ -288,6 +328,12 @@ export default function SoraAiPage() {
                       {STATUS_LABEL[conversation.status] ?? conversation.status}
                     </span>
                   </div>
+                  {conversation.last_intent ? (
+                    <span className="ai-intent-tag">
+                      {INTENT_LABEL[conversation.last_intent] ??
+                        conversation.last_intent}
+                    </span>
+                  ) : null}
                   <span className="ai-preview">
                     {conversation.last_message ?? "Sem mensagens"}
                   </span>
@@ -411,7 +457,11 @@ export default function SoraAiPage() {
                       <p>{message.content}</p>
                       <span>
                         {formatTime(message.created_at)}
-                        {message.intent ? ` · ${message.intent}` : ""}
+                        {message.intent
+                          ? ` · ${
+                              INTENT_LABEL[message.intent] ?? message.intent
+                            }`
+                          : ""}
                       </span>
                     </div>
                   ))}

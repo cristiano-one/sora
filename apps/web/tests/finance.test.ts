@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildDreRows } from "../lib/finance";
+import { buildDreRows, sumMoney } from "../lib/finance";
 import type { Dre } from "../lib/api";
 
 const baseDre: Dre = {
@@ -19,8 +19,7 @@ const baseDre: Dre = {
   after_tithe_and_offering: "870.00",
 };
 
-describe("DRE rows", () => {
-  it("oculta dízimo, oferta e pós-dízimo quando desativado", () => {
+describe("DRE rows", () => {  it("oculta dízimo, oferta e pós-dízimo quando desativado", () => {
     const labels = buildDreRows(baseDre).map((row) => row.label);
     expect(labels).not.toContain("Dízimo");
     expect(labels).not.toContain("Oferta");
@@ -47,5 +46,15 @@ describe("DRE rows", () => {
     expect(highlighted).toHaveLength(1);
     expect(highlighted[0].label).toBe("(=) Lucro líquido");
     expect(highlighted[0].value).toBe("870.00");
+  });
+});
+
+describe("sumMoney", () => {
+  it("soma valores decimais sem float", () => {
+    expect(sumMoney(["100.10", "250.25", "-50.05"])).toBe("300.30");
+  });
+
+  it("retorna zero para lista vazia", () => {
+    expect(sumMoney([])).toBe("0.00");
   });
 });

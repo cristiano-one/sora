@@ -7,6 +7,24 @@ export type DreRow = {
   highlight: boolean;
 };
 
+export function sumMoney(values: string[]): string {
+  let cents = 0n;
+  for (const value of values) {
+    const trimmed = value.trim();
+    const negative = trimmed.startsWith("-");
+    const normalized = trimmed.replace(/[^0-9.]/g, "");
+    const [whole = "0", fraction = ""] = normalized.split(".");
+    const amount =
+      BigInt(whole || "0") * 100n +
+      BigInt(`${fraction}00`.slice(0, 2));
+    cents += negative ? -amount : amount;
+  }
+  const sign = cents < 0n ? "-" : "";
+  const absolute = cents < 0n ? -cents : cents;
+  const fraction = (absolute % 100n).toString().padStart(2, "0");
+  return `${sign}${absolute / 100n}.${fraction}`;
+}
+
 export function buildDreRows(dre: Dre): DreRow[] {
   const rows: DreRow[] = [
     {

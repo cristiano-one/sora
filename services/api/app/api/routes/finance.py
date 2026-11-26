@@ -23,6 +23,7 @@ from app.api.schemas.finance import (
 from app.core.audit import client_ip, record_audit
 from app.core.auth.dependencies import (
     Principal,
+    get_current_principal,
     get_tenant_session,
     require_roles,
 )
@@ -381,6 +382,26 @@ async def commissions_endpoint(
         session,
         from_date=from_date,
         to_date=to_date,
+    )
+
+
+@router.get(
+    "/my-commission",
+    response_model=CommissionSummaryResponse,
+    summary="Comissão do próprio usuário (todos os papéis)",
+)
+async def my_commission_summary_endpoint(
+    from_date: date = Query(...),
+    to_date: date = Query(...),
+    principal: Principal = Depends(get_current_principal),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> CommissionSummaryResponse:
+    _period(from_date, to_date)
+    return await commission_summary(
+        session,
+        from_date=from_date,
+        to_date=to_date,
+        collaborator_id=principal.user_id,
     )
 
 
