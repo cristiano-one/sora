@@ -31,19 +31,26 @@ uv run uvicorn app.main:app --reload --port 8010
 
 ## Telas
 
-- `/login` — login real (JWT + Redis).
-- `/dashboard` — visão geral com sidebar, perfil e atalhos de gestão.
-- `/agenda` — board do dia, disponibilidade em tempo real, criação e
-  cancelamento de agendamentos (anti-conflito no backend).
+- `/login` — login real (JWT + Redis), recuperação de senha e link de cadastro.
+- `/cadastro` — criação de clínica + OWNER e login automático.
+- `/esqueci-senha` — solicita link de recuperação por e-mail.
+- `/redefinir-senha` — define nova senha e revoga sessões antigas.
+- `/aceitar-convite` — colaborador convidado define a senha inicial.
+- `/dashboard` — agenda, clientes, comissão, SORA IA, caixa e saldo reais.
+- `/agenda` — board do dia, disponibilidade, criação, confirmação, conclusão,
+  falta, reagendamento e cancelamento (anti-conflito no backend).
 - `/clientes` — cadastro, edição, exclusão, score confidencial e bloqueio
   (telefone mascarado para colaboradores).
-- `/clientes/[id]` — prontuário com evoluções cifradas, consentimento LGPD e
-  anexos via pre-signed URL de 60s, com **abrir**, **baixar** e **excluir**
-  (OWNER/ADMIN).
-- `/catalogo` — serviços, edição, exclusão, duração, buffer, preço, custo e
-  sinal.
-- `/equipe` — usuários, edição, exclusão, papéis e comissões
+- `/clientes/[id]` — prontuário com evoluções cifradas, consentimento LGPD,
+  anexos privados (abrir, baixar e excluir) e aplicação de créditos.
+- `/minha-comissao` — comissão do próprio usuário em qualquer papel.
+- `/pagamentos` — sinais Pix pendentes e confirmação manual (`OWNER`/`ADMIN`).
+- `/catalogo` — serviços e pacotes com edição, exclusão, duração, buffer,
+  preço, custo, sinal e composição.
+- `/estoque` — insumos, saldo, mínimo, custo, entradas/saídas/ajustes
   (`OWNER`/`ADMIN`).
+- `/equipe` — usuários, edição, exclusão, papéis, comissões e convite por
+  e-mail (`OWNER`/`ADMIN`).
 - `/assinaturas/assinantes` — assinantes, cotas, cancelamento e exclusão
   (`OWNER`/`ADMIN`).
 - `/assinaturas/planos` — planos, edição, ativação e exclusão.
@@ -54,12 +61,15 @@ uv run uvicorn app.main:app --reload --port 8010
 - `/financeiro/lancamentos` — lançamentos e baixa de títulos (`OWNER`).
 - `/financeiro/contas` — contas/caixas e saldos (`OWNER`).
 - `/financeiro/comissoes` — comissões apuradas (`OWNER`).
+- `/financeiro/folha` — salários, adiantamentos, pró-labore e repasses, com
+  lançamento automático no caixa quando pagos (`OWNER`).
+- `/financeiro/dizimo` — provisão, entregas e pendências de dízimo/oferta,
+  visível apenas com a flag ativa (`OWNER`).
 - `/financeiro/vendas` — valor líquido por atendimento (`OWNER`).
-- `/sora-ia` — resumo diário, conversas do WhatsApp, takeover humano,
-  respostas e aniversariantes (`OWNER`/`ADMIN`).
-- `/configuracoes` — score mínimo, sinal, dízimo/oferta, tema e nome do agente
-  (`OWNER`/`ADMIN`), com **exportação LGPD** dos dados da clínica para o
-  `OWNER`.
+- `/sora-ia` — resumo diário, conversas com tags/filtros, aprovação de
+  exceções, takeover humano, respostas e aniversariantes (`OWNER`/`ADMIN`).
+- `/configuracoes` — score, sinal, dízimo/oferta, tema, persona do agente e
+  **exportação LGPD** (`OWNER`/`ADMIN`; exportação só `OWNER`).
 - `/public/[slug]?t=<token>` — página pública do link mágico (sem login):
   serviços, profissionais, horários livres, planos de assinatura, cotas e
   pagamento Pix (mock).

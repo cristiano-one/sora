@@ -29,6 +29,11 @@ RLS_TABLES = {
     "ai_conversations",
     "ai_messages",
     "client_credits",
+    "inventory_items",
+    "stock_movements",
+    "payroll_entries",
+    "tithe_deliveries",
+    "client_credit_usages",
 }
 
 

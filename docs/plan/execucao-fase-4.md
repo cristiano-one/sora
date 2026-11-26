@@ -30,6 +30,13 @@
   - **Portabilidade LGPD**: `GET /tenants/export` (OWNER) e botão em
     Configurações baixam JSON com clientes, agenda, financeiro, prontuários,
     consentimentos e créditos.
+- [x] **Passo 4 — Folha, dízimo e gestão Pix**
+  - `/financeiro/folha`: salários, adiantamentos, pró-labore e repasses com
+    despesa automática no caixa quando pagos.
+  - `/financeiro/dizimo`: provisão da DRE, entregas e pendências.
+  - `/pagamentos`: confirmação manual de sinais Pix pelo `OWNER`/`ADMIN`.
+  - `/minha-comissao`: comissão própria para qualquer papel.
+  - dashboard com agenda, clientes, comissão, caixa, saldo e SORA IA.
 
 ## Regras de aceite
 
