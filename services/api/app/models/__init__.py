@@ -34,7 +34,13 @@ from app.models.subscription_plan import (
     SubscriptionPlan,
     SubscriptionPlanItem,
 )
-from app.models.tenant import TaxRegime, Tenant, TenantSettings
+from app.models.tenant import (
+    BusinessProfile,
+    TaxRegime,
+    Tenant,
+    TenantSettings,
+    supports_medical_records,
+)
 from app.models.tithe import TitheDelivery
 from app.models.user import CommissionBase, User, UserRole
 
@@ -46,6 +52,7 @@ __all__ = [
     "AppointmentStatus",
     "AuditLog",
     "BillingCycle",
+    "BusinessProfile",
     "Client",
     "ClientCredit",
     "ClientCreditUsage",
@@ -83,4 +90,5 @@ __all__ = [
     "TitheDelivery",
     "User",
     "UserRole",
+    "supports_medical_records",
 ]

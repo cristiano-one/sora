@@ -11,6 +11,7 @@ import {
   updateTenantSettings,
   type Me,
 } from "@/lib/api";
+import { profileOption } from "@/lib/profiles";
 
 export default function SettingsPage() {
   const [me, setMe] = useState<Me | null>(null);
@@ -194,6 +195,14 @@ export default function SettingsPage() {
 
         {error ? <p className="error">{error}</p> : null}
         {notice ? <p className="public-notice">{notice}</p> : null}
+
+        {me ? (
+          <p className="muted-small">
+            Perfil do negócio:{" "}
+            <strong>{profileOption(me.business_profile).label}</strong>{" "}
+            (definido pelo administrador do sistema).
+          </p>
+        ) : null}
 
         <div className="admin-grid">
           <section className="panel">

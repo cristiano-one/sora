@@ -17,7 +17,7 @@ from app.core.redis import create_redis, get_redis
 from app.core.storage import S3Storage, get_storage
 from app.db.session import create_engine, create_session_factory, get_session
 from app.main import app
-from app.models import Tenant, User, UserRole
+from app.models import BusinessProfile, Tenant, User, UserRole
 from moto import mock_aws
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
@@ -211,8 +211,18 @@ async def seeded(migrated_database, database_urls) -> SeededData:
     async with factory() as session:
         session.add_all(
             [
-                Tenant(id=data.tenant_a, name="Clínica A", slug=f"clinica-a-{suffix}"),
-                Tenant(id=data.tenant_b, name="Clínica B", slug=f"clinica-b-{suffix}"),
+                Tenant(
+                    id=data.tenant_a,
+                    name="Clínica A",
+                    slug=f"clinica-a-{suffix}",
+                    business_profile=BusinessProfile.AESTHETICS,
+                ),
+                Tenant(
+                    id=data.tenant_b,
+                    name="Clínica B",
+                    slug=f"clinica-b-{suffix}",
+                    business_profile=BusinessProfile.AESTHETICS,
+                ),
                 User(
                     id=data.user_a,
                     tenant_id=data.tenant_a,
@@ -255,7 +265,12 @@ async def auth_user(migrated_database, database_urls) -> AuthUser:
     factory = create_session_factory(engine)
     async with factory() as session:
         session.add(
-            Tenant(id=data.tenant_id, name="Clínica Auth", slug=data.tenant_slug)
+            Tenant(
+                id=data.tenant_id,
+                name="Clínica Auth",
+                slug=data.tenant_slug,
+                business_profile=BusinessProfile.AESTHETICS,
+            )
         )
         session.add(
             User(
@@ -286,7 +301,14 @@ async def tenant_users(migrated_database, database_urls) -> TenantUsers:
     engine = create_engine(database_urls["owner"])
     factory = create_session_factory(engine)
     async with factory() as session:
-        session.add(Tenant(id=tenant_id, name=tenant_name, slug=tenant_slug))
+        session.add(
+            Tenant(
+                id=tenant_id,
+                name=tenant_name,
+                slug=tenant_slug,
+                business_profile=BusinessProfile.AESTHETICS,
+            )
+        )
         for role in (UserRole.OWNER, UserRole.ADMIN, UserRole.COLLABORATOR):
             user_id = uuid4()
             email = f"{role.value.lower()}-{suffix}@example.com"

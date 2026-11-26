@@ -25,6 +25,7 @@ import {
   type Me,
 } from "@/lib/api";
 import { formatDateOnly, formatIsoDate } from "@/lib/agenda";
+import { supportsMedicalRecords } from "@/lib/profiles";
 import { formatPrice } from "@/lib/public";
 
 function fileSize(bytes: number): string {
@@ -39,6 +40,8 @@ export default function MedicalRecordPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [role, setRole] = useState<Me["role"] | null>(null);
+  const [businessProfile, setBusinessProfile] =
+    useState<Me["business_profile"]>("GENERAL");
   const [credits, setCredits] = useState<ClientCredit[]>([]);
   const [creditUsages, setCreditUsages] = useState<ClientCreditUsage[]>([]);
   const [selectedCreditId, setSelectedCreditId] = useState("");
@@ -66,6 +69,7 @@ export default function MedicalRecordPage() {
         setClient(clientData);
         setRecords(recordsData);
         setRole(me.role);
+        setBusinessProfile(me.business_profile);
       })
       .catch((err) => {
         if (active) {
@@ -294,6 +298,7 @@ export default function MedicalRecordPage() {
   }
 
   const isManager = role === "OWNER" || role === "ADMIN";
+  const medicalEnabled = supportsMedicalRecords(businessProfile);
 
   if (loading) {
     return (
@@ -350,12 +355,15 @@ export default function MedicalRecordPage() {
         {error ? <p className="error">{error}</p> : null}
         {notice ? <p className="public-notice">{notice}</p> : null}
 
-        <div className="admin-grid">
-          <section className="panel">
-            <div className="panel-title">
-              <h2>Evolução clínica</h2>
-              <span className="muted-small">{records.length} registro(s)</span>
-            </div>
+        {medicalEnabled ? (
+          <div className="admin-grid">
+            <section className="panel">
+              <div className="panel-title">
+                <h2>Evolução clínica</h2>
+                <span className="muted-small">
+                  {records.length} registro(s)
+                </span>
+              </div>
             {records.length === 0 ? (
               <p className="table-empty">Nenhuma evolução registrada.</p>
             ) : (
@@ -481,7 +489,19 @@ export default function MedicalRecordPage() {
               temporárias de 60 segundos.
             </p>
           </section>
-        </div>
+          </div>
+        ) : (
+          <section className="panel">
+            <div className="panel-title">
+              <h2>Prontuário não habilitado</h2>
+            </div>
+            <p className="subtitle">
+              O perfil deste negócio não utiliza prontuário clínico. Agenda,
+              clientes, pacotes, assinaturas, estoque, financeiro e SORA IA
+              continuam disponíveis.
+            </p>
+          </section>
+        )}
 
         {isManager ? (
           <section className="panel section-gap">

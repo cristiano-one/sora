@@ -5,6 +5,7 @@ import {
   saveTokens,
   type TokenPair,
 } from "./tokens";
+import type { BusinessProfile } from "./profiles";
 
 export type Me = {
   id: string;
@@ -12,6 +13,7 @@ export type Me = {
   email: string;
   full_name: string;
   role: "OWNER" | "ADMIN" | "COLLABORATOR";
+  business_profile: BusinessProfile;
 };
 
 export type Service = {

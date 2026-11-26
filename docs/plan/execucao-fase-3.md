@@ -44,6 +44,9 @@
   - cadastro público, recuperação de senha e convite por e-mail.
   - agenda com confirmação, conclusão, falta e reagendamento.
   - pacotes e estoque de insumos no catálogo/gestão.
+  - perfis de negócio (clínica, estética, podologia, salão, barbearia,
+    multisserviços) definidos no console master `/sistema` com senha
+    `SYSTEM_ADMIN_PASSWORD`; o prontuário aparece só nos perfis clínicos.
 
 ## Regras de aceite
 

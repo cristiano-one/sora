@@ -18,6 +18,7 @@ from app.api.routes.payroll import router as payroll_router
 from app.api.routes.public_booking import router as public_booking_router
 from app.api.routes.storage import router as storage_router
 from app.api.routes.subscriptions import router as subscriptions_router
+from app.api.routes.system import router as system_router
 from app.api.routes.tenants import router as tenants_router
 from app.api.routes.users import router as users_router
 from app.core.config import settings
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
     # Rotas de negócio versionadas.
     application.include_router(auth_router, prefix=settings.api_v1_prefix)
     application.include_router(tenants_router, prefix=settings.api_v1_prefix)
+    application.include_router(system_router, prefix=settings.api_v1_prefix)
     application.include_router(users_router, prefix=settings.api_v1_prefix)
     application.include_router(catalog_router, prefix=settings.api_v1_prefix)
     application.include_router(clients_router, prefix=settings.api_v1_prefix)

@@ -27,6 +27,13 @@ export type Me = {
   email: string;
   full_name: string;
   role: "OWNER" | "ADMIN" | "COLLABORATOR";
+  business_profile:
+    | "MEDICAL_CLINIC"
+    | "AESTHETICS"
+    | "PODOLOGY"
+    | "SALON"
+    | "BARBERSHOP"
+    | "GENERAL";
 };
 
 export type Appointment = {
