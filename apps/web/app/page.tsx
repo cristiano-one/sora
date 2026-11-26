@@ -9,7 +9,9 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace(getAccessToken() ? "/dashboard" : "/login");
+    // A plataforma também é o site de vendas: visitante novo entra pelo
+    // cadastro/onboarding; usuário autenticado vai direto ao painel.
+    router.replace(getAccessToken() ? "/dashboard" : "/cadastro");
   }, [router]);
 
   return (

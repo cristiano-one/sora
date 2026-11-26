@@ -63,7 +63,7 @@ export default function SignupPage() {
       setError(
         err instanceof ApiError
           ? err.message
-          : "Não foi possível criar a clínica.",
+          : "Não foi possível criar o negócio.",
       );
     } finally {
       setLoading(false);
@@ -77,21 +77,21 @@ export default function SignupPage() {
           <span className="brand-mark">S</span>
           <div>
             <div className="brand-name">Sora Studio</div>
-            <div className="brand-tag">Criar minha clínica</div>
+            <div className="brand-tag">Criar minha conta</div>
           </div>
         </div>
 
         <h1>Comece agora</h1>
         <p className="subtitle">
-          Cadastre a clínica e o usuário dono/gestor. Você já entra no painel
-          em seguida.
+          Cadastre seu negócio e o usuário dono/gestor. Você escolhe o tipo de
+          negócio e já entra no painel em seguida.
         </p>
 
         {error ? <p className="error">{error}</p> : null}
 
         <form onSubmit={handleSubmit}>
           <div className="field">
-            <label htmlFor="clinic-name">Nome da clínica</label>
+            <label htmlFor="clinic-name">Nome do negócio</label>
             <input
               id="clinic-name"
               value={name}
@@ -194,7 +194,7 @@ export default function SignupPage() {
             />
           </div>
           <button className="button" type="submit" disabled={loading}>
-            {loading ? "Criando clínica…" : "Criar clínica e entrar"}
+            {loading ? "Criando conta…" : "Criar conta e entrar"}
           </button>
         </form>
 
