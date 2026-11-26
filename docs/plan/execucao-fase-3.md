@@ -11,6 +11,8 @@
   - páginas passam a usar o mesmo container `page`/`panel`/`data-table`.
 - [x] **Passo 2 — Cadastros do painel**
   - `/clientes`: busca, cadastro, edição, exclusão, score e bloqueio.
+  - `/clientes/[id]`: prontuário com evoluções cifradas, LGPD e anexos
+    privados.
   - `/catalogo`: serviços com edição/exclusão, duração, buffer, preço, custo
     e sinal.
   - `/equipe`: usuários com edição/exclusão, papéis, status e comissões.

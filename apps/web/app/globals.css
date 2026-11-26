@@ -141,6 +141,24 @@ h1 {
   background: white;
 }
 
+.field textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+  color: var(--text);
+  outline: none;
+  resize: vertical;
+  font: inherit;
+}
+
+.field textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+  background: white;
+}
+
 .button {
   width: 100%;
   border: 0;
@@ -1202,6 +1220,67 @@ h1 {
 .button-danger {
   border-color: #fecaca;
   color: var(--danger);
+}
+
+.medical-record {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 12px;
+  background: #f8fafc;
+}
+
+.medical-notes {
+  margin: 8px 0 12px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.attachment-list {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.attachment-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: white;
+  font-size: 12px;
+}
+
+.attachment-list small {
+  color: var(--muted);
+}
+
+.attachment-upload {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.attachment-upload input {
+  display: none;
+}
+
+.medical-note-help {
+  margin-top: 14px;
+  line-height: 1.5;
 }
 
 .admin-search {
