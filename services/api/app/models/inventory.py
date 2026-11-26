@@ -109,7 +109,7 @@ class StockMovement(Base):
 
     __tablename__ = "stock_movements"
     __table_args__ = (
-        CheckConstraint("quantity > 0", name="ck_stock_movements_quantity"),
+        CheckConstraint("quantity >= 0", name="ck_stock_movements_quantity"),
     )
 
     id: Mapped[UUID] = mapped_column(
