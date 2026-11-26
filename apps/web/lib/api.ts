@@ -231,6 +231,28 @@ export type AdminPayment = {
   created_at: string;
 };
 
+export type InventoryItem = {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: string;
+  min_quantity: string;
+  unit_cost: string;
+  is_active: boolean;
+  low_stock: boolean;
+  total_value: string;
+  created_at: string;
+};
+
+export type StockMovement = {
+  id: string;
+  item_id: string;
+  kind: "IN" | "OUT" | "ADJUSTMENT";
+  quantity: string;
+  reason: string | null;
+  created_at: string;
+};
+
 export type SaleItem = {
   appointment_id: string;
   starts_at: string;
@@ -1069,6 +1091,74 @@ export async function confirmAdminPayment(
   return authenticatedRequest<AdminPayment>(
     `/api/v1/payments/${paymentId}/confirm`,
     { method: "POST" },
+  );
+}
+
+export type CreateInventoryItemInput = {
+  name: string;
+  unit: string;
+  quantity: string;
+  min_quantity: string;
+  unit_cost: string;
+  is_active?: boolean;
+};
+
+type UpdateInventoryItemInput = {
+  name?: string;
+  unit?: string;
+  min_quantity?: string;
+  unit_cost?: string;
+  is_active?: boolean;
+};
+
+export async function getInventory(): Promise<InventoryItem[]> {
+  return authenticatedRequest<InventoryItem[]>("/api/v1/inventory");
+}
+
+export async function createInventoryItem(
+  input: CreateInventoryItemInput,
+): Promise<InventoryItem> {
+  return authenticatedRequest<InventoryItem>("/api/v1/inventory", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateInventoryItem(
+  id: string,
+  changes: UpdateInventoryItemInput,
+): Promise<InventoryItem> {
+  return authenticatedRequest<InventoryItem>(`/api/v1/inventory/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
+}
+
+export async function deleteInventoryItem(id: string): Promise<void> {
+  await authenticatedRequest<void>(`/api/v1/inventory/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function addStockMovement(
+  itemId: string,
+  input: {
+    kind: StockMovement["kind"];
+    quantity: string;
+    reason?: string | null;
+  },
+): Promise<StockMovement> {
+  return authenticatedRequest<StockMovement>(
+    `/api/v1/inventory/${itemId}/movements`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export async function getStockMovements(
+  itemId: string,
+): Promise<StockMovement[]> {
+  return authenticatedRequest<StockMovement[]>(
+    `/api/v1/inventory/${itemId}/movements`,
   );
 }
 

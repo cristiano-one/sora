@@ -18,6 +18,7 @@ from app.models.finance import (
     FinancialEntryStatus,
     FinancialEntryType,
 )
+from app.models.inventory import InventoryItem, StockMovement, StockMovementType
 from app.models.medical_record import MedicalRecord, MedicalRecordAttachment
 from app.models.package import Package, PackageItem
 from app.models.payment import PaymentIntent, PaymentStatus
@@ -56,6 +57,7 @@ __all__ = [
     "FinancialEntry",
     "FinancialEntryStatus",
     "FinancialEntryType",
+    "InventoryItem",
     "LgpdConsent",
     "MedicalRecord",
     "MedicalRecordAttachment",
@@ -65,6 +67,8 @@ __all__ = [
     "PaymentIntent",
     "PaymentStatus",
     "Service",
+    "StockMovement",
+    "StockMovementType",
     "SubscriptionPlan",
     "SubscriptionPlanItem",
     "SubscriptionUsage",

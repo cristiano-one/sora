@@ -40,6 +40,7 @@ const SECTIONS = [
     label: "Gestão",
     items: [
       { href: "/catalogo", label: "Catálogo", icon: "◇", manager: true },
+      { href: "/estoque", label: "Estoque", icon: "▦", manager: true },
       { href: "/equipe", label: "Equipe", icon: "◈", manager: true },
       {
         href: "/assinaturas",
