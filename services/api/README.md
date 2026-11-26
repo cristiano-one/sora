@@ -161,6 +161,24 @@ ativa** por vez.
   reiniciado. Pagamento expirado → reserva/assinatura `EXPIRED`.
 - A confirmação é idempotente e só aceita o token do cliente dono da cobrança.
 
+## Financeiro (Fase 4)
+
+Tudo em `/api/v1/finance/*` é exclusivo do `OWNER`.
+
+- `GET/POST /accounts` e `PATCH /accounts/{id}` — caixas e contas bancárias.
+- `GET/POST /entries` e `PATCH /entries/{id}` — lançamentos com competência,
+  caixa, categoria e status `PENDING`/`PAID`.
+- `GET /cash-flow?from_date=&to_date=` — abertura, entradas, saídas e saldo.
+- `GET /accounts/balances` — saldo atual por conta/caixa.
+- `GET /dre?from_date=&to_date=` — receita, deduções, custos, despesas e lucro.
+- `GET /commissions` — comissões apuradas por atendimentos `COMPLETED`.
+- `GET /sales` — valor bruto, custo, comissão e líquido por atendimento.
+- `GET /export` — CSV com proteção contra injeção de fórmula.
+
+Dízimo/oferta são configurados em `/tenants/settings` (`enable_tithe_and_offering`,
+`tithe_percentage`, `offering_amount`) e aparecem na DRE. O CSV não substitui o
+gateway real; ele usa os lançamentos manuais para validar o fluxo.
+
 ## Testes de integração
 
 Os testes em `tests/integration/` sobem um **PostgreSQL 16** e um **Redis 7**

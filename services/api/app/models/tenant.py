@@ -86,6 +86,14 @@ class TenantSettings(Base):
             "theme_primary_color ~ '^#[0-9A-Fa-f]{6}$'",
             name="ck_tenant_settings_theme_color",
         ),
+        CheckConstraint(
+            "tithe_percentage >= 0 AND tithe_percentage <= 100",
+            name="ck_tenant_settings_tithe_percentage",
+        ),
+        CheckConstraint(
+            "offering_amount >= 0",
+            name="ck_tenant_settings_offering_amount",
+        ),
     )
 
     tenant_id: Mapped[UUID] = mapped_column(
@@ -112,6 +120,24 @@ class TenantSettings(Base):
         nullable=False,
         default="Sora",
         server_default=text("'Sora'"),
+    )
+    enable_tithe_and_offering: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+    )
+    tithe_percentage: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("10.00"),
+        server_default=text("10"),
+    )
+    offering_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        nullable=False,
+        default=Decimal("0.00"),
+        server_default=text("0"),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

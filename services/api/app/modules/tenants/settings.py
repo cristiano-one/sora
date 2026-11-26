@@ -42,6 +42,17 @@ def settings_response(
         agent_name=(
             settings.agent_name if settings is not None else DEFAULT_AGENT_NAME
         ),
+        enable_tithe_and_offering=(
+            settings.enable_tithe_and_offering
+            if settings is not None
+            else False
+        ),
+        tithe_percentage=(
+            settings.tithe_percentage if settings is not None else Decimal("10.00")
+        ),
+        offering_amount=(
+            settings.offering_amount if settings is not None else Decimal("0.00")
+        ),
     )
 
 
@@ -91,6 +102,14 @@ async def update_tenant_settings(
         settings.theme_primary_color = str(changes["theme_primary_color"])
     if "agent_name" in changes:
         settings.agent_name = str(changes["agent_name"])
+    if changes.get("enable_tithe_and_offering") is not None:
+        settings.enable_tithe_and_offering = bool(
+            changes["enable_tithe_and_offering"]
+        )
+    if changes.get("tithe_percentage") is not None:
+        settings.tithe_percentage = Decimal(str(changes["tithe_percentage"]))
+    if changes.get("offering_amount") is not None:
+        settings.offering_amount = Decimal(str(changes["offering_amount"]))
 
     await session.commit()
     # O commit encerra o SET LOCAL do RLS; reaplica para a resposta.

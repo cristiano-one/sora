@@ -3,6 +3,14 @@
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.audit import AuditLog
 from app.models.client import Client, ClientScoreEvent, ClientScoreRating, LgpdConsent
+from app.models.finance import (
+    AccountType,
+    FinancialAccount,
+    FinancialCategory,
+    FinancialEntry,
+    FinancialEntryStatus,
+    FinancialEntryType,
+)
 from app.models.medical_record import MedicalRecord, MedicalRecordAttachment
 from app.models.package import Package, PackageItem
 from app.models.payment import PaymentIntent, PaymentStatus
@@ -21,6 +29,7 @@ from app.models.tenant import TaxRegime, Tenant, TenantSettings
 from app.models.user import CommissionBase, User, UserRole
 
 __all__ = [
+    "AccountType",
     "Appointment",
     "AppointmentStatus",
     "AuditLog",
@@ -31,6 +40,11 @@ __all__ = [
     "ClientSubscription",
     "ClientSubscriptionStatus",
     "CommissionBase",
+    "FinancialAccount",
+    "FinancialCategory",
+    "FinancialEntry",
+    "FinancialEntryStatus",
+    "FinancialEntryType",
     "LgpdConsent",
     "MedicalRecord",
     "MedicalRecordAttachment",
