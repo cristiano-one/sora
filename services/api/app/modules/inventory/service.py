@@ -27,13 +27,7 @@ class InventoryValidationError(Exception):
 
 
 async def list_items(session: AsyncSession) -> list[InventoryItem]:
-    return list(
-        (
-            await session.scalars(
-                select(InventoryItem).order_by(InventoryItem.name)
-            )
-        ).all()
-    )
+    return list((await session.scalars(select(InventoryItem).order_by(InventoryItem.name))).all())
 
 
 async def get_item(
@@ -124,6 +118,15 @@ async def add_movement(
         kind=body.kind.value,
         quantity=quantity,
         reason=body.reason.strip() if body.reason else None,
+        document_type=(body.document_type.value if body.document_type else None),
+        document_number=(body.document_number.strip() if body.document_number else None),
+        document_series=(body.document_series.strip() if body.document_series else None),
+        supplier_name=(body.supplier_name.strip() if body.supplier_name else None),
+        supplier_tax_id=(body.supplier_tax_id.strip() if body.supplier_tax_id else None),
+        issue_date=body.issue_date,
+        total_amount=body.total_amount,
+        payment_method=(body.payment_method.value if body.payment_method else None),
+        access_key=body.access_key,
         created_by=actor_id,
     )
     session.add(movement)

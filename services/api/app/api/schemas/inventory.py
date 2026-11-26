@@ -1,13 +1,18 @@
 """Contratos de estoque de insumos."""
 
-from datetime import datetime
+import re
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.models import StockMovementType
+from app.models import (
+    StockDocumentType,
+    StockMovementType,
+    StockPaymentMethod,
+)
 
 
 class InventoryItemCreateRequest(BaseModel):
@@ -57,14 +62,56 @@ class InventoryItemUpdateRequest(BaseModel):
 
 
 class StockMovementCreateRequest(BaseModel):
-    """Entrada, saída ou ajuste de saldo."""
+    """Entrada, saída ou ajuste de saldo.
+
+    Em entradas de compra, os campos de documento permitem registrar os dados
+    básicos da nota fiscal, recibo ou cupom.
+    """
 
     kind: StockMovementType
     quantity: Decimal = Field(ge=0, max_digits=12, decimal_places=3)
     reason: str | None = Field(default=None, max_length=500)
+    document_type: StockDocumentType | None = None
+    document_number: str | None = Field(default=None, max_length=60)
+    document_series: str | None = Field(default=None, max_length=20)
+    supplier_name: str | None = Field(default=None, max_length=255)
+    supplier_tax_id: str | None = Field(default=None, max_length=20)
+    issue_date: date | None = None
+    total_amount: Decimal | None = Field(
+        default=None,
+        ge=0,
+        max_digits=12,
+        decimal_places=2,
+    )
+    payment_method: StockPaymentMethod | None = None
+    access_key: str | None = Field(default=None, max_length=44)
+
+    @field_validator("access_key")
+    @classmethod
+    def _validate_access_key(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        digits = re.sub(r"\D", "", value)
+        if len(digits) != 44:
+            raise ValueError("access_key deve ter 44 dígitos")
+        return digits
 
     @model_validator(mode="after")
     def _validate_kind(self) -> Self:
+        document_fields = (
+            "document_type",
+            "document_number",
+            "document_series",
+            "supplier_name",
+            "supplier_tax_id",
+            "issue_date",
+            "total_amount",
+            "payment_method",
+            "access_key",
+        )
+        has_document = any(getattr(self, field) is not None for field in document_fields)
+        if has_document and self.kind != StockMovementType.IN:
+            raise ValueError("Dados de nota/recibo só podem ser informados em entradas")
         if self.kind == StockMovementType.ADJUSTMENT:
             return self
         if self.quantity <= 0:
@@ -95,4 +142,13 @@ class StockMovementResponse(BaseModel):
     kind: StockMovementType
     quantity: Decimal
     reason: str | None
+    document_type: StockDocumentType | None
+    document_number: str | None
+    document_series: str | None
+    supplier_name: str | None
+    supplier_tax_id: str | None
+    issue_date: date | None
+    total_amount: Decimal | None
+    payment_method: StockPaymentMethod | None
+    access_key: str | None
     created_at: datetime

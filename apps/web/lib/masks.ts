@@ -63,3 +63,24 @@ export function isValidBirthDate(value: string): boolean {
 export function formatState(value: string): string {
   return value.replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase();
 }
+
+export function formatTaxId(value: string): string {
+  const digits = onlyDigits(value).slice(0, 14);
+  if (digits.length <= 11) {
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length <= 9) {
+      return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    }
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  }
+  if (digits.length <= 12) {
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  }
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+}
+
+export function formatAccessKey(value: string): string {
+  const digits = onlyDigits(value).slice(0, 44);
+  return digits.replace(/(\d{4})(?=\d)/g, "$1 ");
+}

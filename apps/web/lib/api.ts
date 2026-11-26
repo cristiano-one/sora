@@ -303,12 +303,30 @@ export type InventoryItem = {  id: string;
   created_at: string;
 };
 
+export type StockDocumentType = "NFE" | "RECEIPT" | "OTHER";
+export type StockPaymentMethod =
+  | "CASH"
+  | "PIX"
+  | "CARD"
+  | "TRANSFER"
+  | "BOLETO"
+  | "OTHER";
+
 export type StockMovement = {
   id: string;
   item_id: string;
   kind: "IN" | "OUT" | "ADJUSTMENT";
   quantity: string;
   reason: string | null;
+  document_type: StockDocumentType | null;
+  document_number: string | null;
+  document_series: string | null;
+  supplier_name: string | null;
+  supplier_tax_id: string | null;
+  issue_date: string | null;
+  total_amount: string | null;
+  payment_method: StockPaymentMethod | null;
+  access_key: string | null;
   created_at: string;
 };
 
@@ -1675,6 +1693,15 @@ export async function addStockMovement(
     kind: StockMovement["kind"];
     quantity: string;
     reason?: string | null;
+    document_type?: StockDocumentType | null;
+    document_number?: string | null;
+    document_series?: string | null;
+    supplier_name?: string | null;
+    supplier_tax_id?: string | null;
+    issue_date?: string | null;
+    total_amount?: string | null;
+    payment_method?: StockPaymentMethod | null;
+    access_key?: string | null;
   },
 ): Promise<StockMovement> {
   return authenticatedRequest<StockMovement>(
