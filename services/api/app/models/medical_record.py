@@ -1,6 +1,7 @@
 """Modelos de prontuário e anexos privados."""
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func, text
@@ -8,6 +9,9 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.client import Client
 
 
 class MedicalRecord(Base):
@@ -51,6 +55,7 @@ class MedicalRecord(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    client: Mapped["Client"] = relationship("Client", lazy="selectin")
 
 
 class MedicalRecordAttachment(Base):

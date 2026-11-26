@@ -584,6 +584,10 @@ export async function updateTenantSettings(
   });
 }
 
+export async function getTenantExport(): Promise<Record<string, unknown>> {
+  return authenticatedRequest<Record<string, unknown>>("/api/v1/tenants/export");
+}
+
 type CreateClientInput = {
   full_name: string;
   phone: string;

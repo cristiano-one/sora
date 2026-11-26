@@ -53,6 +53,13 @@ O cadastro define `app.current_tenant_id` com o UUID gerado antes do INSERT,
 atendendo à policy `WITH CHECK` da RLS. A dependência `get_tenant_session`
 injeta o mesmo contexto nas requisições autenticadas.
 
+### Portabilidade LGPD
+
+`GET /api/v1/tenants/export` (exclusivo `OWNER`) devolve um JSON com dados da
+clínica, usuários, clientes, catálogo, assinaturas, agenda, financeiro,
+prontuários (notas decifradas), consentimentos e créditos. A exportação é
+auditada e não inclui hash de senha nem URLs permanentes de anexos.
+
 ## Usuários / Colaboradores
 
 - `GET /api/v1/users` — lista usuários do tenant (`OWNER`/`ADMIN`).

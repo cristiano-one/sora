@@ -57,7 +57,8 @@ uv run uvicorn app.main:app --reload --port 8010
 - `/sora-ia` — resumo diário, conversas do WhatsApp, takeover humano,
   respostas e aniversariantes (`OWNER`/`ADMIN`).
 - `/configuracoes` — score mínimo, sinal, dízimo/oferta, tema e nome do agente
-  (`OWNER`/`ADMIN`).
+  (`OWNER`/`ADMIN`), com **exportação LGPD** dos dados da clínica para o
+  `OWNER`.
 - `/public/[slug]?t=<token>` — página pública do link mágico (sem login):
   serviços, profissionais, horários livres, planos de assinatura, cotas e
   pagamento Pix (mock).

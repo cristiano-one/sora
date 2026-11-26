@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import {
   ApiError,
   getMe,
+  getTenantExport,
   getTenantSettings,
   updateTenantSettings,
   type Me,
@@ -27,6 +28,7 @@ export default function SettingsPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
+  const isOwner = me?.role === "OWNER";
 
   useEffect(() => {
     let active = true;
@@ -111,6 +113,28 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleExport() {
+    setError(null);
+    setNotice(null);
+    try {
+      const data = await getTenantExport();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `sora-dados-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setNotice("Exportação LGPD gerada.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao exportar dados.",
+      );
+    }
+  }
+
   if (!isManager && me) {
     return (
       <AppShell>
@@ -131,6 +155,17 @@ export default function SettingsPage() {
               Tema da clínica, score mínimo para sinal e identidade do agente.
             </p>
           </div>
+          {isOwner ? (
+            <div className="page-actions">
+              <button
+                className="button button-ghost button-small"
+                type="button"
+                onClick={handleExport}
+              >
+                Exportar dados (LGPD)
+              </button>
+            </div>
+          ) : null}
         </header>
 
         {error ? <p className="error">{error}</p> : null}
