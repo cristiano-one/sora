@@ -1330,6 +1330,14 @@ h1 {
   line-height: 1.5;
 }
 
+.login-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
 .admin-search {
   min-width: 240px;
   padding: 10px 12px;

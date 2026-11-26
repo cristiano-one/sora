@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     default_tenant_timezone: str = "America/Sao_Paulo"
     public_booking_base_url: str = "http://localhost:3000"
+    web_base_url: str = "http://localhost:3000"
     internal_api_token: str = "dev-internal-token"
     payment_provider: str = "mock"
     payment_pix_key: str = "pix@sora.local"
@@ -65,6 +66,14 @@ class Settings(BaseSettings):
     storage_local_path: str = "var/storage-private"
     storage_max_attachment_bytes: int = 10 * 1024 * 1024
     encryption_key: str = "change-me-encryption-key"
+
+    # E-mail transacional (mock em dev; SMTP em produção)
+    email_provider: str = "mock"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    email_from: str = "noreply@sora.localhost"
 
 
 @lru_cache

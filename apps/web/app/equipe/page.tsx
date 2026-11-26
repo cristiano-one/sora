@@ -9,6 +9,7 @@ import {
   deleteUser,
   getMe,
   getUsers,
+  inviteUser,
   updateUser,
   type Me,
   type UserSummary,
@@ -39,6 +40,7 @@ export default function TeamPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [sendInvite, setSendInvite] = useState(false);
   const [role, setRole] = useState<"ADMIN" | "COLLABORATOR">("COLLABORATOR");
   const [commissionPercentage, setCommissionPercentage] = useState("40.00");
   const [commissionFixed, setCommissionFixed] = useState("0.00");
@@ -97,17 +99,21 @@ export default function TeamPage() {
           commission_base: commissionBase,
         });
       } else {
-        await createUser({
+        const payload = {
           full_name: fullName.trim(),
           email: email.trim(),
-          password,
           role,
           commission_percentage:
             commissionPercentage.trim() === "" ? null : commissionPercentage,
           commission_fixed:
             commissionFixed.trim() === "" ? null : commissionFixed,
           commission_base: commissionBase,
-        });
+        };
+        if (sendInvite) {
+          await inviteUser(payload);
+        } else {
+          await createUser({ ...payload, password });
+        }
       }
       cancelEdit();
       await loadUsers();
@@ -137,6 +143,7 @@ export default function TeamPage() {
     setFullName("");
     setEmail("");
     setPassword("");
+    setSendInvite(false);
     setRole("COLLABORATOR");
     setCommissionPercentage("40.00");
     setCommissionFixed("0.00");
@@ -305,17 +312,40 @@ export default function TeamPage() {
                   />
                 </div>
                 {!editing ? (
-                  <div className="field">
-                    <label htmlFor="user-password">Senha inicial</label>
-                    <input
-                      id="user-password"
-                      type="password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      minLength={8}
-                      required
-                    />
-                  </div>
+                  <>
+                    <div className="checkbox-field">
+                      <input
+                        id="user-invite"
+                        type="checkbox"
+                        checked={sendInvite}
+                        onChange={(event) => {
+                          setSendInvite(event.target.checked);
+                          setPassword("");
+                        }}
+                      />
+                      <label htmlFor="user-invite">
+                        Enviar convite por e-mail (usuário define a senha)
+                      </label>
+                    </div>
+                    {!sendInvite ? (
+                      <div className="field">
+                        <label htmlFor="user-password">Senha inicial</label>
+                        <input
+                          id="user-password"
+                          type="password"
+                          value={password}
+                          onChange={(event) => setPassword(event.target.value)}
+                          minLength={8}
+                          required
+                        />
+                      </div>
+                    ) : (
+                      <p className="muted-small">
+                        O convite será registrado no log da API em modo mock e
+                        expira em 7 dias.
+                      </p>
+                    )}
+                  </>
                 ) : null}
                 <div className="field">
                   <label htmlFor="user-role">Papel</label>

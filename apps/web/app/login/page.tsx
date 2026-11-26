@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
@@ -89,6 +90,12 @@ export default function LoginPage() {
 
           {error ? <p className="error">{error}</p> : null}
         </form>
+
+        <p className="muted-small login-links">
+          <Link href="/esqueci-senha">Esqueci minha senha</Link>
+          <span>·</span>
+          <Link href="/cadastro">Criar minha clínica</Link>
+        </p>
 
         <p className="hint">
           Demo local: <code>demo</code> · <code>demo@example.com</code> ·{" "}

@@ -44,3 +44,18 @@ class MeResponse(BaseModel):
     email: str
     full_name: str
     role: UserRole
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Pedido de recuperação de senha."""
+
+    tenant_slug: str = Field(min_length=1, max_length=100)
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    """Definição de nova senha via token de recuperação/convite."""
+
+    tenant_slug: str = Field(min_length=1, max_length=100)
+    token: str = Field(min_length=10, max_length=500)
+    new_password: str = Field(min_length=8, max_length=128)
