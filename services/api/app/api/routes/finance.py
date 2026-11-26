@@ -29,6 +29,7 @@ from app.core.auth.dependencies import (
 from app.models import FinancialEntryStatus, UserRole
 from app.modules.finance.service import (
     FinanceConflictError,
+    FinanceInUseError,
     FinanceNotFoundError,
     FinanceValidationError,
     account_balances,
@@ -36,6 +37,8 @@ from app.modules.finance.service import (
     commission_summary,
     create_account,
     create_entry,
+    delete_account,
+    delete_entry,
     dre,
     export_csv,
     get_account,
@@ -75,6 +78,11 @@ def _map_error(exc: Exception) -> HTTPException:
         return HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Nome de conta já utilizado",
+        )
+    if isinstance(exc, FinanceInUseError):
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Conta possui lançamentos e não pode ser excluída",
         )
     return HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -159,6 +167,35 @@ async def update_account_endpoint(
         ip_address=client_ip(request),
     )
     return updated
+
+
+@router.delete(
+    "/accounts/{account_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Exclui conta/caixa sem lançamentos",
+)
+async def delete_account_endpoint(
+    account_id: UUID,
+    request: Request,
+    principal: Principal = Depends(_require_owner),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> None:
+    try:
+        account = await get_account(session, account_id)
+        await delete_account(session, account=account)
+    except FinanceNotFoundError as exc:
+        raise _map_error(exc) from exc
+    except FinanceInUseError as exc:
+        raise _map_error(exc) from exc
+    await record_audit(
+        session,
+        tenant_id=principal.tenant_id,
+        actor=principal,
+        action="finance.account.delete",
+        resource_type="financial_account",
+        resource_id=account_id,
+        ip_address=client_ip(request),
+    )
 
 
 @router.get(
@@ -264,6 +301,33 @@ async def update_entry_endpoint(
         ip_address=client_ip(request),
     )
     return updated
+
+
+@router.delete(
+    "/entries/{entry_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Exclui lançamento financeiro",
+)
+async def delete_entry_endpoint(
+    entry_id: UUID,
+    request: Request,
+    principal: Principal = Depends(_require_owner),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> None:
+    try:
+        entry = await get_entry(session, entry_id)
+        await delete_entry(session, entry=entry)
+    except FinanceNotFoundError as exc:
+        raise _map_error(exc) from exc
+    await record_audit(
+        session,
+        tenant_id=principal.tenant_id,
+        actor=principal,
+        action="finance.entry.delete",
+        resource_type="financial_entry",
+        resource_id=entry_id,
+        ip_address=client_ip(request),
+    )
 
 
 @router.get(

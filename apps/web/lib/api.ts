@@ -686,6 +686,48 @@ export async function cancelSubscription(
   );
 }
 
+export async function deleteClient(id: string): Promise<void> {
+  await authenticatedRequest<void>(`/api/v1/clients/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function deleteService(id: string): Promise<void> {
+  await authenticatedRequest<void>(`/api/v1/services/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  await authenticatedRequest<void>(`/api/v1/users/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function deleteSubscriptionPlan(id: string): Promise<void> {
+  await authenticatedRequest<void>(`/api/v1/subscription-plans/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function deleteSubscription(id: string): Promise<void> {
+  await authenticatedRequest<void>(`/api/v1/subscriptions/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function deleteFinancialAccount(id: string): Promise<void> {
+  await authenticatedRequest<void>(`/api/v1/finance/accounts/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function deleteFinancialEntry(id: string): Promise<void> {
+  await authenticatedRequest<void>(`/api/v1/finance/entries/${id}`, {
+    method: "DELETE",
+  });
+}
+
 async function authenticatedText(
   path: string,
   init: RequestInit = {},
@@ -717,6 +759,19 @@ export async function createFinancialAccount(input: {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export async function updateFinancialAccount(
+  id: string,
+  changes: { name?: string; is_active?: boolean },
+): Promise<FinancialAccount> {
+  return authenticatedRequest<FinancialAccount>(
+    `/api/v1/finance/accounts/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    },
+  );
 }
 
 export async function getAccountBalances(): Promise<AccountBalance[]> {

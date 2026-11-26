@@ -8,6 +8,8 @@ import {
   cancelSubscription,
   createClientSubscription,
   createSubscriptionPlan,
+  deleteSubscription,
+  deleteSubscriptionPlan,
   getClients,
   getMe,
   getServices,
@@ -52,6 +54,7 @@ export default function SubscriptionsPage() {
   const [savingContract, setSavingContract] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
 
   const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
 
@@ -117,41 +120,81 @@ export default function SubscriptionsPage() {
     };
   }, []);
 
-  async function handleCreatePlan(event: FormEvent<HTMLFormElement>) {
+  async function handleSavePlan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setNotice(null);
-    if (!planServiceId) {
+    if (!editingPlan && !planServiceId) {
       setError("Cadastre um serviço antes de criar um plano.");
       return;
     }
     setSavingPlan(true);
     try {
-      await createSubscriptionPlan({
-        name: planName.trim(),
-        description: planDescription.trim() || undefined,
-        price: planPrice,
-        billing_cycle: planCycle,
-        items: [
-          {
-            service_id: planServiceId,
-            uses_per_cycle: Number(planUses),
-            min_interval_days:
-              planInterval.trim() === "" ? null : Number(planInterval),
-          },
-        ],
-      });
-      setPlanName("");
-      setPlanDescription("");
-      setPlanInterval("");
+      if (editingPlan) {
+        await updateSubscriptionPlan(editingPlan.id, {
+          name: planName.trim(),
+          description: planDescription.trim() || null,
+          price: planPrice,
+          billing_cycle: planCycle,
+        });
+      } else {
+        await createSubscriptionPlan({
+          name: planName.trim(),
+          description: planDescription.trim() || undefined,
+          price: planPrice,
+          billing_cycle: planCycle,
+          items: [
+            {
+              service_id: planServiceId,
+              uses_per_cycle: Number(planUses),
+              min_interval_days:
+                planInterval.trim() === "" ? null : Number(planInterval),
+            },
+          ],
+        });
+      }
+      cancelPlanEdit();
       await reload();
-      setNotice("Plano criado.");
+      setNotice(editingPlan ? "Plano atualizado." : "Plano criado.");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Falha ao criar plano.",
+        err instanceof ApiError ? err.message : "Falha ao salvar plano.",
       );
     } finally {
       setSavingPlan(false);
+    }
+  }
+
+  function startPlanEdit(plan: SubscriptionPlan) {
+    setEditingPlan(plan);
+    setPlanName(plan.name);
+    setPlanDescription(plan.description ?? "");
+    setPlanPrice(plan.price);
+    setPlanCycle(plan.billing_cycle);
+    setError(null);
+  }
+
+  function cancelPlanEdit() {
+    setEditingPlan(null);
+    setPlanName("");
+    setPlanDescription("");
+    setPlanPrice("149.90");
+    setPlanCycle("MONTHLY");
+    setPlanInterval("");
+  }
+
+  async function handleDeletePlan(plan: SubscriptionPlan) {
+    if (!window.confirm(`Excluir o plano ${plan.name}?`)) return;
+    setError(null);
+    try {
+      await deleteSubscriptionPlan(plan.id);
+      if (editingPlan?.id === plan.id) cancelPlanEdit();
+      await reload();
+      setNotice("Plano excluído.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao excluir plano.",
+      );
     }
   }
 
@@ -201,6 +244,26 @@ export default function SubscriptionsPage() {
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Falha ao cancelar assinatura.",
+      );
+    }
+  }
+
+  async function handleDeleteSubscription(subscription: ClientSubscription) {
+    if (
+      !window.confirm(
+        `Excluir a assinatura de ${subscription.client_name}? O histórico de uso será removido.`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    try {
+      await deleteSubscription(subscription.id);
+      await reload();
+      setNotice("Assinatura excluída.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao excluir assinatura.",
       );
     }
   }
@@ -285,16 +348,30 @@ export default function SubscriptionsPage() {
                         </span>
                       </td>
                       <td>
-                        {subscription.status === "ACTIVE" ||
-                        subscription.status === "PENDING_PAYMENT" ? (
-                          <button
-                            className="button button-ghost button-small"
-                            type="button"
-                            onClick={() => handleCancel(subscription)}
-                          >
-                            Cancelar
-                          </button>
-                        ) : null}
+                        <div className="row-actions">
+                          {subscription.status === "ACTIVE" ||
+                          subscription.status === "PENDING_PAYMENT" ? (
+                            <button
+                              className="button button-ghost button-small"
+                              type="button"
+                              onClick={() => handleCancel(subscription)}
+                            >
+                              Cancelar
+                            </button>
+                          ) : null}
+                          {subscription.status === "CANCELLED" ||
+                          subscription.status === "EXPIRED" ? (
+                            <button
+                              className="button button-ghost button-small button-danger"
+                              type="button"
+                              onClick={() =>
+                                handleDeleteSubscription(subscription)
+                              }
+                            >
+                              Excluir
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -357,13 +434,29 @@ export default function SubscriptionsPage() {
                           )}
                         </td>
                         <td>
-                          <button
-                            className="button button-ghost button-small"
-                            type="button"
-                            onClick={() => togglePlan(plan)}
-                          >
-                            {plan.is_active ? "Desativar" : "Ativar"}
-                          </button>
+                          <div className="row-actions">
+                            <button
+                              className="button button-ghost button-small"
+                              type="button"
+                              onClick={() => startPlanEdit(plan)}
+                            >
+                              Editar
+                            </button>
+                            <button
+                              className="button button-ghost button-small"
+                              type="button"
+                              onClick={() => togglePlan(plan)}
+                            >
+                              {plan.is_active ? "Desativar" : "Ativar"}
+                            </button>
+                            <button
+                              className="button button-ghost button-small button-danger"
+                              type="button"
+                              onClick={() => handleDeletePlan(plan)}
+                            >
+                              Excluir
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -425,9 +518,18 @@ export default function SubscriptionsPage() {
 
         <section className="panel subscriptions-panel">
           <div className="panel-title">
-            <h2>Novo plano</h2>
+            <h2>{editingPlan ? "Editar plano" : "Novo plano"}</h2>
+            {editingPlan ? (
+              <button
+                className="button button-ghost button-small"
+                type="button"
+                onClick={cancelPlanEdit}
+              >
+                Cancelar edição
+              </button>
+            ) : null}
           </div>
-          <form onSubmit={handleCreatePlan}>
+          <form onSubmit={handleSavePlan}>
             <div className="form-grid">
               <div className="field">
                 <label htmlFor="plan-name">Nome</label>
@@ -463,47 +565,57 @@ export default function SubscriptionsPage() {
                   <option value="QUARTERLY">Trimestral</option>
                 </select>
               </div>
-              <div className="field">
-                <label htmlFor="plan-service">Serviço incluído</label>
-                <select
-                  id="plan-service"
-                  value={planServiceId}
-                  onChange={(event) => setPlanServiceId(event.target.value)}
-                  required
-                >
-                  <option value="">Selecione…</option>
-                  {services.map((service) => (
-                    <option key={service.id} value={service.id}>
-                      {service.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="plan-uses">Usos por ciclo</label>
-                <input
-                  id="plan-uses"
-                  type="number"
-                  min={1}
-                  value={planUses}
-                  onChange={(event) => setPlanUses(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="plan-interval">
-                  Intervalo mínimo (dias)
-                </label>
-                <input
-                  id="plan-interval"
-                  type="number"
-                  min={0}
-                  value={planInterval}
-                  onChange={(event) => setPlanInterval(event.target.value)}
-                  placeholder="Opcional"
-                />
-              </div>
+              {!editingPlan ? (
+                <>
+                  <div className="field">
+                    <label htmlFor="plan-service">Serviço incluído</label>
+                    <select
+                      id="plan-service"
+                      value={planServiceId}
+                      onChange={(event) => setPlanServiceId(event.target.value)}
+                      required
+                    >
+                      <option value="">Selecione…</option>
+                      {services.map((service) => (
+                        <option key={service.id} value={service.id}>
+                          {service.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="plan-uses">Usos por ciclo</label>
+                    <input
+                      id="plan-uses"
+                      type="number"
+                      min={1}
+                      value={planUses}
+                      onChange={(event) => setPlanUses(event.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="plan-interval">
+                      Intervalo mínimo (dias)
+                    </label>
+                    <input
+                      id="plan-interval"
+                      type="number"
+                      min={0}
+                      value={planInterval}
+                      onChange={(event) => setPlanInterval(event.target.value)}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                </>
+              ) : null}
             </div>
+            {editingPlan ? (
+              <p className="muted-small plan-edit-note">
+                Para alterar serviços/cotas, crie um novo plano e desative o
+                anterior. Os assinantes atuais permanecem no plano original.
+              </p>
+            ) : null}
             <div className="field plan-description">
               <label htmlFor="plan-description">Descrição (opcional)</label>
               <input
@@ -514,7 +626,11 @@ export default function SubscriptionsPage() {
               />
             </div>
             <button className="button" type="submit" disabled={savingPlan}>
-              {savingPlan ? "Criando…" : "Criar plano"}
+              {savingPlan
+                ? "Salvando…"
+                : editingPlan
+                  ? "Salvar alterações"
+                  : "Criar plano"}
             </button>
           </form>
         </section>

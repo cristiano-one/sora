@@ -29,6 +29,14 @@ class EmailAlreadyExistsError(Exception):
     """E-mail já cadastrado no tenant."""
 
 
+class CannotDeleteUserError(Exception):
+    """Usuário protegido (owner/próprio/escopo) não pode ser excluído."""
+
+
+class UserInUseError(Exception):
+    """Usuário possui vínculos e não pode ser excluído."""
+
+
 def _validate_create_role(actor: Principal, role: UserRole) -> None:
     if role == UserRole.OWNER:
         raise InvalidRoleChangeError
@@ -104,3 +112,22 @@ async def update_user(
             setattr(target, field, changes[field])
     await session.commit()
     return target
+
+
+async def delete_user(
+    session: AsyncSession,
+    *,
+    actor: Principal,
+    target: User,
+) -> None:
+    """Exclui usuário sem vínculos, preservando OWNER e o próprio ator."""
+    if target.id == actor.user_id or target.role == UserRole.OWNER:
+        raise CannotDeleteUserError
+    if actor.role == UserRole.ADMIN and target.role != UserRole.COLLABORATOR:
+        raise CannotDeleteUserError
+    await session.delete(target)
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise UserInUseError from exc

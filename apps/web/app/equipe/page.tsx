@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import {
   ApiError,
   createUser,
+  deleteUser,
   getMe,
   getUsers,
   updateUser,
@@ -47,6 +48,7 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<UserSummary | null>(null);
 
   const isOwner = me?.role === "OWNER";
   const isManager = me?.role === "OWNER" || me?.role === "ADMIN";
@@ -79,32 +81,79 @@ export default function TeamPage() {
     };
   }, []);
 
-  async function handleCreate(event: FormEvent<HTMLFormElement>) {
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSaving(true);
     try {
-      await createUser({
-        full_name: fullName.trim(),
-        email: email.trim(),
-        password,
-        role,
-        commission_percentage:
-          commissionPercentage.trim() === "" ? null : commissionPercentage,
-        commission_fixed:
-          commissionFixed.trim() === "" ? null : commissionFixed,
-        commission_base: commissionBase,
-      });
-      setFullName("");
-      setEmail("");
-      setPassword("");
+      if (editing) {
+        await updateUser(editing.id, {
+          full_name: fullName.trim(),
+          role,
+          commission_percentage:
+            commissionPercentage.trim() === "" ? null : commissionPercentage,
+          commission_fixed:
+            commissionFixed.trim() === "" ? null : commissionFixed,
+          commission_base: commissionBase,
+        });
+      } else {
+        await createUser({
+          full_name: fullName.trim(),
+          email: email.trim(),
+          password,
+          role,
+          commission_percentage:
+            commissionPercentage.trim() === "" ? null : commissionPercentage,
+          commission_fixed:
+            commissionFixed.trim() === "" ? null : commissionFixed,
+          commission_base: commissionBase,
+        });
+      }
+      cancelEdit();
       await loadUsers();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Falha ao cadastrar usuário.",
+        err instanceof ApiError ? err.message : "Falha ao salvar usuário.",
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  function startEdit(user: UserSummary) {
+    setEditing(user);
+    setFullName(user.full_name);
+    setEmail(user.email);
+    setPassword("");
+    setRole(user.role === "ADMIN" ? "ADMIN" : "COLLABORATOR");
+    setCommissionPercentage(user.commission_percentage ?? "");
+    setCommissionFixed(user.commission_fixed ?? "");
+    setCommissionBase(user.commission_base === "NET" ? "NET" : "GROSS");
+    setError(null);
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    setFullName("");
+    setEmail("");
+    setPassword("");
+    setRole("COLLABORATOR");
+    setCommissionPercentage("40.00");
+    setCommissionFixed("0.00");
+    setCommissionBase("GROSS");
+  }
+
+  async function handleDelete(user: UserSummary) {
+    if (!window.confirm(`Excluir o usuário ${user.full_name}?`)) return;
+    setError(null);
+    try {
+      await deleteUser(user.id);
+      if (editing?.id === user.id) cancelEdit();
+      await loadUsers();
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Falha ao excluir usuário.",
+      );
     }
   }
 
@@ -181,13 +230,32 @@ export default function TeamPage() {
                         </td>
                         {isManager && user.role !== "OWNER" ? (
                           <td>
-                            <button
-                              className="button button-ghost button-small"
-                              type="button"
-                              onClick={() => toggleActive(user)}
-                            >
-                              {user.is_active ? "Desativar" : "Ativar"}
-                            </button>
+                            <div className="row-actions">
+                              <button
+                                className="button button-ghost button-small"
+                                type="button"
+                                onClick={() => startEdit(user)}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                className="button button-ghost button-small"
+                                type="button"
+                                onClick={() => toggleActive(user)}
+                              >
+                                {user.is_active ? "Desativar" : "Ativar"}
+                              </button>
+                              {(isOwner || user.role === "COLLABORATOR") &&
+                              user.id !== me?.id ? (
+                                <button
+                                  className="button button-ghost button-small button-danger"
+                                  type="button"
+                                  onClick={() => handleDelete(user)}
+                                >
+                                  Excluir
+                                </button>
+                              ) : null}
+                            </div>
                           </td>
                         ) : (
                           <td />
@@ -203,9 +271,18 @@ export default function TeamPage() {
           {isManager ? (
             <section className="panel">
               <div className="panel-title">
-                <h2>Novo usuário</h2>
+                <h2>{editing ? "Editar usuário" : "Novo usuário"}</h2>
+                {editing ? (
+                  <button
+                    className="button button-ghost button-small"
+                    type="button"
+                    onClick={cancelEdit}
+                  >
+                    Cancelar edição
+                  </button>
+                ) : null}
               </div>
-              <form onSubmit={handleCreate}>
+              <form onSubmit={handleSave}>
                 <div className="field">
                   <label htmlFor="user-name">Nome completo</label>
                   <input
@@ -223,20 +300,23 @@ export default function TeamPage() {
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
+                    disabled={Boolean(editing)}
                     required
                   />
                 </div>
-                <div className="field">
-                  <label htmlFor="user-password">Senha inicial</label>
-                  <input
-                    id="user-password"
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    minLength={8}
-                    required
-                  />
-                </div>
+                {!editing ? (
+                  <div className="field">
+                    <label htmlFor="user-password">Senha inicial</label>
+                    <input
+                      id="user-password"
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      minLength={8}
+                      required
+                    />
+                  </div>
+                ) : null}
                 <div className="field">
                   <label htmlFor="user-role">Papel</label>
                   <select
@@ -286,7 +366,11 @@ export default function TeamPage() {
                   </select>
                 </div>
                 <button className="button" type="submit" disabled={saving}>
-                  {saving ? "Salvando…" : "Cadastrar usuário"}
+                  {saving
+                    ? "Salvando…"
+                    : editing
+                      ? "Salvar alterações"
+                      : "Cadastrar usuário"}
                 </button>
               </form>
             </section>
